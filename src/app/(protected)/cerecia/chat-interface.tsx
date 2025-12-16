@@ -1,13 +1,107 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Bot, User, Loader2, Sparkles, Trash2 } from "lucide-react";
+import { Send, User, Loader2, Sparkles, Trash2 } from "lucide-react";
+import Image from "next/image";
 
 interface Message {
   id: string;
   role: "user" | "assistant";
   content: string;
   timestamp: Date;
+}
+
+// Simple markdown parser for chat messages
+function formatMessage(content: string): React.ReactNode {
+  const lines = content.split("\n");
+  const elements: React.ReactNode[] = [];
+  let listItems: string[] = [];
+  let listType: "ol" | "ul" | null = null;
+
+  const flushList = () => {
+    if (listItems.length > 0 && listType) {
+      const ListTag = listType;
+      elements.push(
+        <ListTag key={elements.length} className={listType === "ol" ? "list-decimal" : "list-disc"} style={{ marginLeft: "1.25rem", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
+          {listItems.map((item, i) => (
+            <li key={i} style={{ marginBottom: "0.25rem" }}>{parseInline(item)}</li>
+          ))}
+        </ListTag>
+      );
+      listItems = [];
+      listType = null;
+    }
+  };
+
+  const parseInline = (text: string): React.ReactNode => {
+    // Parse bold **text**
+    const parts: React.ReactNode[] = [];
+    let remaining = text;
+    let key = 0;
+
+    while (remaining.length > 0) {
+      const boldMatch = remaining.match(/\*\*(.+?)\*\*/);
+      if (boldMatch && boldMatch.index !== undefined) {
+        if (boldMatch.index > 0) {
+          parts.push(<span key={key++}>{remaining.slice(0, boldMatch.index)}</span>);
+        }
+        parts.push(<strong key={key++} className="font-semibold">{boldMatch[1]}</strong>);
+        remaining = remaining.slice(boldMatch.index + boldMatch[0].length);
+      } else {
+        parts.push(<span key={key++}>{remaining}</span>);
+        break;
+      }
+    }
+
+    return parts.length === 1 ? parts[0] : <>{parts}</>;
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+
+    // Numbered list (1. item)
+    const numberedMatch = line.match(/^(\d+)\.\s+(.+)$/);
+    if (numberedMatch) {
+      if (listType !== "ol") {
+        flushList();
+        listType = "ol";
+      }
+      listItems.push(numberedMatch[2]);
+      continue;
+    }
+
+    // Bullet list (- item or * item)
+    const bulletMatch = line.match(/^[-*]\s+(.+)$/);
+    if (bulletMatch) {
+      if (listType !== "ul") {
+        flushList();
+        listType = "ul";
+      }
+      listItems.push(bulletMatch[1]);
+      continue;
+    }
+
+    // Flush any pending list before other content
+    flushList();
+
+    // Empty line
+    if (line.trim() === "") {
+      elements.push(<div key={elements.length} style={{ height: "0.5rem" }} />);
+      continue;
+    }
+
+    // Regular paragraph
+    elements.push(
+      <p key={elements.length} style={{ marginBottom: "0.5rem" }}>
+        {parseInline(line)}
+      </p>
+    );
+  }
+
+  // Flush remaining list
+  flushList();
+
+  return <div className="text-sm leading-relaxed">{elements}</div>;
 }
 
 export function ChatInterface() {
@@ -144,11 +238,17 @@ export function ChatInterface() {
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#BB292A] to-[#d44a4b] flex items-center justify-center mb-4 shadow-lg">
-              <Sparkles className="w-8 h-8 text-white" />
+            <div className="w-20 h-20 rounded-2xl bg-white border-2 border-[#BB292A]/20 flex items-center justify-center mb-4 shadow-lg">
+              <Image
+                src="/logos/logo-isotope-cerezas.png"
+                alt="CerecIA"
+                width={56}
+                height={56}
+                className="object-contain"
+              />
             </div>
             <h2 className="text-xl font-semibold text-gray-900 mb-2">
-              ¡Hola! Soy CerecIA 👋
+              ¡Hola! Soy <span className="text-[#BB292A]">CerecIA</span> 👋
             </h2>
             <p className="text-gray-500 max-w-md mb-6">
               Tu asistente virtual inteligente de Cerecilla. Estoy aquí para ayudarte con cualquier pregunta sobre el sector inmobiliario, el CRM o los servicios de Cerecilla.
@@ -177,19 +277,21 @@ export function ChatInterface() {
                 key={message.id}
                 className={`flex gap-3 ${message.role === "user" ? "flex-row-reverse" : ""}`}
               >
-                <div
-                  className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                    message.role === "user"
-                      ? "bg-[#87CEEB]"
-                      : "bg-gradient-to-br from-[#BB292A] to-[#d44a4b]"
-                  }`}
-                >
-                  {message.role === "user" ? (
+                {message.role === "user" ? (
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-[#87CEEB]">
                     <User className="w-4 h-4 text-gray-700" />
-                  ) : (
-                    <Bot className="w-4 h-4 text-white" />
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 bg-white border border-gray-200 overflow-hidden">
+                    <Image
+                      src="/logos/logo-isotope-cerezas.png"
+                      alt="CerecIA"
+                      width={24}
+                      height={24}
+                      className="object-contain"
+                    />
+                  </div>
+                )}
                 <div
                   className={`max-w-[80%] sm:max-w-[70%] rounded-2xl px-4 py-3 ${
                     message.role === "user"
@@ -198,9 +300,13 @@ export function ChatInterface() {
                   }`}
                 >
                   {message.content ? (
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                      {message.content}
-                    </div>
+                    message.role === "user" ? (
+                      <div className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {message.content}
+                      </div>
+                    ) : (
+                      formatMessage(message.content)
+                    )
                   ) : (
                     <div className="flex items-center gap-2">
                       <Loader2 className="w-4 h-4 animate-spin" />
@@ -208,7 +314,7 @@ export function ChatInterface() {
                     </div>
                   )}
                   <div
-                    className={`text-[10px] mt-1 ${
+                    className={`text-[10px] mt-2 ${
                       message.role === "user" ? "text-white/70" : "text-gray-400"
                     }`}
                   >
