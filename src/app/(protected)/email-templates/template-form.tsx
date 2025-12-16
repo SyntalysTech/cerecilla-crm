@@ -1790,7 +1790,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
       {viewMode === "preview" && (
         <div className="bg-gray-200 rounded-lg p-4">
           <iframe
-            srcDoc={viewMode === "code" ? htmlCode : blocksToHtml(blocks)}
+            srcDoc={blocksToHtml(blocks)}
             className="w-full h-[600px] bg-white max-w-[600px] mx-auto shadow-lg"
             title="Email preview"
           />

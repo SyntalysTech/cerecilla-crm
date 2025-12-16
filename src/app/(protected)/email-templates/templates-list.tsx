@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
-import { FileText, Edit, Trash2, MoreVertical } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { FileText, Edit, Trash2, MoreVertical, Eye } from "lucide-react";
 import { deleteTemplate } from "./actions";
 
 interface Template {
@@ -20,6 +21,22 @@ interface TemplatesListProps {
 export function TemplatesList({ templates }: TemplatesListProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpenMenu(null);
+      }
+    }
+
+    if (openMenu) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [openMenu]);
 
   async function handleDelete(id: string, name: string) {
     if (!confirm(`¿Estás seguro de eliminar la plantilla "${name}"?`)) {
@@ -32,8 +49,13 @@ export function TemplatesList({ templates }: TemplatesListProps) {
     setOpenMenu(null);
   }
 
+  function handleEdit(id: string) {
+    setOpenMenu(null);
+    router.push(`/email-templates/${id}`);
+  }
+
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <div className="bg-white rounded-lg border border-gray-200 overflow-visible">
       <table className="w-full">
         <thead className="bg-gray-50 border-b border-gray-200">
           <tr>
@@ -74,34 +96,41 @@ export function TemplatesList({ templates }: TemplatesListProps) {
               <td className="px-6 py-4 text-sm text-gray-500">
                 {new Date(template.updated_at).toLocaleDateString("es-ES")}
               </td>
-              <td className="px-6 py-4 text-right relative">
-                <button
-                  onClick={() => setOpenMenu(openMenu === template.id ? null : template.id)}
-                  className="p-1 hover:bg-gray-100 rounded"
-                >
-                  <MoreVertical className="w-4 h-4 text-gray-500" />
-                </button>
+              <td className="px-6 py-4 text-right">
+                <div className="relative inline-block" ref={openMenu === template.id ? menuRef : null}>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenMenu(openMenu === template.id ? null : template.id);
+                    }}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <MoreVertical className="w-4 h-4 text-gray-500" />
+                  </button>
 
-                {openMenu === template.id && (
-                  <div className="absolute right-6 top-full mt-1 w-40 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-10">
-                    <Link
-                      href={`/email-templates/${template.id}`}
-                      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                      onClick={() => setOpenMenu(null)}
-                    >
-                      <Edit className="w-4 h-4" />
-                      Editar
-                    </Link>
-                    <button
-                      onClick={() => handleDelete(template.id, template.name)}
-                      disabled={deleting === template.id}
-                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                      {deleting === template.id ? "Eliminando..." : "Eliminar"}
-                    </button>
-                  </div>
-                )}
+                  {openMenu === template.id && (
+                    <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
+                      <button
+                        type="button"
+                        onClick={() => handleEdit(template.id)}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+                      >
+                        <Edit className="w-4 h-4" />
+                        Editar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDelete(template.id, template.name)}
+                        disabled={deleting === template.id}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 text-left"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                        {deleting === template.id ? "Eliminando..." : "Eliminar"}
+                      </button>
+                    </div>
+                  )}
+                </div>
               </td>
             </tr>
           ))}
