@@ -17,6 +17,7 @@ import {
   Shield,
   Menu,
   X,
+  Sparkles,
 } from "lucide-react";
 import { logout, type UserRole } from "@/lib/auth/actions";
 import { useSidebar } from "./sidebar-provider";
@@ -32,6 +33,7 @@ const navigation = [
     category: "General",
     items: [
       { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { name: "CerecIA Chat", href: "/cerecia", icon: Sparkles },
     ],
   },
   {
