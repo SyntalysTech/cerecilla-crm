@@ -54,6 +54,11 @@ export function TemplatesList({ templates }: TemplatesListProps) {
     router.push(`/email-templates/${id}`);
   }
 
+  function handlePreview(id: string) {
+    setOpenMenu(null);
+    router.push(`/email-templates/${id}/preview`);
+  }
+
   return (
     <div className="bg-white rounded-lg border border-gray-200 overflow-visible">
       <table className="w-full">
@@ -111,6 +116,14 @@ export function TemplatesList({ templates }: TemplatesListProps) {
 
                   {openMenu === template.id && (
                     <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
+                      <button
+                        type="button"
+                        onClick={() => handlePreview(template.id)}
+                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+                      >
+                        <Eye className="w-4 h-4" />
+                        Ver plantilla
+                      </button>
                       <button
                         type="button"
                         onClick={() => handleEdit(template.id)}

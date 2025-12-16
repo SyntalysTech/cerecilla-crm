@@ -16,12 +16,12 @@ import {
   Settings,
   Shield,
 } from "lucide-react";
-import { logout } from "@/lib/auth/actions";
+import { logout, type UserRole } from "@/lib/auth/actions";
 
 interface SidebarProps {
   userEmail: string;
   userName?: string | null;
-  userRole?: "user" | "admin" | "super_admin";
+  userRole?: UserRole;
 }
 
 const navigation = [
@@ -48,12 +48,12 @@ const adminNavigation = {
   ],
 };
 
-export function Sidebar({ userEmail, userName, userRole = "user" }: SidebarProps) {
+export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarProps) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
 
-  const isAdmin = userRole === "admin" || userRole === "super_admin";
+  const isAdmin = userRole === "admin" || userRole === "super_admin" || userRole === "manager";
 
   // Build navigation based on role
   const fullNavigation = isAdmin
