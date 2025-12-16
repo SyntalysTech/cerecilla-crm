@@ -11,6 +11,9 @@ ALTER TABLE public.emails ADD COLUMN IF NOT EXISTS bcc_addresses TEXT[] DEFAULT 
 ALTER TABLE public.emails ADD COLUMN IF NOT EXISTS html TEXT;
 ALTER TABLE public.emails ADD COLUMN IF NOT EXISTS text TEXT;
 
+-- Quitar el NOT NULL de to_email ya que ahora usamos to_addresses
+ALTER TABLE public.emails ALTER COLUMN to_email DROP NOT NULL;
+
 -- Actualizar el ENUM de status para incluir más estados
 ALTER TABLE public.emails ALTER COLUMN status DROP DEFAULT;
 
