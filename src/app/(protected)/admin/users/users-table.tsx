@@ -132,21 +132,112 @@ export function UsersTable({ users, currentUserId, currentUserRole }: UsersTable
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+    <div>
       {error && (
-        <div className="p-4 bg-red-50 border-b border-red-200 text-red-700 text-sm">
+        <div className="p-4 mb-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
           {error}
         </div>
       )}
 
       {success && (
-        <div className="p-4 bg-green-50 border-b border-green-200 text-green-700 text-sm">
+        <div className="p-4 mb-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg">
           {success}
         </div>
       )}
 
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      {/* Mobile view - Cards */}
+      <div className="md:hidden space-y-3">
+        {users.map((user) => {
+          const safeRole = (user.role in roleLabels ? user.role : "viewer") as UserRole;
+          const roleInfo = roleLabels[safeRole] || defaultRoleInfo;
+          const RoleIcon = roleIcons[safeRole] || User;
+          const isCurrentUser = user.id === currentUserId;
+          const canEdit = canEditUser(safeRole) && !isCurrentUser;
+
+          return (
+            <div
+              key={user.id}
+              className={`bg-white rounded-lg border border-gray-200 p-4 ${!user.is_active ? "opacity-60" : ""} ${isCurrentUser ? "ring-2 ring-[#BB292A]/20" : ""}`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex items-center gap-3 flex-1 min-w-0">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${user.is_active ? "bg-[#87CEEB]" : "bg-gray-300"}`}>
+                    <User className="w-5 h-5 text-gray-700" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-medium text-gray-900 truncate">{user.full_name || "Sin nombre"}</h3>
+                      {isCurrentUser && <span className="text-xs text-[#BB292A] font-medium">(Tú)</span>}
+                    </div>
+                    <p className="text-sm text-gray-500 truncate">{user.email}</p>
+                  </div>
+                </div>
+
+                {!isCurrentUser && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setOpenMenu(openMenu === user.id ? null : user.id)}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      <MoreVertical className="w-4 h-4 text-gray-500" />
+                    </button>
+
+                    {openMenu === user.id && (
+                      <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
+                        <button
+                          onClick={() => handleSendMagicLink(user.email)}
+                          disabled={loading === user.email}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
+                        >
+                          <Mail className="w-4 h-4" />
+                          Enviar magic link
+                        </button>
+                        {canEdit && (
+                          <button
+                            onClick={() => handleToggleActive(user.id, user.is_active)}
+                            disabled={loading === user.id}
+                            className={`w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 ${user.is_active ? "text-red-600" : "text-green-600"}`}
+                          >
+                            {user.is_active ? <><PowerOff className="w-4 h-4" /> Desactivar</> : <><Power className="w-4 h-4" /> Activar</>}
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2">
+                {canEdit ? (
+                  <select
+                    value={user.role}
+                    onChange={(e) => handleRoleChange(user.id, e.target.value as UserRole)}
+                    disabled={loading === user.id}
+                    className="text-xs border border-gray-300 rounded-md px-2 py-1 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent disabled:opacity-50"
+                  >
+                    {getAvailableRoles().map((role) => (
+                      <option key={role} value={role}>{roleLabels[role].label}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${roleInfo.color}`}>
+                    <RoleIcon className="w-3 h-3" />
+                    {roleInfo.label}
+                  </span>
+                )}
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${user.is_active ? "bg-green-100 text-green-800" : "bg-gray-100 text-gray-600"}`}>
+                  {user.is_active ? <><Power className="w-3 h-3" /> Activo</> : <><PowerOff className="w-3 h-3" /> Inactivo</>}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Desktop view - Table */}
+      <div className="hidden md:block bg-white rounded-lg border border-gray-200 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full">
           <thead className="bg-gray-50 border-b border-gray-200">
             <tr>
               <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
@@ -325,10 +416,11 @@ export function UsersTable({ users, currentUserId, currentUserRole }: UsersTable
             })}
           </tbody>
         </table>
+        </div>
       </div>
 
       {users.length === 0 && (
-        <div className="p-8 text-center text-gray-500">
+        <div className="p-8 text-center text-gray-500 bg-white rounded-lg border border-gray-200">
           No hay usuarios registrados
         </div>
       )}

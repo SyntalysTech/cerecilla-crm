@@ -23,7 +23,7 @@ export default async function PreviewTemplatePage({ params }: PreviewTemplatePag
         description={template.name}
       />
 
-      <div className="mb-4 flex items-center gap-3">
+      <div className="mb-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
         <Link
           href="/email-templates"
           className="flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
@@ -41,23 +41,23 @@ export default async function PreviewTemplatePage({ params }: PreviewTemplatePag
       </div>
 
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="border-b border-gray-200 px-6 py-4">
+        <div className="border-b border-gray-200 px-4 sm:px-6 py-4">
           <div className="text-sm text-gray-500 mb-1">Asunto:</div>
-          <div className="font-medium text-gray-900">{template.subject}</div>
+          <div className="font-medium text-gray-900 break-words">{template.subject}</div>
         </div>
 
-        <div className="p-6">
+        <div className="p-4 sm:p-6">
           <div className="text-sm text-gray-500 mb-3">Contenido:</div>
           <div
-            className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+            className="border border-gray-200 rounded-lg p-2 sm:p-4 bg-gray-50 overflow-x-auto"
             dangerouslySetInnerHTML={{ __html: template.html }}
           />
         </div>
 
         {template.text && (
-          <div className="border-t border-gray-200 px-6 py-4">
+          <div className="border-t border-gray-200 px-4 sm:px-6 py-4">
             <div className="text-sm text-gray-500 mb-3">Versión texto plano:</div>
-            <pre className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-4 rounded-lg border border-gray-200">
+            <pre className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200 overflow-x-auto">
               {template.text}
             </pre>
           </div>

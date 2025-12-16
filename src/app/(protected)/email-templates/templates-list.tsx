@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { FileText, Edit, Trash2, MoreVertical, Eye } from "lucide-react";
 import { deleteTemplate } from "./actions";
@@ -60,95 +59,168 @@ export function TemplatesList({ templates }: TemplatesListProps) {
   }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 overflow-visible">
-      <table className="w-full">
-        <thead className="bg-gray-50 border-b border-gray-200">
-          <tr>
-            <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
-              Nombre
-            </th>
-            <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
-              Asunto
-            </th>
-            <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
-              Creada
-            </th>
-            <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
-              Última edición
-            </th>
-            <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
-              Acciones
-            </th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200">
-          {templates.map((template) => (
-            <tr key={template.id} className="hover:bg-gray-50">
-              <td className="px-6 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded bg-[#BB292A]/10 flex items-center justify-center">
-                    <FileText className="w-4 h-4 text-[#BB292A]" />
-                  </div>
-                  <span className="font-medium text-gray-900">{template.name}</span>
+    <>
+      {/* Mobile view - Cards */}
+      <div className="md:hidden space-y-3">
+        {templates.map((template) => (
+          <div
+            key={template.id}
+            className="bg-white rounded-lg border border-gray-200 p-4"
+          >
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-3 flex-1 min-w-0">
+                <div className="w-10 h-10 rounded-lg bg-[#BB292A]/10 flex items-center justify-center flex-shrink-0">
+                  <FileText className="w-5 h-5 text-[#BB292A]" />
                 </div>
-              </td>
-              <td className="px-6 py-4 text-sm text-gray-600">
-                {template.subject}
-              </td>
-              <td className="px-6 py-4 text-sm text-gray-500">
-                {new Date(template.created_at).toLocaleDateString("es-ES")}
-              </td>
-              <td className="px-6 py-4 text-sm text-gray-500">
-                {new Date(template.updated_at).toLocaleDateString("es-ES")}
-              </td>
-              <td className="px-6 py-4 text-right">
-                <div className="relative inline-block" ref={openMenu === template.id ? menuRef : null}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenMenu(openMenu === template.id ? null : template.id);
-                    }}
-                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                  >
-                    <MoreVertical className="w-4 h-4 text-gray-500" />
-                  </button>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-medium text-gray-900 truncate">{template.name}</h3>
+                  <p className="text-sm text-gray-500 truncate">{template.subject}</p>
+                </div>
+              </div>
 
-                  {openMenu === template.id && (
-                    <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
-                      <button
-                        type="button"
-                        onClick={() => handlePreview(template.id)}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Ver plantilla
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleEdit(template.id)}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
-                      >
-                        <Edit className="w-4 h-4" />
-                        Editar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => handleDelete(template.id, template.name)}
-                        disabled={deleting === template.id}
-                        className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 text-left"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                        {deleting === template.id ? "Eliminando..." : "Eliminar"}
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </td>
+              <div className="relative" ref={openMenu === template.id ? menuRef : null}>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setOpenMenu(openMenu === template.id ? null : template.id);
+                  }}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <MoreVertical className="w-4 h-4 text-gray-500" />
+                </button>
+
+                {openMenu === template.id && (
+                  <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
+                    <button
+                      type="button"
+                      onClick={() => handlePreview(template.id)}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+                    >
+                      <Eye className="w-4 h-4" />
+                      Ver plantilla
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleEdit(template.id)}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+                    >
+                      <Edit className="w-4 h-4" />
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDelete(template.id, template.name)}
+                      disabled={deleting === template.id}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 text-left"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                      {deleting === template.id ? "Eliminando..." : "Eliminar"}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between text-xs text-gray-500">
+              <span>Creada: {new Date(template.created_at).toLocaleDateString("es-ES")}</span>
+              <span>Editada: {new Date(template.updated_at).toLocaleDateString("es-ES")}</span>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Desktop view - Table */}
+      <div className="hidden md:block bg-white rounded-lg border border-gray-200 overflow-visible">
+        <table className="w-full">
+          <thead className="bg-gray-50 border-b border-gray-200">
+            <tr>
+              <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                Nombre
+              </th>
+              <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                Asunto
+              </th>
+              <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                Creada
+              </th>
+              <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                Última edición
+              </th>
+              <th className="text-right text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                Acciones
+              </th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody className="divide-y divide-gray-200">
+            {templates.map((template) => (
+              <tr key={template.id} className="hover:bg-gray-50">
+                <td className="px-6 py-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded bg-[#BB292A]/10 flex items-center justify-center">
+                      <FileText className="w-4 h-4 text-[#BB292A]" />
+                    </div>
+                    <span className="font-medium text-gray-900">{template.name}</span>
+                  </div>
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-600">
+                  {template.subject}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {new Date(template.created_at).toLocaleDateString("es-ES")}
+                </td>
+                <td className="px-6 py-4 text-sm text-gray-500">
+                  {new Date(template.updated_at).toLocaleDateString("es-ES")}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <div className="relative inline-block" ref={openMenu === template.id ? menuRef : null}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setOpenMenu(openMenu === template.id ? null : template.id);
+                      }}
+                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    >
+                      <MoreVertical className="w-4 h-4 text-gray-500" />
+                    </button>
+
+                    {openMenu === template.id && (
+                      <div className="absolute right-0 top-full mt-1 w-44 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
+                        <button
+                          type="button"
+                          onClick={() => handlePreview(template.id)}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Ver plantilla
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleEdit(template.id)}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 text-left"
+                        >
+                          <Edit className="w-4 h-4" />
+                          Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDelete(template.id, template.name)}
+                          disabled={deleting === template.id}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 disabled:opacity-50 text-left"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                          {deleting === template.id ? "Eliminando..." : "Eliminar"}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }

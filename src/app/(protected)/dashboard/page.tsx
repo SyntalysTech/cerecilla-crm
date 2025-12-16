@@ -31,7 +31,7 @@ export default function DashboardPage() {
       />
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {stats.map((stat) => (
           <div
             key={stat.name}
@@ -50,8 +50,8 @@ export default function DashboardPage() {
       </div>
 
       {/* Welcome card */}
-      <div className="bg-white rounded-lg border border-gray-200 p-8">
-        <div className="flex items-start gap-4">
+      <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6 md:p-8">
+        <div className="flex flex-col sm:flex-row items-start gap-4">
           <div className="w-12 h-12 rounded-lg bg-[#BB292A]/10 flex items-center justify-center flex-shrink-0">
             <LayoutDashboard className="w-6 h-6 text-[#BB292A]" />
           </div>
@@ -63,7 +63,7 @@ export default function DashboardPage() {
               Este es tu centro de control para gestionar emails y comunicaciones.
               Las métricas y estadísticas aparecerán aquí cuando empieces a enviar emails.
             </p>
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
               <a
                 href="/emails"
                 className="text-sm font-medium text-[#BB292A] hover:underline"
