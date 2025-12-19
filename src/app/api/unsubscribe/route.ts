@@ -25,13 +25,18 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Get campaign_id if provided
+    const campaignId = searchParams.get("c") || searchParams.get("campaign");
+
     // Save unsubscribe request to database
     const { error: insertError } = await supabase
       .from("email_unsubscribes")
       .insert({
         email: email,
-        unsubscribed_at: new Date().toISOString(),
-        source: "email_link",
+        campaign_id: campaignId || null,
+        reason: "email_link",
+        ip_address: request.headers.get("x-forwarded-for") || request.headers.get("x-real-ip") || null,
+        user_agent: request.headers.get("user-agent") || null,
       });
 
     // If table doesn't exist, create it first
@@ -50,6 +55,15 @@ export async function GET(request: NextRequest) {
       .from("clientes")
       .update({ unsubscribed: true })
       .eq("email", email);
+
+    // Update campaign recipient if campaign_id provided
+    if (campaignId) {
+      await supabase
+        .from("email_campaign_recipients")
+        .update({ unsubscribed_at: new Date().toISOString() })
+        .eq("campaign_id", campaignId)
+        .eq("email", email);
+    }
 
     // Return success page
     return new Response(
@@ -93,8 +107,7 @@ export async function POST(request: NextRequest) {
       .from("email_unsubscribes")
       .insert({
         email: email,
-        unsubscribed_at: new Date().toISOString(),
-        source: "api",
+        reason: "api",
       });
 
     if (error && error.code !== "23505") {
