@@ -251,14 +251,14 @@ export function ChatInterface() {
               ¡Hola! Soy <span className="text-[#BB292A]">CerecIA</span> 👋
             </h2>
             <p className="text-gray-500 max-w-md mb-6">
-              Tu asistente virtual inteligente de Cerecilla. Estoy aquí para ayudarte con cualquier pregunta sobre el sector inmobiliario, el CRM o los servicios de Cerecilla.
+              Tu asistente virtual inteligente de Cerecilla. Estoy aquí para ayudarte con preguntas sobre clientes, compañías energéticas, operarios y el CRM.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full max-w-lg">
               {[
-                "¿Cómo puedo valorar una propiedad?",
-                "¿Qué documentos necesito para vender?",
-                "Consejos para compradores primerizos",
-                "¿Cómo funciona el CRM?",
+                "¿Cuántos clientes tiene Iberdrola?",
+                "Buscar cliente Juan García",
+                "¿Cuántos clientes están pendientes?",
+                "¿Quién es el mejor operador?",
               ].map((suggestion) => (
                 <button
                   key={suggestion}

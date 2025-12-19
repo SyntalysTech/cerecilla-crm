@@ -53,6 +53,71 @@ function normalizeTipo(value: string | null): string | null {
   return null;
 }
 
+// Parse date from Excel (handles various formats and Excel serial numbers)
+function parseDate(value: unknown): string | null {
+  if (!value) return null;
+
+  // If it's an Excel serial date number
+  if (typeof value === "number") {
+    // Excel dates are number of days since 1900-01-01 (with a bug for 1900 being a leap year)
+    const excelEpoch = new Date(1899, 11, 30); // Dec 30, 1899
+    const date = new Date(excelEpoch.getTime() + value * 24 * 60 * 60 * 1000);
+    return date.toISOString();
+  }
+
+  // If it's already a string, try to parse it
+  if (typeof value === "string") {
+    const dateStr = value.trim();
+    if (!dateStr) return null;
+
+    // Try various date formats
+    // Format: DD/MM/YYYY or DD-MM-YYYY
+    const dmyMatch = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+    if (dmyMatch) {
+      const [, day, month, year] = dmyMatch;
+      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+
+    // Format: YYYY-MM-DD or YYYY/MM/DD
+    const ymdMatch = dateStr.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})$/);
+    if (ymdMatch) {
+      const [, year, month, day] = ymdMatch;
+      const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+
+    // Format: DD/MM/YYYY HH:MM:SS or similar
+    const dateTimeMatch = dateStr.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+    if (dateTimeMatch) {
+      const [, day, month, year, hour, minute, second] = dateTimeMatch;
+      const date = new Date(
+        parseInt(year),
+        parseInt(month) - 1,
+        parseInt(day),
+        parseInt(hour),
+        parseInt(minute),
+        second ? parseInt(second) : 0
+      );
+      if (!isNaN(date.getTime())) {
+        return date.toISOString();
+      }
+    }
+
+    // Try direct Date parse as last resort
+    const parsed = new Date(dateStr);
+    if (!isNaN(parsed.getTime())) {
+      return parsed.toISOString();
+    }
+  }
+
+  return null;
+}
+
 function parseClienteRow(row: Record<string, unknown>) {
   const operador = getValue(row, "operador");
   const nombre = getValue(row, "nombre y apellidos");
@@ -60,7 +125,13 @@ function parseClienteRow(row: Record<string, unknown>) {
   // Skip empty rows
   if (!operador && !nombre) return null;
 
-  return {
+  // Try to get date from various possible column names
+  const fechaRaw = row["fecha"] ?? row["Fecha"] ?? row["fecha alta"] ?? row["Fecha Alta"] ??
+                   row["fecha_alta"] ?? row["created_at"] ?? row["fecha registro"] ?? row["Fecha Registro"];
+  const fecha = parseDate(fechaRaw);
+
+  // Build the result object
+  const result: Record<string, unknown> = {
     operador,
     servicio: normalizeServicio(getValue(row, "servicio")),
     estado: getValue(row, "estado"),
@@ -68,29 +139,36 @@ function parseClienteRow(row: Record<string, unknown>) {
     es_cambio_titular: parseBoolean(row["¿Es cambio de titular?"]),
     tipo_persona: normalizeTipoPersona(getValue(row, "empresa o persona")),
     nombre_apellidos: nombre,
-    razon_social: getValue(row, "razon social"),
-    documento_nuevo_titular: getValue(row, "documento nuevo titular"),
-    documento_anterior_titular: getValue(row, "documento anterior titular"),
-    email: getValue(row, "email"),
-    telefono: getValue(row, "telefono"),
-    cuenta_bancaria: getValue(row, "cuenta bancaria"),
-    direccion: getValue(row, "direccion"),
-    observaciones: getValue(row, "observaciones"),
-    observaciones_admin: getValue(row, "observaciones_admin"),
-    cups_gas: getValue(row, "cups gas"),
-    cups_luz: getValue(row, "cups luz"),
-    compania_gas: getValue(row, "compañia gas", "compania gas"),
-    compania_luz: getValue(row, "compañia luz", "compania luz"),
-    potencia_gas: getValue(row, "potencia gas"),
-    potencia_luz: getValue(row, "potencia luz"),
-    facturado: parseBoolean(row["facturado"]),
-    cobrado: parseBoolean(row["cobrado"]),
-    pagado: parseBoolean(row["pagado"]),
-    factura_pagos: getValue(row, "factura pagos"),
-    factura_cobros: getValue(row, "factura cobros"),
-    precio_kw_gas: getValue(row, "precio kw gas"),
-    precio_kw_luz: getValue(row, "precio kw luz"),
+    razon_social: getValue(row, "razon social", "Razon Social", "razón social"),
+    documento_nuevo_titular: getValue(row, "documento nuevo titular", "Documento Nuevo Titular"),
+    documento_anterior_titular: getValue(row, "documento anterior titular", "Documento Anterior Titular"),
+    email: getValue(row, "email", "Email", "correo", "Correo"),
+    telefono: getValue(row, "telefono", "Telefono", "teléfono", "Teléfono"),
+    cuenta_bancaria: getValue(row, "cuenta bancaria", "Cuenta Bancaria"),
+    direccion: getValue(row, "direccion", "Direccion", "dirección", "Dirección"),
+    observaciones: getValue(row, "observaciones", "Observaciones", "notas", "Notas", "comentarios", "Comentarios"),
+    observaciones_admin: getValue(row, "observaciones_admin", "Observaciones Admin", "observaciones admin", "notas admin"),
+    cups_gas: getValue(row, "cups gas", "CUPS Gas", "cups_gas"),
+    cups_luz: getValue(row, "cups luz", "CUPS Luz", "cups_luz"),
+    compania_gas: getValue(row, "compañia gas", "compania gas", "Compañia Gas", "Compania Gas"),
+    compania_luz: getValue(row, "compañia luz", "compania luz", "Compañia Luz", "Compania Luz"),
+    potencia_gas: getValue(row, "potencia gas", "Potencia Gas"),
+    potencia_luz: getValue(row, "potencia luz", "Potencia Luz"),
+    facturado: parseBoolean(row["facturado"] ?? row["Facturado"]),
+    cobrado: parseBoolean(row["cobrado"] ?? row["Cobrado"]),
+    pagado: parseBoolean(row["pagado"] ?? row["Pagado"]),
+    factura_pagos: getValue(row, "factura pagos", "Factura Pagos"),
+    factura_cobros: getValue(row, "factura cobros", "Factura Cobros"),
+    precio_kw_gas: getValue(row, "precio kw gas", "Precio kW Gas"),
+    precio_kw_luz: getValue(row, "precio kw luz", "Precio kW Luz"),
   };
+
+  // Only add created_at if we have a valid date
+  if (fecha) {
+    result.created_at = fecha;
+  }
+
+  return result;
 }
 
 function parseOperarioRow(row: Record<string, unknown>) {

@@ -658,6 +658,75 @@ export function TemplateForm({ template }: TemplateFormProps) {
     }
   }
 
+  function handleImageDrop(e: React.DragEvent<HTMLLabelElement>, blockId: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      uploadImage(file).then((url) => {
+        if (url) {
+          updateBlock(blockId, { src: url });
+        }
+      });
+    }
+  }
+
+  // Handle image upload for columns
+  async function handleColumnImageUpload(e: React.ChangeEvent<HTMLInputElement>, blockId: string, colIndex: number) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const url = await uploadImage(file);
+    if (url) {
+      updateBlock(blockId, { [`col${colIndex}ImageUrl`]: url });
+    }
+  }
+
+  function handleColumnImageDrop(e: React.DragEvent<HTMLLabelElement>, blockId: string, colIndex: number) {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      uploadImage(file).then((url) => {
+        if (url) {
+          updateBlock(blockId, { [`col${colIndex}ImageUrl`]: url });
+        }
+      });
+    }
+  }
+
+  // Handle file upload for columns
+  async function handleColumnFileUpload(e: React.ChangeEvent<HTMLInputElement>, blockId: string, colIndex: number) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const result = await uploadFile(file);
+    if (result) {
+      updateBlock(blockId, {
+        [`col${colIndex}FileUrl`]: result.url,
+        [`col${colIndex}FileName`]: result.name,
+        [`col${colIndex}FileExt`]: result.extension,
+      });
+    }
+  }
+
+  function handleColumnFileDrop(e: React.DragEvent<HTMLLabelElement>, blockId: string, colIndex: number) {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      uploadFile(file).then((result) => {
+        if (result) {
+          updateBlock(blockId, {
+            [`col${colIndex}FileUrl`]: result.url,
+            [`col${colIndex}FileName`]: result.name,
+            [`col${colIndex}FileExt`]: result.extension,
+          });
+        }
+      });
+    }
+  }
+
   async function handleDocumentUpload(e: React.ChangeEvent<HTMLInputElement>, blockId: string) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -957,11 +1026,17 @@ export function TemplateForm({ template }: TemplateFormProps) {
                             </button>
                           </div>
                         ) : (
-                          <label className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-[#BB292A]">
-                            <Upload className="w-6 h-6 text-gray-400 mb-1" />
-                            <span className="text-xs text-gray-500">
-                              {uploading ? "Subiendo..." : "Subir imagen"}
+                          <label
+                            className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-[#BB292A] hover:bg-red-50/30 transition-colors"
+                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onDrop={(e) => handleImageDrop(e, selectedBlock.id)}
+                          >
+                            <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                            <span className="text-sm text-gray-600 font-medium">
+                              {uploading ? "Subiendo..." : "Arrastra una imagen aquí"}
                             </span>
+                            <span className="text-xs text-gray-400 mt-1">o haz clic para seleccionar</span>
+                            <span className="text-xs text-gray-400 mt-2">JPG, PNG, GIF, WebP...</span>
                             <input
                               type="file"
                               accept="image/*"
@@ -1131,14 +1206,48 @@ export function TemplateForm({ template }: TemplateFormProps) {
                               </div>
                             )}
                             {(selectedBlock.content[`col${i}Type`] as string) === "image" && (
-                              <div>
-                                <label className="block text-xs text-gray-500 mb-1">URL de imagen</label>
+                              <div className="space-y-2">
+                                <label className="block text-xs text-gray-500 mb-1">Imagen</label>
+                                {selectedBlock.content[`col${i}ImageUrl`] ? (
+                                  <div className="relative">
+                                    <img
+                                      src={selectedBlock.content[`col${i}ImageUrl`] as string}
+                                      alt=""
+                                      className="w-full h-20 object-cover rounded border"
+                                    />
+                                    <button
+                                      type="button"
+                                      onClick={() => updateBlock(selectedBlock.id, { [`col${i}ImageUrl`]: "" })}
+                                      className="absolute top-1 right-1 p-1 bg-red-500 text-white rounded"
+                                    >
+                                      <Trash2 className="w-3 h-3" />
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <label
+                                    className="flex flex-col items-center justify-center h-20 border-2 border-dashed border-gray-300 rounded cursor-pointer hover:border-[#BB292A] hover:bg-red-50/30 transition-colors"
+                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                    onDrop={(e) => handleColumnImageDrop(e, selectedBlock.id, i)}
+                                  >
+                                    <Upload className="w-4 h-4 text-gray-400 mb-1" />
+                                    <span className="text-xs text-gray-500">
+                                      {uploading ? "..." : "Arrastra imagen"}
+                                    </span>
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => handleColumnImageUpload(e, selectedBlock.id, i)}
+                                      className="hidden"
+                                      disabled={uploading}
+                                    />
+                                  </label>
+                                )}
                                 <input
                                   type="url"
                                   value={selectedBlock.content[`col${i}ImageUrl`] as string || ""}
                                   onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}ImageUrl`]: e.target.value })}
-                                  placeholder="https://..."
-                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                                  placeholder="O URL directa..."
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
                                 />
                               </div>
                             )}
@@ -1166,20 +1275,56 @@ export function TemplateForm({ template }: TemplateFormProps) {
                               </>
                             )}
                             {(selectedBlock.content[`col${i}Type`] as string) === "file" && (
-                              <>
-                                <div>
-                                  <label className="block text-xs text-gray-500 mb-1">Nombre del archivo</label>
-                                  <input
-                                    type="text"
-                                    value={selectedBlock.content[`col${i}FileName`] as string || ""}
-                                    onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}FileName`]: e.target.value })}
-                                    placeholder="documento.pdf"
-                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-                                  />
-                                </div>
+                              <div className="space-y-2">
+                                <label className="block text-xs text-gray-500 mb-1">Archivo</label>
+                                {selectedBlock.content[`col${i}FileUrl`] ? (
+                                  <div className="p-2 bg-gray-50 rounded border border-gray-200">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-8 h-8 rounded bg-[#BB292A] flex items-center justify-center text-white text-xs font-bold">
+                                        {selectedBlock.content[`col${i}FileExt`] as string || "PDF"}
+                                      </div>
+                                      <span className="text-xs text-gray-700 truncate flex-1">
+                                        {selectedBlock.content[`col${i}FileName`] as string || "archivo"}
+                                      </span>
+                                      <button
+                                        type="button"
+                                        onClick={() => updateBlock(selectedBlock.id, { [`col${i}FileUrl`]: "", [`col${i}FileName`]: "", [`col${i}FileExt`]: "PDF" })}
+                                        className="p-1 text-red-500 hover:bg-red-50 rounded"
+                                      >
+                                        <Trash2 className="w-3 h-3" />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <label
+                                    className="flex flex-col items-center justify-center h-20 border-2 border-dashed border-gray-300 rounded cursor-pointer hover:border-[#BB292A] hover:bg-red-50/30 transition-colors"
+                                    onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                                    onDrop={(e) => handleColumnFileDrop(e, selectedBlock.id, i)}
+                                  >
+                                    <File className="w-4 h-4 text-gray-400 mb-1" />
+                                    <span className="text-xs text-gray-500">
+                                      {uploading ? "..." : "Arrastra archivo"}
+                                    </span>
+                                    <input
+                                      type="file"
+                                      accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt,.csv"
+                                      onChange={(e) => handleColumnFileUpload(e, selectedBlock.id, i)}
+                                      className="hidden"
+                                      disabled={uploading}
+                                    />
+                                  </label>
+                                )}
                                 <div className="grid grid-cols-2 gap-1">
                                   <div>
-                                    <label className="block text-xs text-gray-500 mb-1">Extensión</label>
+                                    <input
+                                      type="text"
+                                      value={selectedBlock.content[`col${i}FileName`] as string || ""}
+                                      onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}FileName`]: e.target.value })}
+                                      placeholder="Nombre..."
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                    />
+                                  </div>
+                                  <div>
                                     <select
                                       value={selectedBlock.content[`col${i}FileExt`] as string || "PDF"}
                                       onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}FileExt`]: e.target.value })}
@@ -1189,20 +1334,18 @@ export function TemplateForm({ template }: TemplateFormProps) {
                                       <option value="DOC">DOC</option>
                                       <option value="XLS">XLS</option>
                                       <option value="PPT">PPT</option>
+                                      <option value="ZIP">ZIP</option>
                                     </select>
                                   </div>
-                                  <div>
-                                    <label className="block text-xs text-gray-500 mb-1">URL</label>
-                                    <input
-                                      type="url"
-                                      value={selectedBlock.content[`col${i}FileUrl`] as string || ""}
-                                      onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}FileUrl`]: e.target.value })}
-                                      placeholder="https://..."
-                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
-                                    />
-                                  </div>
                                 </div>
-                              </>
+                                <input
+                                  type="url"
+                                  value={selectedBlock.content[`col${i}FileUrl`] as string || ""}
+                                  onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}FileUrl`]: e.target.value })}
+                                  placeholder="O URL directa..."
+                                  className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                />
+                              </div>
                             )}
                           </div>
                         </div>
