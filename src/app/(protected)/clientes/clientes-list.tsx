@@ -220,6 +220,9 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
     );
   }
 
+  // Debug: log search parameters
+  console.log("Filter Debug:", { searchTerm, searchField, totalClientes: clientes.length });
+
   const filteredClientes = clientes.filter((cliente) => {
     if (searchTerm.trim() === "") return true;
 
@@ -237,6 +240,9 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
 
     return String(fieldValue).toLowerCase().includes(searchLower);
   });
+
+  // Debug: log filtered results
+  console.log("Filter Results:", { filtered: filteredClientes.length });
 
   const totalPages = Math.ceil(filteredClientes.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
