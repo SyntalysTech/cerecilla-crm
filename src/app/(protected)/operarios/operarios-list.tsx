@@ -60,6 +60,9 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [tipoFilter, setTipoFilter] = useState<string>("");
+  const [actividadFilter, setActividadFilter] = useState<string>("");
+  const [docsFilter, setDocsFilter] = useState<string>("");
+  const [sortBy, setSortBy] = useState<string>("alias");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<{
     alias?: string;
@@ -134,19 +137,64 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
     );
   }
 
-  const filteredOperarios = operarios.filter((operario) => {
-    const matchesSearch =
-      searchTerm === "" ||
-      operario.alias?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      operario.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      operario.empresa?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      operario.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      operario.telefonos?.includes(searchTerm);
+  const filteredOperarios = operarios
+    .filter((operario) => {
+      const matchesSearch =
+        searchTerm === "" ||
+        operario.alias?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        operario.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        operario.empresa?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        operario.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        operario.telefonos?.includes(searchTerm);
 
-    const matchesTipo = tipoFilter === "" || operario.tipo === tipoFilter;
+      const matchesTipo = tipoFilter === "" || operario.tipo === tipoFilter;
 
-    return matchesSearch && matchesTipo;
-  });
+      // Filtro por actividad
+      let matchesActividad = true;
+      if (actividadFilter === "activo") {
+        matchesActividad = !isMoreThan3MonthsAgo(operario.ultima_carga);
+      } else if (actividadFilter === "inactivo") {
+        matchesActividad = isMoreThan3MonthsAgo(operario.ultima_carga);
+      } else if (actividadFilter === "sin_cargas") {
+        matchesActividad = !operario.ultima_carga;
+      }
+
+      // Filtro por documentación
+      let matchesDocs = true;
+      if (docsFilter === "completa") {
+        matchesDocs = operario.tiene_doc_autonomo && operario.tiene_doc_escritura && operario.tiene_doc_cif && operario.tiene_doc_contrato;
+      } else if (docsFilter === "incompleta") {
+        matchesDocs = !operario.tiene_doc_autonomo || !operario.tiene_doc_escritura || !operario.tiene_doc_cif || !operario.tiene_doc_contrato;
+      } else if (docsFilter === "sin_autonomo") {
+        matchesDocs = !operario.tiene_doc_autonomo;
+      } else if (docsFilter === "sin_contrato") {
+        matchesDocs = !operario.tiene_doc_contrato;
+      }
+
+      return matchesSearch && matchesTipo && matchesActividad && matchesDocs;
+    })
+    .sort((a, b) => {
+      switch (sortBy) {
+        case "alias":
+          return (a.alias || "").localeCompare(b.alias || "");
+        case "nombre":
+          return (a.nombre || a.empresa || "").localeCompare(b.nombre || b.empresa || "");
+        case "ultima_carga_desc":
+          if (!a.ultima_carga && !b.ultima_carga) return 0;
+          if (!a.ultima_carga) return 1;
+          if (!b.ultima_carga) return -1;
+          return new Date(b.ultima_carga).getTime() - new Date(a.ultima_carga).getTime();
+        case "ultima_carga_asc":
+          if (!a.ultima_carga && !b.ultima_carga) return 0;
+          if (!a.ultima_carga) return 1;
+          if (!b.ultima_carga) return -1;
+          return new Date(a.ultima_carga).getTime() - new Date(b.ultima_carga).getTime();
+        case "created_at":
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        default:
+          return 0;
+      }
+    });
 
   const totalPages = Math.ceil(filteredOperarios.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
@@ -162,35 +210,104 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
       <XCircle className="w-4 h-4 text-red-400" />
     );
 
+  const activeFiltersCount = [tipoFilter, actividadFilter, docsFilter].filter(Boolean).length;
+
   return (
     <div className="space-y-4">
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Buscar por alias, nombre, empresa..."
-            value={searchTerm}
-            onChange={(e) => {
-              setSearchTerm(e.target.value);
-              setCurrentPage(1);
-            }}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-          />
+      <div className="bg-white rounded-lg border border-gray-200 p-4">
+        <div className="flex flex-col gap-3">
+          {/* Search row */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Buscar por alias, nombre, empresa, email, teléfono..."
+                value={searchTerm}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+              />
+            </div>
+            <select
+              value={sortBy}
+              onChange={(e) => {
+                setSortBy(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent bg-white"
+            >
+              <option value="alias">Ordenar: Alias A-Z</option>
+              <option value="nombre">Ordenar: Nombre A-Z</option>
+              <option value="ultima_carga_desc">Ordenar: Última carga (reciente)</option>
+              <option value="ultima_carga_asc">Ordenar: Última carga (antigua)</option>
+              <option value="created_at">Ordenar: Fecha registro</option>
+            </select>
+          </div>
+
+          {/* Filter row */}
+          <div className="flex flex-wrap gap-2">
+            <select
+              value={tipoFilter}
+              onChange={(e) => {
+                setTipoFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent bg-white"
+            >
+              <option value="">Tipo: Todos</option>
+              <option value="Empresa">Empresa</option>
+              <option value="Autonomo">Autónomo</option>
+            </select>
+
+            <select
+              value={actividadFilter}
+              onChange={(e) => {
+                setActividadFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent bg-white"
+            >
+              <option value="">Actividad: Todos</option>
+              <option value="activo">Activos (carga &lt;3 meses)</option>
+              <option value="inactivo">Inactivos (&gt;3 meses)</option>
+              <option value="sin_cargas">Sin cargas</option>
+            </select>
+
+            <select
+              value={docsFilter}
+              onChange={(e) => {
+                setDocsFilter(e.target.value);
+                setCurrentPage(1);
+              }}
+              className="px-3 py-1.5 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent bg-white"
+            >
+              <option value="">Docs: Todos</option>
+              <option value="completa">Documentación completa</option>
+              <option value="incompleta">Documentación incompleta</option>
+              <option value="sin_autonomo">Sin doc. autónomo</option>
+              <option value="sin_contrato">Sin contrato</option>
+            </select>
+
+            {activeFiltersCount > 0 && (
+              <button
+                onClick={() => {
+                  setTipoFilter("");
+                  setActividadFilter("");
+                  setDocsFilter("");
+                  setCurrentPage(1);
+                }}
+                className="px-3 py-1.5 text-sm text-[#BB292A] hover:bg-red-50 rounded-lg flex items-center gap-1"
+              >
+                <X className="w-3 h-3" />
+                Limpiar filtros ({activeFiltersCount})
+              </button>
+            )}
+          </div>
         </div>
-        <select
-          value={tipoFilter}
-          onChange={(e) => {
-            setTipoFilter(e.target.value);
-            setCurrentPage(1);
-          }}
-          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-        >
-          <option value="">Todos los tipos</option>
-          <option value="Empresa">Empresa</option>
-          <option value="Autonomo">Autónomo</option>
-        </select>
       </div>
 
       {/* Results count */}

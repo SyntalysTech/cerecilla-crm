@@ -112,3 +112,53 @@ export async function isSuperAdmin(): Promise<boolean> {
 
   return userRole?.role === "super_admin";
 }
+
+export async function updatePassword(newPassword: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "No se encontró el usuario" };
+  }
+
+  // Update password directly
+  const { error: updateError } = await supabase.auth.updateUser({
+    password: newPassword,
+  });
+
+  if (updateError) {
+    return { error: updateError.message };
+  }
+
+  return { success: true };
+}
+
+export async function updateProfile(fullName: string) {
+  const supabase = await createClient();
+
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "No se encontró el usuario" };
+  }
+
+  // Update profile in profiles table
+  const { error } = await supabase
+    .from("profiles")
+    .upsert({
+      id: user.id,
+      full_name: fullName,
+      updated_at: new Date().toISOString(),
+    });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  return { success: true };
+}
