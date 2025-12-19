@@ -18,6 +18,9 @@ import {
   Menu,
   X,
   Sparkles,
+  FolderOpen,
+  Users,
+  Building2,
 } from "lucide-react";
 import { logout, type UserRole } from "@/lib/auth/actions";
 import { useSidebar } from "./sidebar-provider";
@@ -37,7 +40,15 @@ const navigation = [
     ],
   },
   {
-    category: "Communication",
+    category: "Gestión",
+    items: [
+      { name: "Clientes", href: "/clientes", icon: Users },
+      { name: "Operarios", href: "/operarios", icon: Building2 },
+      { name: "Documentos", href: "/documentos", icon: FolderOpen },
+    ],
+  },
+  {
+    category: "Comunicación",
     items: [
       { name: "Emails", href: "/emails", icon: Mail },
       { name: "Email Templates", href: "/email-templates", icon: FileText },
