@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   Search,
   ChevronLeft,
@@ -14,7 +15,9 @@ import {
   Bell,
   ArrowUpAZ,
   ArrowDownAZ,
+  Loader2,
 } from "lucide-react";
+import { deleteCliente } from "./actions";
 
 interface Cliente {
   id: string;
@@ -61,8 +64,10 @@ const estadoColors: Record<string, string> = {
   CANCELADO: "bg-gray-500 text-white",
 };
 
-function ActionMenu({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {
+function ActionMenu({ cliente, onClose, onRefresh }: { cliente: Cliente; onClose: () => void; onRefresh: () => void }) {
   const menuRef = useRef<HTMLDivElement>(null);
+  const router = useRouter();
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -74,6 +79,24 @@ function ActionMenu({ cliente, onClose }: { cliente: Cliente; onClose: () => voi
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
 
+  async function handleDelete() {
+    const name = cliente.nombre_apellidos || cliente.razon_social || "este cliente";
+    if (!confirm(`¿Estás seguro de eliminar a "${name}"? Esta acción no se puede deshacer.`)) {
+      return;
+    }
+
+    setDeleting(true);
+    const result = await deleteCliente(cliente.id);
+
+    if (result.error) {
+      alert(`Error: ${result.error}`);
+      setDeleting(false);
+    } else {
+      onRefresh();
+      onClose();
+    }
+  }
+
   return (
     <div
       ref={menuRef}
@@ -81,8 +104,7 @@ function ActionMenu({ cliente, onClose }: { cliente: Cliente; onClose: () => voi
     >
       <button
         onClick={() => {
-          // TODO: Implement view
-          alert(`Ver ficha de ${cliente.nombre_apellidos || cliente.razon_social}`);
+          router.push(`/clientes/${cliente.id}`);
           onClose();
         }}
         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
@@ -92,8 +114,7 @@ function ActionMenu({ cliente, onClose }: { cliente: Cliente; onClose: () => voi
       </button>
       <button
         onClick={() => {
-          // TODO: Implement edit
-          alert(`Editar ${cliente.nombre_apellidos || cliente.razon_social}`);
+          router.push(`/clientes/${cliente.id}/edit`);
           onClose();
         }}
         className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2"
@@ -102,17 +123,12 @@ function ActionMenu({ cliente, onClose }: { cliente: Cliente; onClose: () => voi
         Editar
       </button>
       <button
-        onClick={() => {
-          // TODO: Implement delete
-          if (confirm(`¿Eliminar a ${cliente.nombre_apellidos || cliente.razon_social}?`)) {
-            alert("Eliminado (pendiente de implementar)");
-          }
-          onClose();
-        }}
-        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+        onClick={handleDelete}
+        disabled={deleting}
+        className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 disabled:opacity-50"
       >
-        <Trash2 className="w-4 h-4" />
-        Eliminar
+        {deleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+        {deleting ? "Eliminando..." : "Eliminar"}
       </button>
     </div>
   );
@@ -663,6 +679,9 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
             onClose={() => {
               setOpenMenuId(null);
               setMenuPosition(null);
+            }}
+            onRefresh={() => {
+              window.location.reload();
             }}
           />
         </div>
