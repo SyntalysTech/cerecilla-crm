@@ -147,7 +147,7 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
 
       {/* Sidebar */}
       <aside
-        className={`fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col transition-all duration-300 z-50 ${sidebarWidth} ${
+        className={`fixed left-0 top-0 h-screen bg-white border-r border-gray-200 flex flex-col z-50 transition-[width,transform] duration-200 ease-out will-change-[width,transform] ${sidebarWidth} ${
           isMobile
             ? mobileOpen
               ? "translate-x-0"
@@ -156,8 +156,8 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
         }`}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200">
-          <Link href="/dashboard" className="flex items-center gap-3 overflow-hidden" onClick={handleNavClick}>
+        <div className="h-16 flex items-center justify-between px-4 border-b border-gray-200 overflow-hidden">
+          <Link href="/dashboard" className="flex items-center gap-3 min-w-0" onClick={handleNavClick}>
             <Image
               src="/logos/logo-isotope-cerezas.png"
               alt="Cerecilla"
@@ -165,19 +165,21 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
               height={32}
               className="flex-shrink-0"
             />
-            {(!collapsed || isMobile) && (
-              <span className="font-semibold whitespace-nowrap">
-                <span className="text-[#BB292A]">Cerecilla</span>
-                <span className="text-gray-800">CRM</span>
-              </span>
-            )}
+            <span
+              className={`font-semibold whitespace-nowrap transition-opacity duration-200 ${
+                collapsed && !isMobile ? "opacity-0 w-0" : "opacity-100"
+              }`}
+            >
+              <span className="text-[#BB292A]">Cerecilla</span>
+              <span className="text-gray-800">CRM</span>
+            </span>
           </Link>
 
           {/* Mobile close button */}
           {isMobile && (
             <button
               onClick={() => setMobileOpen(false)}
-              className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500"
+              className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-500 flex-shrink-0"
               aria-label="Close menu"
             >
               <X className="w-5 h-5" />
@@ -186,14 +188,16 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto py-4 px-3">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3">
           {fullNavigation.map((group) => (
             <div key={group.category} className="mb-6">
-              {(!collapsed || isMobile) && (
-                <h3 className="px-3 mb-2 text-xs font-medium text-gray-400 uppercase tracking-wider">
-                  {group.category}
-                </h3>
-              )}
+              <h3
+                className={`px-3 mb-2 text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap transition-opacity duration-200 ${
+                  collapsed && !isMobile ? "opacity-0 h-0 mb-0 overflow-hidden" : "opacity-100"
+                }`}
+              >
+                {group.category}
+              </h3>
               <ul className="space-y-1">
                 {group.items.map((item) => {
                   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
@@ -202,7 +206,7 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
                       <Link
                         href={item.href}
                         onClick={handleNavClick}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors ${
+                        className={`flex items-center gap-3 px-3 py-2 rounded-md ${
                           isActive
                             ? "bg-[#BB292A]/10 text-[#BB292A] font-medium"
                             : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
@@ -210,7 +214,13 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
                         title={collapsed && !isMobile ? item.name : undefined}
                       >
                         <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-[#BB292A]" : ""}`} />
-                        {(!collapsed || isMobile) && <span>{item.name}</span>}
+                        <span
+                          className={`whitespace-nowrap transition-opacity duration-200 ${
+                            collapsed && !isMobile ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                          }`}
+                        >
+                          {item.name}
+                        </span>
                       </Link>
                     </li>
                   );
@@ -225,52 +235,58 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
           <div className="px-3 pb-2">
             <button
               onClick={toggleCollapsed}
-              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors ${
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 ${
                 collapsed ? "justify-center" : ""
               }`}
               aria-label={collapsed ? "Expandir sidebar" : "Contraer sidebar"}
             >
-              {collapsed ? (
-                <ChevronRight className="w-5 h-5" />
-              ) : (
-                <>
-                  <ChevronLeft className="w-5 h-5" />
-                  <span className="text-sm">Contraer menú</span>
-                </>
-              )}
+              <ChevronLeft
+                className={`w-5 h-5 flex-shrink-0 transition-transform duration-200 ${
+                  collapsed ? "rotate-180" : ""
+                }`}
+              />
+              <span
+                className={`text-sm whitespace-nowrap transition-opacity duration-200 ${
+                  collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                }`}
+              >
+                Contraer menú
+              </span>
             </button>
           </div>
         )}
 
         {/* User profile */}
-        <div className="border-t border-gray-200 p-3 relative">
+        <div className="border-t border-gray-200 p-3 relative overflow-hidden">
           <button
             onClick={() => setProfileOpen(!profileOpen)}
-            className={`w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 transition-colors ${
+            className={`w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 ${
               collapsed && !isMobile ? "justify-center" : ""
             }`}
           >
             <div className="w-8 h-8 rounded-full bg-[#87CEEB] flex items-center justify-center flex-shrink-0">
               <User className="w-4 h-4 text-gray-700" />
             </div>
-            {(!collapsed || isMobile) && (
-              <>
-                <div className="flex-1 text-left overflow-hidden">
-                  <div className="flex items-center gap-2">
-                    <p className="text-sm font-medium text-gray-900 truncate">
-                      {userName || userEmail.split("@")[0]}
-                    </p>
-                    {getRoleBadge()}
-                  </div>
-                  <p className="text-xs text-gray-500 truncate">{userEmail}</p>
+            <div
+              className={`flex-1 flex items-center gap-2 min-w-0 transition-opacity duration-200 ${
+                collapsed && !isMobile ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+              }`}
+            >
+              <div className="flex-1 text-left overflow-hidden">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {userName || userEmail.split("@")[0]}
+                  </p>
+                  {getRoleBadge()}
                 </div>
-                <ChevronUp
-                  className={`w-4 h-4 text-gray-400 transition-transform ${
-                    profileOpen ? "rotate-180" : ""
-                  }`}
-                />
-              </>
-            )}
+                <p className="text-xs text-gray-500 truncate">{userEmail}</p>
+              </div>
+              <ChevronUp
+                className={`w-4 h-4 text-gray-400 flex-shrink-0 transition-transform duration-200 ${
+                  profileOpen ? "rotate-180" : ""
+                }`}
+              />
+            </div>
           </button>
 
           {/* Profile dropdown */}
