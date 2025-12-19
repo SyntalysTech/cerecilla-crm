@@ -31,7 +31,7 @@ interface Operario {
   tiene_doc_escritura: boolean;
   tiene_doc_cif: boolean;
   tiene_doc_contrato: boolean;
-  tiene_cuenta_bancaria: boolean;
+  tiene_cuenta_bancaria?: boolean;
   tipo: string | null;
   nombre: string | null;
   documento: string | null;
@@ -39,9 +39,9 @@ interface Operario {
   cif: string | null;
   cuenta_bancaria: string | null;
   direccion: string | null;
-  nombre_admin: string | null;
-  dni_admin: string | null;
-  password_operario: string | null;
+  nombre_admin?: string | null;
+  dni_admin?: string | null;
+  password_operario?: string | null;
   created_at: string;
   ultima_carga?: string | null;
 }
