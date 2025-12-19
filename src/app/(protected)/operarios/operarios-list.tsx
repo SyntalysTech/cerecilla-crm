@@ -14,7 +14,13 @@ import {
   CheckCircle,
   XCircle,
   FileText,
+  Pencil,
+  Trash2,
+  Loader2,
+  X,
+  Save,
 } from "lucide-react";
+import { updateOperario, deleteOperario } from "./actions";
 
 interface Operario {
   id: string;
@@ -33,6 +39,7 @@ interface Operario {
   cuenta_bancaria: string | null;
   direccion: string | null;
   created_at: string;
+  ultima_carga?: string | null;
 }
 
 interface OperariosListProps {
@@ -40,11 +47,69 @@ interface OperariosListProps {
   error?: string;
 }
 
+// Check if date is more than 3 months ago
+function isMoreThan3MonthsAgo(dateStr: string | null | undefined): boolean {
+  if (!dateStr) return true;
+  const date = new Date(dateStr);
+  const threeMonthsAgo = new Date();
+  threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3);
+  return date < threeMonthsAgo;
+}
+
 export function OperariosList({ operarios, error }: OperariosListProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [tipoFilter, setTipoFilter] = useState<string>("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState<{
+    alias?: string;
+    nombre?: string;
+    email?: string;
+    telefonos?: string;
+    tipo?: string;
+    empresa?: string;
+  }>({});
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
   const itemsPerPage = 20;
+
+  async function handleSave(id: string) {
+    setSaving(true);
+    const result = await updateOperario(id, editForm);
+    if (result.error) {
+      alert(`Error: ${result.error}`);
+    } else {
+      setEditingId(null);
+      window.location.reload();
+    }
+    setSaving(false);
+  }
+
+  async function handleDelete(operario: Operario) {
+    const name = operario.alias || operario.nombre || "este operario";
+    if (!confirm(`¿Eliminar a "${name}"? Esta acción no se puede deshacer.`)) return;
+
+    setDeleting(operario.id);
+    const result = await deleteOperario(operario.id);
+    if (result.error) {
+      alert(`Error: ${result.error}`);
+      setDeleting(null);
+    } else {
+      window.location.reload();
+    }
+  }
+
+  function startEdit(operario: Operario) {
+    setEditingId(operario.id);
+    setEditForm({
+      alias: operario.alias || "",
+      nombre: operario.nombre || "",
+      email: operario.email || "",
+      telefonos: operario.telefonos || "",
+      tipo: operario.tipo || "",
+      empresa: operario.empresa || "",
+    });
+  }
 
   if (error) {
     return (
@@ -155,13 +220,21 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                   Documentos
                 </th>
+                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                  Última carga
+                </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
+                  Acciones
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {paginatedOperarios.map((operario) => (
-                <tr key={operario.id} className="hover:bg-gray-50">
+              {paginatedOperarios.map((operario) => {
+                const isInactive = isMoreThan3MonthsAgo(operario.ultima_carga);
+                return (
+                <tr key={operario.id} className={`hover:bg-gray-50 ${isInactive ? "bg-red-50" : ""}`}>
                   <td className="px-4 py-3">
-                    <span className="font-medium text-[#BB292A]">
+                    <span className={`font-medium ${isInactive ? "text-red-600" : "text-gray-900"}`}>
                       {operario.alias || "—"}
                     </span>
                   </td>
@@ -219,8 +292,41 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
                       <DocStatus ok={operario.tiene_doc_contrato} />
                     </div>
                   </td>
+                  <td className="px-4 py-3">
+                    {operario.ultima_carga ? (
+                      <span className={`text-xs ${isInactive ? "text-red-600 font-medium" : "text-gray-600"}`}>
+                        {new Date(operario.ultima_carga).toLocaleDateString("es-ES")}
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-400">Sin cargas</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center justify-center gap-1">
+                      <button
+                        onClick={() => startEdit(operario)}
+                        className="p-1.5 text-gray-500 hover:text-[#BB292A] hover:bg-gray-100 rounded"
+                        title="Editar"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDelete(operario)}
+                        disabled={deleting === operario.id}
+                        className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded disabled:opacity-50"
+                        title="Eliminar"
+                      >
+                        {deleting === operario.id ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="w-4 h-4" />
+                        )}
+                      </button>
+                    </div>
+                  </td>
                 </tr>
-              ))}
+              );
+              })}
             </tbody>
           </table>
         </div>
@@ -324,6 +430,97 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
             Siguiente
             <ChevronRight className="w-4 h-4" />
           </button>
+        </div>
+      )}
+
+      {/* Edit Modal */}
+      {editingId && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Editar Operario</h3>
+              <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Alias</label>
+                <input
+                  type="text"
+                  value={editForm.alias || ""}
+                  onChange={(e) => setEditForm({ ...editForm, alias: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
+                <input
+                  type="text"
+                  value={editForm.nombre || ""}
+                  onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
+                <input
+                  type="text"
+                  value={editForm.empresa || ""}
+                  onChange={(e) => setEditForm({ ...editForm, empresa: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={editForm.email || ""}
+                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfonos</label>
+                <input
+                  type="text"
+                  value={editForm.telefonos || ""}
+                  onChange={(e) => setEditForm({ ...editForm, telefonos: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                <select
+                  value={editForm.tipo || ""}
+                  onChange={(e) => setEditForm({ ...editForm, tipo: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                >
+                  <option value="">Seleccionar...</option>
+                  <option value="Empresa">Empresa</option>
+                  <option value="Autonomo">Autónomo</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setEditingId(null)}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => handleSave(editingId)}
+                disabled={saving}
+                className="px-4 py-2 text-sm text-white bg-[#BB292A] rounded-md hover:bg-[#a02324] disabled:opacity-50 flex items-center gap-2"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {saving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>

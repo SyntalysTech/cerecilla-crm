@@ -46,8 +46,8 @@ interface EditClienteFormProps {
   operarios: Operario[];
 }
 
-const estados = ["LIQUIDADO", "PENDIENTE", "EN TRAMITE", "SEGUIMIENTO", "FALLIDO"];
-const servicios = ["Luz", "Gas", "Luz y Gas"];
+const estados = ["PENDIENTE", "SEGUIMIENTO", "EN TRAMITE", "COMISIONABLE", "LIQUIDADO", "FALLIDO"];
+const servicios = ["Luz", "Gas", "Telefonía", "Seguros", "Alarmas"];
 const tiposPersona = [
   { value: "particular", label: "Particular" },
   { value: "empresa", label: "Empresa" },

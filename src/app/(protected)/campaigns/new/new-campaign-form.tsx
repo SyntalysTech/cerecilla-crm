@@ -202,10 +202,11 @@ export function NewCampaignForm({ templates, totalClients, operarios }: NewCampa
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
             >
               <option value="">Todos los estados</option>
-              <option value="LIQUIDADO">LIQUIDADO</option>
               <option value="PENDIENTE">PENDIENTE</option>
-              <option value="EN TRAMITE">EN TRAMITE</option>
               <option value="SEGUIMIENTO">SEGUIMIENTO</option>
+              <option value="EN TRAMITE">EN TRAMITE</option>
+              <option value="COMISIONABLE">COMISIONABLE</option>
+              <option value="LIQUIDADO">LIQUIDADO</option>
               <option value="FALLIDO">FALLIDO</option>
             </select>
           </div>
@@ -223,7 +224,9 @@ export function NewCampaignForm({ templates, totalClients, operarios }: NewCampa
               <option value="">Todos los servicios</option>
               <option value="Luz">Luz</option>
               <option value="Gas">Gas</option>
-              <option value="Luz y Gas">Luz y Gas</option>
+              <option value="Telefonía">Telefonía</option>
+              <option value="Seguros">Seguros</option>
+              <option value="Alarmas">Alarmas</option>
             </select>
           </div>
 

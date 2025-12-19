@@ -98,3 +98,41 @@ export async function getCliente(id: string) {
 
   return data;
 }
+
+export async function duplicateCliente(id: string) {
+  const supabase = await createClient();
+
+  // Get original cliente
+  const { data: original, error: fetchError } = await supabase
+    .from("clientes")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !original) {
+    return { error: "No se encontró el cliente" };
+  }
+
+  // Create copy without id and with current date
+  const { id: _, created_at: __, ...clienteData } = original;
+
+  const { data: newCliente, error: insertError } = await supabase
+    .from("clientes")
+    .insert({
+      ...clienteData,
+      nombre_apellidos: original.nombre_apellidos
+        ? `${original.nombre_apellidos} (copia)`
+        : original.razon_social
+          ? `${original.razon_social} (copia)`
+          : "Cliente (copia)",
+    })
+    .select()
+    .single();
+
+  if (insertError) {
+    return { error: insertError.message };
+  }
+
+  revalidatePath("/clientes");
+  return { success: true, cliente: newCliente };
+}

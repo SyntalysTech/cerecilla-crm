@@ -35,10 +35,11 @@ interface Cliente {
 }
 
 const estadoColors: Record<string, string> = {
-  LIQUIDADO: "bg-green-100 text-green-800",
-  PENDIENTE: "bg-yellow-100 text-yellow-800",
-  "EN TRAMITE": "bg-blue-100 text-blue-800",
-  SEGUIMIENTO: "bg-purple-100 text-purple-800",
+  LIQUIDADO: "bg-gray-900 text-white",
+  PENDIENTE: "bg-blue-100 text-blue-800",
+  SEGUIMIENTO: "bg-green-100 text-green-800",
+  "EN TRAMITE": "bg-green-200 text-green-900",
+  COMISIONABLE: "bg-purple-100 text-purple-800",
   FALLIDO: "bg-red-100 text-red-800",
 };
 

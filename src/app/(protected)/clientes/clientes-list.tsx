@@ -16,8 +16,9 @@ import {
   ArrowUpAZ,
   ArrowDownAZ,
   Loader2,
+  Copy,
 } from "lucide-react";
-import { deleteCliente } from "./actions";
+import { deleteCliente, duplicateCliente } from "./actions";
 
 interface Cliente {
   id: string;
@@ -57,9 +58,11 @@ interface ClientesListProps {
 }
 
 const estadoColors: Record<string, string> = {
-  LIQUIDADO: "bg-green-500 text-white",
-  PENDIENTE: "bg-yellow-500 text-white",
-  EN_PROCESO: "bg-blue-500 text-white",
+  LIQUIDADO: "bg-gray-900 text-white",
+  PENDIENTE: "bg-blue-500 text-white",
+  SEGUIMIENTO: "bg-green-400 text-white",
+  "EN TRAMITE": "bg-green-600 text-white",
+  COMISIONABLE: "bg-purple-500 text-white",
   FALLIDO: "bg-red-500 text-white",
   CANCELADO: "bg-gray-500 text-white",
 };
@@ -68,6 +71,7 @@ function ActionMenu({ cliente, onClose, onRefresh }: { cliente: Cliente; onClose
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
   const [deleting, setDeleting] = useState(false);
+  const [duplicating, setDuplicating] = useState(false);
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -78,6 +82,19 @@ function ActionMenu({ cliente, onClose, onRefresh }: { cliente: Cliente; onClose
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [onClose]);
+
+  async function handleDuplicate() {
+    setDuplicating(true);
+    const result = await duplicateCliente(cliente.id);
+
+    if (result.error) {
+      alert(`Error: ${result.error}`);
+      setDuplicating(false);
+    } else {
+      onRefresh();
+      onClose();
+    }
+  }
 
   async function handleDelete() {
     const name = cliente.nombre_apellidos || cliente.razon_social || "este cliente";
@@ -121,6 +138,14 @@ function ActionMenu({ cliente, onClose, onRefresh }: { cliente: Cliente; onClose
       >
         <Pencil className="w-4 h-4" />
         Editar
+      </button>
+      <button
+        onClick={handleDuplicate}
+        disabled={duplicating}
+        className="w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-100 flex items-center gap-2 disabled:opacity-50"
+      >
+        {duplicating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Copy className="w-4 h-4" />}
+        {duplicating ? "Duplicando..." : "Duplicar"}
       </button>
       <button
         onClick={handleDelete}
@@ -194,17 +219,20 @@ const filterFields = [
   { value: "direccion", label: "CALLE", hasSubOptions: false },
   { value: "estado", label: "ESTADO", hasSubOptions: true, subOptions: [
     { value: "all", label: "TODOS" },
-    { value: "LIQUIDADO", label: "LIQUIDADO" },
     { value: "PENDIENTE", label: "PENDIENTE" },
-    { value: "EN TRAMITE", label: "EN TRAMITE" },
     { value: "SEGUIMIENTO", label: "SEGUIMIENTO" },
+    { value: "EN TRAMITE", label: "EN TRAMITE" },
+    { value: "COMISIONABLE", label: "COMISIONABLE" },
+    { value: "LIQUIDADO", label: "LIQUIDADO" },
     { value: "FALLIDO", label: "FALLIDO" },
   ]},
   { value: "servicio", label: "SERVICIO", hasSubOptions: true, subOptions: [
     { value: "all", label: "TODOS" },
     { value: "Luz", label: "LUZ" },
     { value: "Gas", label: "GAS" },
-    { value: "Luz y Gas", label: "LUZ Y GAS" },
+    { value: "Telefonía", label: "TELEFONÍA" },
+    { value: "Seguros", label: "SEGUROS" },
+    { value: "Alarmas", label: "ALARMAS" },
   ]},
   { value: "email", label: "EMAIL", hasSubOptions: false },
   { value: "cuenta_bancaria", label: "CUENTA BANCARIA", hasSubOptions: false },
@@ -476,7 +504,34 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
 
       {/* Full width table with horizontal scroll */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        <div
+          className="overflow-x-auto scrollbar-thin scrollbar-thumb-gray-400 scrollbar-track-gray-100 cursor-grab active:cursor-grabbing"
+          style={{
+            scrollbarWidth: 'thin',
+            scrollbarColor: '#9ca3af #f3f4f6'
+          }}
+          onMouseDown={(e) => {
+            const el = e.currentTarget;
+            el.style.cursor = 'grabbing';
+            const startX = e.pageX - el.offsetLeft;
+            const scrollLeft = el.scrollLeft;
+
+            const handleMouseMove = (e: MouseEvent) => {
+              const x = e.pageX - el.offsetLeft;
+              const walk = (x - startX) * 1.5;
+              el.scrollLeft = scrollLeft - walk;
+            };
+
+            const handleMouseUp = () => {
+              el.style.cursor = 'grab';
+              document.removeEventListener('mousemove', handleMouseMove);
+              document.removeEventListener('mouseup', handleMouseUp);
+            };
+
+            document.addEventListener('mousemove', handleMouseMove);
+            document.addEventListener('mouseup', handleMouseUp);
+          }}
+        >
           <table className="w-full text-xs">
             <thead className="bg-gray-100 border-b border-gray-200">
               <tr>

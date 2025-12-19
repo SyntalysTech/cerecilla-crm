@@ -20,6 +20,7 @@ interface Operario {
   cuenta_bancaria: string | null;
   direccion: string | null;
   created_at: string;
+  ultima_carga?: string | null;
 }
 
 export default async function OperariosPage() {
@@ -52,7 +53,28 @@ export default async function OperariosPage() {
     }
   }
 
-  const operarios = allOperarios;
+  // Get last client upload date for each operario
+  const { data: ultimasCargas } = await supabase
+    .from("clientes")
+    .select("operador, created_at")
+    .not("operador", "is", null)
+    .order("created_at", { ascending: false });
+
+  // Create a map of operador -> ultima_carga
+  const ultimaCargaMap: Record<string, string> = {};
+  if (ultimasCargas) {
+    for (const cliente of ultimasCargas) {
+      if (cliente.operador && !ultimaCargaMap[cliente.operador]) {
+        ultimaCargaMap[cliente.operador] = cliente.created_at;
+      }
+    }
+  }
+
+  // Add ultima_carga to each operario
+  const operarios = allOperarios.map(op => ({
+    ...op,
+    ultima_carga: op.nombre ? ultimaCargaMap[op.nombre] || null : null,
+  }));
 
   return (
     <div>
