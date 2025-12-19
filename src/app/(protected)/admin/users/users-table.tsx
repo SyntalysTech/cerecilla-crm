@@ -15,11 +15,16 @@ import {
   PowerOff,
   Phone,
   Building,
+  Pencil,
+  X,
+  Save,
+  Loader2,
 } from "lucide-react";
 import {
   updateUserRole,
   toggleUserActive,
   generateMagicLink,
+  updateUserProfile,
 } from "./actions";
 import { UserRole, roleLabels } from "./constants";
 
@@ -61,6 +66,46 @@ export function UsersTable({ users, currentUserId, currentUserRole }: UsersTable
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [editingUser, setEditingUser] = useState<UserWithRole | null>(null);
+  const [editForm, setEditForm] = useState({
+    full_name: "",
+    phone: "",
+    department: "",
+  });
+  const [saving, setSaving] = useState(false);
+
+  function startEdit(user: UserWithRole) {
+    setEditingUser(user);
+    setEditForm({
+      full_name: user.full_name || "",
+      phone: user.phone || "",
+      department: user.department || "",
+    });
+    setOpenMenu(null);
+  }
+
+  async function handleSaveEdit() {
+    if (!editingUser) return;
+    setSaving(true);
+    setError(null);
+
+    const result = await updateUserProfile(editingUser.id, {
+      full_name: editForm.full_name || undefined,
+      phone: editForm.phone || undefined,
+      department: editForm.department || undefined,
+    });
+
+    if (result.error) {
+      setError(result.error);
+    } else {
+      setSuccess("Usuario actualizado");
+      setTimeout(() => setSuccess(null), 2000);
+      setEditingUser(null);
+      window.location.reload();
+    }
+
+    setSaving(false);
+  }
 
   async function handleRoleChange(userId: string, newRole: UserRole) {
     setLoading(userId);
@@ -173,38 +218,47 @@ export function UsersTable({ users, currentUserId, currentUserRole }: UsersTable
                   </div>
                 </div>
 
-                {!isCurrentUser && (
-                  <div className="relative">
-                    <button
-                      onClick={() => setOpenMenu(openMenu === user.id ? null : user.id)}
-                      className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                    >
-                      <MoreVertical className="w-4 h-4 text-gray-500" />
-                    </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    onClick={() => startEdit(user)}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                    title="Editar"
+                  >
+                    <Pencil className="w-4 h-4 text-gray-500" />
+                  </button>
+                  {!isCurrentUser && (
+                    <div className="relative">
+                      <button
+                        onClick={() => setOpenMenu(openMenu === user.id ? null : user.id)}
+                        className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                      >
+                        <MoreVertical className="w-4 h-4 text-gray-500" />
+                      </button>
 
-                    {openMenu === user.id && (
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
-                        <button
-                          onClick={() => handleSendMagicLink(user.email)}
-                          disabled={loading === user.email}
-                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                        >
-                          <Mail className="w-4 h-4" />
-                          Enviar magic link
-                        </button>
-                        {canEdit && (
+                      {openMenu === user.id && (
+                        <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-50">
                           <button
-                            onClick={() => handleToggleActive(user.id, user.is_active)}
-                            disabled={loading === user.id}
-                            className={`w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 ${user.is_active ? "text-red-600" : "text-green-600"}`}
+                            onClick={() => handleSendMagicLink(user.email)}
+                            disabled={loading === user.email}
+                            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                           >
-                            {user.is_active ? <><PowerOff className="w-4 h-4" /> Desactivar</> : <><Power className="w-4 h-4" /> Activar</>}
+                            <Mail className="w-4 h-4" />
+                            Enviar magic link
                           </button>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )}
+                          {canEdit && (
+                            <button
+                              onClick={() => handleToggleActive(user.id, user.is_active)}
+                              disabled={loading === user.id}
+                              className={`w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 ${user.is_active ? "text-red-600" : "text-green-600"}`}
+                            >
+                              {user.is_active ? <><PowerOff className="w-4 h-4" /> Desactivar</> : <><Power className="w-4 h-4" /> Activar</>}
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="mt-3 pt-3 border-t border-gray-100 flex flex-wrap items-center gap-2">
@@ -364,52 +418,59 @@ export function UsersTable({ users, currentUserId, currentUserRole }: UsersTable
                     {new Date(user.created_at).toLocaleDateString("es-ES")}
                   </td>
                   <td className="px-6 py-4 text-right relative">
-                    {isCurrentUser ? (
-                      <span className="text-xs text-gray-400">—</span>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => setOpenMenu(openMenu === user.id ? null : user.id)}
-                          className="p-1.5 hover:bg-gray-100 rounded transition-colors"
-                        >
-                          <MoreVertical className="w-4 h-4 text-gray-500" />
-                        </button>
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        onClick={() => startEdit(user)}
+                        className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                        title="Editar"
+                      >
+                        <Pencil className="w-4 h-4 text-gray-500" />
+                      </button>
+                      {!isCurrentUser && (
+                        <>
+                          <button
+                            onClick={() => setOpenMenu(openMenu === user.id ? null : user.id)}
+                            className="p-1.5 hover:bg-gray-100 rounded transition-colors"
+                          >
+                            <MoreVertical className="w-4 h-4 text-gray-500" />
+                          </button>
 
-                        {openMenu === user.id && (
-                          <div className="absolute right-6 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10">
-                            <button
-                              onClick={() => handleSendMagicLink(user.email)}
-                              disabled={loading === user.email}
-                              className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
-                            >
-                              <Mail className="w-4 h-4" />
-                              Enviar magic link
-                            </button>
-                            {canEdit && (
+                          {openMenu === user.id && (
+                            <div className="absolute right-6 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-10">
                               <button
-                                onClick={() => handleToggleActive(user.id, user.is_active)}
-                                disabled={loading === user.id}
-                                className={`w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 ${
-                                  user.is_active ? "text-red-600" : "text-green-600"
-                                }`}
+                                onClick={() => handleSendMagicLink(user.email)}
+                                disabled={loading === user.email}
+                                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50"
                               >
-                                {user.is_active ? (
-                                  <>
-                                    <PowerOff className="w-4 h-4" />
-                                    Desactivar usuario
-                                  </>
-                                ) : (
-                                  <>
-                                    <Power className="w-4 h-4" />
-                                    Activar usuario
-                                  </>
-                                )}
+                                <Mail className="w-4 h-4" />
+                                Enviar magic link
                               </button>
-                            )}
-                          </div>
-                        )}
-                      </>
-                    )}
+                              {canEdit && (
+                                <button
+                                  onClick={() => handleToggleActive(user.id, user.is_active)}
+                                  disabled={loading === user.id}
+                                  className={`w-full flex items-center gap-2 px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50 ${
+                                    user.is_active ? "text-red-600" : "text-green-600"
+                                  }`}
+                                >
+                                  {user.is_active ? (
+                                    <>
+                                      <PowerOff className="w-4 h-4" />
+                                      Desactivar usuario
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Power className="w-4 h-4" />
+                                      Activar usuario
+                                    </>
+                                  )}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </>
+                      )}
+                    </div>
                   </td>
                 </tr>
               );
@@ -431,6 +492,89 @@ export function UsersTable({ users, currentUserId, currentUserRole }: UsersTable
           className="fixed inset-0 z-0"
           onClick={() => setOpenMenu(null)}
         />
+      )}
+
+      {/* Edit Modal */}
+      {editingUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Editar Usuario</h3>
+              <button
+                onClick={() => setEditingUser(null)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                <input
+                  type="email"
+                  value={editingUser.email}
+                  disabled
+                  className="w-full px-3 py-2 border border-gray-200 rounded-md text-sm bg-gray-50 text-gray-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre completo</label>
+                <input
+                  type="text"
+                  value={editForm.full_name}
+                  onChange={(e) => setEditForm({ ...editForm, full_name: e.target.value })}
+                  placeholder="Nombre y apellidos"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+                <input
+                  type="tel"
+                  value={editForm.phone}
+                  onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
+                  placeholder="Ej: 612 345 678"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Departamento</label>
+                <select
+                  value={editForm.department}
+                  onChange={(e) => setEditForm({ ...editForm, department: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                >
+                  <option value="">Sin departamento</option>
+                  <option value="direccion">Dirección</option>
+                  <option value="administracion">Administración</option>
+                  <option value="comercial">Comercial</option>
+                  <option value="operaciones">Operaciones</option>
+                  <option value="atencion_cliente">Atención al Cliente</option>
+                  <option value="marketing">Marketing</option>
+                  <option value="tecnologia">Tecnología</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                onClick={() => setEditingUser(null)}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={saving}
+                className="px-4 py-2 text-sm text-white bg-[#BB292A] rounded-md hover:bg-[#a02324] disabled:opacity-50 flex items-center gap-2"
+              >
+                {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                {saving ? "Guardando..." : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
