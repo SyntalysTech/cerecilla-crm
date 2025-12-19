@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 
@@ -7,122 +7,17 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY!
 );
 
-export async function POST(request: NextRequest) {
-  try {
-    const formData = await request.formData();
-    const file = formData.get("file") as File;
-    const type = formData.get("type") as string;
+// Batch size for inserts (Supabase handles up to 1000 rows per insert)
+const BATCH_SIZE = 50;
 
-    if (!file || !type) {
-      return NextResponse.json(
-        { error: "File and type are required" },
-        { status: 400 }
-      );
+// Helper to get value from row with flexible key matching
+function getValue(row: Record<string, unknown>, ...keys: string[]): string | null {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== "") {
+      return String(row[key]);
     }
-
-    const buffer = await file.arrayBuffer();
-    const workbook = XLSX.read(buffer, { type: "buffer" });
-    const sheet = workbook.Sheets[workbook.SheetNames[0]];
-    const data = XLSX.utils.sheet_to_json(sheet);
-
-    let imported = 0;
-    let errors: string[] = [];
-
-    if (type === "clientes") {
-      for (const row of data as Record<string, unknown>[]) {
-        try {
-          const cliente = {
-            operador: row["operador"] as string || null,
-            servicio: normalizeServicio(row["servicio"] as string),
-            estado: row["estado"] as string || null,
-            tiene_suministro: parseBoolean(row["¿Tiene suministro?"]),
-            es_cambio_titular: parseBoolean(row["¿Es cambio de titular?"]),
-            tipo_persona: normalizeTipoPersona(row["empresa o persona"] as string),
-            nombre_apellidos: row["nombre y apellidos"] as string || null,
-            razon_social: row["razon social"] as string || null,
-            documento_nuevo_titular: row["documento nuevo titular"] as string || null,
-            documento_anterior_titular: row["documento anterior titular"] as string || null,
-            email: row["email"] as string || null,
-            telefono: String(row["telefono"] || "") || null,
-            cuenta_bancaria: row["cuenta bancaria"] as string || null,
-            direccion: row["direccion"] as string || null,
-            observaciones: row["observaciones"] as string || null,
-            observaciones_admin: row["observaciones_admin"] as string || null,
-            cups_gas: row["cups gas"] as string || null,
-            cups_luz: row["cups luz"] as string || null,
-            compania_gas: row["compañia gas"] as string || null,
-            compania_luz: row["compañia luz"] as string || null,
-            potencia_gas: row["potencia gas"] as string || null,
-            potencia_luz: row["potencia luz"] as string || null,
-            facturado: parseBoolean(row["facturado"]),
-            cobrado: parseBoolean(row["cobrado"]),
-            pagado: parseBoolean(row["pagado"]),
-            factura_pagos: row["factura pagos"] as string || null,
-            factura_cobros: row["factura cobros"] as string || null,
-            precio_kw_gas: row["precio kw gas"] as string || null,
-            precio_kw_luz: row["precio kw luz"] as string || null,
-          };
-
-          const { error } = await supabase.from("clientes").insert(cliente);
-          if (error) {
-            errors.push(`Row error: ${error.message}`);
-          } else {
-            imported++;
-          }
-        } catch (err) {
-          errors.push(`Parse error: ${err}`);
-        }
-      }
-    } else if (type === "operarios") {
-      for (const row of data as Record<string, unknown>[]) {
-        try {
-          const operario = {
-            email: row["Correo Electronico"] as string || null,
-            alias: row["Alias"] as string || null,
-            telefonos: String(row["Telefonos"] || "") || null,
-            tiene_doc_autonomo: parseBoolean(row["¿Tenemos Doc Autonomo?"]),
-            tiene_doc_escritura: parseBoolean(row["¿Tenemos Doc Escritura?"]),
-            tiene_doc_cif: parseBoolean(row["¿Tenemos Doc CIF?"]),
-            tiene_doc_contrato: parseBoolean(row["¿Tenemos Doc Contrato?"]),
-            tipo: normalizeTipo(row["Empresa o Autonomo"] as string),
-            nombre: row["Nombre"] as string || null,
-            documento: row["Documento"] as string || null,
-            empresa: row["Empresa"] as string || null,
-            cif: row["CIF"] as string || null,
-            cuenta_bancaria: row["Cuenta Bancaria"] as string || null,
-            direccion: row["Direccion"] as string || null,
-          };
-
-          const { error } = await supabase.from("operarios").insert(operario);
-          if (error) {
-            errors.push(`Row error: ${error.message}`);
-          } else {
-            imported++;
-          }
-        } catch (err) {
-          errors.push(`Parse error: ${err}`);
-        }
-      }
-    } else {
-      return NextResponse.json(
-        { error: "Invalid type. Use 'clientes' or 'operarios'" },
-        { status: 400 }
-      );
-    }
-
-    return NextResponse.json({
-      success: true,
-      imported,
-      total: data.length,
-      errors: errors.slice(0, 10), // Return first 10 errors
-    });
-  } catch (error) {
-    console.error("Import error:", error);
-    return NextResponse.json(
-      { error: "Failed to import data" },
-      { status: 500 }
-    );
   }
+  return null;
 }
 
 function parseBoolean(value: unknown): boolean {
@@ -133,7 +28,7 @@ function parseBoolean(value: unknown): boolean {
   return false;
 }
 
-function normalizeServicio(value: string | undefined): string | null {
+function normalizeServicio(value: string | null): string | null {
   if (!value) return null;
   const v = value.toLowerCase();
   if (v === "luz") return "Luz";
@@ -142,7 +37,7 @@ function normalizeServicio(value: string | undefined): string | null {
   return null;
 }
 
-function normalizeTipoPersona(value: string | undefined): string | null {
+function normalizeTipoPersona(value: string | null): string | null {
   if (!value) return null;
   const v = value.toLowerCase();
   if (v.includes("fisica") || v.includes("física")) return "Persona Fisica";
@@ -150,10 +45,196 @@ function normalizeTipoPersona(value: string | undefined): string | null {
   return null;
 }
 
-function normalizeTipo(value: string | undefined): string | null {
+function normalizeTipo(value: string | null): string | null {
   if (!value) return null;
   const v = value.toLowerCase();
   if (v === "empresa") return "Empresa";
   if (v === "autonomo" || v === "autónomo") return "Autonomo";
   return null;
+}
+
+function parseClienteRow(row: Record<string, unknown>) {
+  const operador = getValue(row, "operador");
+  const nombre = getValue(row, "nombre y apellidos");
+
+  // Skip empty rows
+  if (!operador && !nombre) return null;
+
+  return {
+    operador,
+    servicio: normalizeServicio(getValue(row, "servicio")),
+    estado: getValue(row, "estado"),
+    tiene_suministro: parseBoolean(row["¿Tiene suministro?"]),
+    es_cambio_titular: parseBoolean(row["¿Es cambio de titular?"]),
+    tipo_persona: normalizeTipoPersona(getValue(row, "empresa o persona")),
+    nombre_apellidos: nombre,
+    razon_social: getValue(row, "razon social"),
+    documento_nuevo_titular: getValue(row, "documento nuevo titular"),
+    documento_anterior_titular: getValue(row, "documento anterior titular"),
+    email: getValue(row, "email"),
+    telefono: getValue(row, "telefono"),
+    cuenta_bancaria: getValue(row, "cuenta bancaria"),
+    direccion: getValue(row, "direccion"),
+    observaciones: getValue(row, "observaciones"),
+    observaciones_admin: getValue(row, "observaciones_admin"),
+    cups_gas: getValue(row, "cups gas"),
+    cups_luz: getValue(row, "cups luz"),
+    compania_gas: getValue(row, "compañia gas", "compania gas"),
+    compania_luz: getValue(row, "compañia luz", "compania luz"),
+    potencia_gas: getValue(row, "potencia gas"),
+    potencia_luz: getValue(row, "potencia luz"),
+    facturado: parseBoolean(row["facturado"]),
+    cobrado: parseBoolean(row["cobrado"]),
+    pagado: parseBoolean(row["pagado"]),
+    factura_pagos: getValue(row, "factura pagos"),
+    factura_cobros: getValue(row, "factura cobros"),
+    precio_kw_gas: getValue(row, "precio kw gas"),
+    precio_kw_luz: getValue(row, "precio kw luz"),
+  };
+}
+
+function parseOperarioRow(row: Record<string, unknown>) {
+  const alias = getValue(row, "Alias");
+  const email = getValue(row, "Correo Electronico");
+
+  // Skip empty rows
+  if (!alias && !email) return null;
+
+  return {
+    email,
+    alias,
+    telefonos: getValue(row, "Telefonos"),
+    tiene_doc_autonomo: parseBoolean(row["¿Tenemos Doc Autonomo?"]),
+    tiene_doc_escritura: parseBoolean(row["¿Tenemos Doc Escritura?"]),
+    tiene_doc_cif: parseBoolean(row["¿Tenemos Doc CIF?"]),
+    tiene_doc_contrato: parseBoolean(row["¿Tenemos Doc Contrato?"]),
+    tipo: normalizeTipo(getValue(row, "Empresa o Autonomo")),
+    nombre: getValue(row, "Nombre"),
+    documento: getValue(row, "Documento"),
+    empresa: getValue(row, "Empresa"),
+    cif: getValue(row, "CIF"),
+    cuenta_bancaria: getValue(row, "Cuenta Bancaria"),
+    direccion: getValue(row, "Direccion"),
+  };
+}
+
+export async function POST(request: NextRequest) {
+  const encoder = new TextEncoder();
+
+  const stream = new ReadableStream({
+    async start(controller) {
+      const send = (data: object) => {
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
+      };
+
+      try {
+        const formData = await request.formData();
+        const file = formData.get("file") as File;
+        const type = formData.get("type") as string;
+
+        if (!file || !type) {
+          send({ status: "error", message: "File and type are required" });
+          controller.close();
+          return;
+        }
+
+        // Read Excel file
+        const buffer = await file.arrayBuffer();
+        const workbook = XLSX.read(buffer, { type: "buffer" });
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const data = XLSX.utils.sheet_to_json(sheet) as Record<string, unknown>[];
+
+        const total = data.length;
+        let imported = 0;
+        let errors = 0;
+        let current = 0;
+
+        // Parse rows based on type
+        const parseRow = type === "clientes" ? parseClienteRow : parseOperarioRow;
+        const tableName = type === "clientes" ? "clientes" : "operarios";
+
+        // Process in batches
+        const validRows: object[] = [];
+
+        for (const row of data) {
+          current++;
+          const parsed = parseRow(row);
+
+          if (parsed) {
+            validRows.push(parsed);
+          }
+
+          // When batch is full, insert
+          if (validRows.length >= BATCH_SIZE) {
+            const { error, data: insertedData } = await supabase
+              .from(tableName)
+              .insert(validRows)
+              .select("id");
+
+            if (error) {
+              errors += validRows.length;
+            } else {
+              imported += insertedData?.length || validRows.length;
+            }
+
+            validRows.length = 0; // Clear batch
+
+            // Send progress update
+            send({
+              status: "importing",
+              current,
+              total,
+              imported,
+              errors,
+            });
+          }
+        }
+
+        // Insert remaining rows
+        if (validRows.length > 0) {
+          const { error, data: insertedData } = await supabase
+            .from(tableName)
+            .insert(validRows)
+            .select("id");
+
+          if (error) {
+            errors += validRows.length;
+          } else {
+            imported += insertedData?.length || validRows.length;
+          }
+        }
+
+        // Send final status
+        send({
+          status: "done",
+          current: total,
+          total,
+          imported,
+          errors,
+        });
+
+        controller.enqueue(encoder.encode("data: [DONE]\n\n"));
+        controller.close();
+      } catch (error) {
+        console.error("Import error:", error);
+        controller.enqueue(
+          encoder.encode(
+            `data: ${JSON.stringify({
+              status: "error",
+              message: "Error al importar: " + String(error),
+            })}\n\n`
+          )
+        );
+        controller.close();
+      }
+    },
+  });
+
+  return new Response(stream, {
+    headers: {
+      "Content-Type": "text/event-stream",
+      "Cache-Control": "no-cache",
+      Connection: "keep-alive",
+    },
+  });
 }
