@@ -14,6 +14,7 @@ interface ProgressState {
   errors: number;
   status: "reading" | "importing" | "done" | "error";
   message?: string;
+  lastError?: string;
 }
 
 export function ImportButton({ type }: ImportButtonProps) {
@@ -95,6 +96,7 @@ export function ImportButton({ type }: ImportButtonProps) {
                 errors: parsed.errors || 0,
                 status: parsed.status || "importing",
                 message: parsed.message,
+                lastError: parsed.lastError,
               });
             } catch {
               // Skip invalid JSON
@@ -215,16 +217,25 @@ export function ImportButton({ type }: ImportButtonProps) {
 
             {progress?.status === "done" && (
               <div className="text-center py-4">
-                <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Check className="w-8 h-8 text-green-600" />
+                <div className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${progress.imported > 0 ? "bg-green-100" : "bg-yellow-100"}`}>
+                  {progress.imported > 0 ? (
+                    <Check className="w-8 h-8 text-green-600" />
+                  ) : (
+                    <AlertCircle className="w-8 h-8 text-yellow-600" />
+                  )}
                 </div>
                 <h4 className="text-lg font-medium text-gray-900 mb-2">
-                  ¡Importación completada!
+                  {progress.imported > 0 ? "¡Importación completada!" : "Importación fallida"}
                 </h4>
                 <p className="text-gray-600">
                   {progress.imported} registros importados correctamente
                   {progress.errors > 0 && `, ${progress.errors} errores`}
                 </p>
+                {progress.lastError && (
+                  <p className="text-sm text-red-600 mt-2 bg-red-50 p-2 rounded">
+                    Error: {progress.lastError}
+                  </p>
+                )}
               </div>
             )}
 

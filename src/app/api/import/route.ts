@@ -148,10 +148,22 @@ export async function POST(request: NextRequest) {
         let imported = 0;
         let errors = 0;
         let current = 0;
+        let lastError = "";
+
+        console.log(`Starting import of ${total} rows for ${type}`);
 
         // Parse rows based on type
         const parseRow = type === "clientes" ? parseClienteRow : parseOperarioRow;
         const tableName = type === "clientes" ? "clientes" : "operarios";
+
+        // Send initial progress
+        send({
+          status: "importing",
+          current: 0,
+          total,
+          imported: 0,
+          errors: 0,
+        });
 
         // Process in batches
         const validRows: object[] = [];
@@ -172,6 +184,8 @@ export async function POST(request: NextRequest) {
               .select("id");
 
             if (error) {
+              console.error("Batch insert error:", error.message);
+              lastError = error.message;
               errors += validRows.length;
             } else {
               imported += insertedData?.length || validRows.length;
@@ -186,6 +200,7 @@ export async function POST(request: NextRequest) {
               total,
               imported,
               errors,
+              lastError: lastError || undefined,
             });
           }
         }
@@ -198,11 +213,15 @@ export async function POST(request: NextRequest) {
             .select("id");
 
           if (error) {
+            console.error("Final batch insert error:", error.message);
+            lastError = error.message;
             errors += validRows.length;
           } else {
             imported += insertedData?.length || validRows.length;
           }
         }
+
+        console.log(`Import finished: ${imported} imported, ${errors} errors`);
 
         // Send final status
         send({
@@ -211,6 +230,7 @@ export async function POST(request: NextRequest) {
           total,
           imported,
           errors,
+          lastError: errors > 0 ? lastError : undefined,
         });
 
         controller.enqueue(encoder.encode("data: [DONE]\n\n"));
