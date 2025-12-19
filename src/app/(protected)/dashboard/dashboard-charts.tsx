@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import {
   BarChart,
   Bar,
@@ -33,10 +34,71 @@ interface DashboardChartsProps {
   operariosCount: number;
 }
 
+// Memoize charts to prevent re-renders during sidebar animation
+const BarChartMemo = memo(function BarChartMemo({ data }: { data: EmailDayData[] }) {
+  return (
+    <ResponsiveContainer width="100%" height="100%" debounce={100}>
+      <BarChart data={data}>
+        <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+        <XAxis dataKey="date" tick={{ fontSize: 12 }} tickLine={false} />
+        <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
+        <Tooltip
+          contentStyle={{
+            backgroundColor: "#fff",
+            border: "1px solid #e5e7eb",
+            borderRadius: "8px",
+            fontSize: "12px",
+          }}
+        />
+        <Legend />
+        <Bar dataKey="enviados" name="Enviados" fill="#22c55e" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+        <Bar dataKey="fallidos" name="Fallidos" fill="#ef4444" radius={[4, 4, 0, 0]} isAnimationActive={false} />
+      </BarChart>
+    </ResponsiveContainer>
+  );
+});
+
+const PieChartMemo = memo(function PieChartMemo({ data }: { data: StatusData[] }) {
+  const filteredData = data.filter((s) => s.value > 0);
+  return (
+    <ResponsiveContainer width="100%" height="100%" debounce={100}>
+      <PieChart>
+        <Pie
+          data={filteredData as { name: string; value: number; color: string; [key: string]: unknown }[]}
+          cx="50%"
+          cy="50%"
+          innerRadius={50}
+          outerRadius={80}
+          paddingAngle={3}
+          dataKey="value"
+          nameKey="name"
+          isAnimationActive={false}
+        >
+          {filteredData.map((entry, index) => (
+            <Cell key={`cell-${index}`} fill={entry.color} />
+          ))}
+        </Pie>
+        <Tooltip
+          contentStyle={{
+            backgroundColor: "#fff",
+            border: "1px solid #e5e7eb",
+            borderRadius: "8px",
+            fontSize: "12px",
+          }}
+        />
+        <Legend />
+      </PieChart>
+    </ResponsiveContainer>
+  );
+});
+
 export function DashboardCharts({
   emailsByDay,
   emailStatus,
 }: DashboardChartsProps) {
+  const hasEmailActivity = emailsByDay.some((d) => d.enviados > 0 || d.fallidos > 0);
+  const hasEmailStatus = emailStatus.some((s) => s.value > 0);
+
   return (
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
       {/* Email activity over time */}
@@ -44,40 +106,9 @@ export function DashboardCharts({
         <h3 className="font-semibold text-gray-900 mb-4">
           Actividad de emails (últimos 7 días)
         </h3>
-        {emailsByDay.some((d) => d.enviados > 0 || d.fallidos > 0) ? (
+        {hasEmailActivity ? (
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={emailsByDay}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis
-                  dataKey="date"
-                  tick={{ fontSize: 12 }}
-                  tickLine={false}
-                />
-                <YAxis tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                  }}
-                />
-                <Legend />
-                <Bar
-                  dataKey="enviados"
-                  name="Enviados"
-                  fill="#22c55e"
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="fallidos"
-                  name="Fallidos"
-                  fill="#ef4444"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+            <BarChartMemo data={emailsByDay} />
           </div>
         ) : (
           <div className="h-64 flex items-center justify-center text-gray-400">
@@ -89,37 +120,9 @@ export function DashboardCharts({
       {/* Email status distribution */}
       <div className="bg-white rounded-lg border border-gray-200 p-4 sm:p-6">
         <h3 className="font-semibold text-gray-900 mb-4">Distribución de emails</h3>
-        {emailStatus.some((s) => s.value > 0) ? (
+        {hasEmailStatus ? (
           <div className="h-64">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie
-                  data={emailStatus.filter((s) => s.value > 0) as { name: string; value: number; color: string; [key: string]: unknown }[]}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={3}
-                  dataKey="value"
-                  nameKey="name"
-                >
-                  {emailStatus
-                    .filter((s) => s.value > 0)
-                    .map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    backgroundColor: "#fff",
-                    border: "1px solid #e5e7eb",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                  }}
-                />
-                <Legend />
-              </PieChart>
-            </ResponsiveContainer>
+            <PieChartMemo data={emailStatus} />
           </div>
         ) : (
           <div className="h-64 flex items-center justify-center text-gray-400">

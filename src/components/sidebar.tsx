@@ -170,8 +170,8 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
                 collapsed && !isMobile ? "opacity-0 w-0" : "opacity-100"
               }`}
             >
-              <span className="text-[#BB292A]">Cerecilla</span>
-              <span className="text-gray-800">CRM</span>
+              <span className="text-[#BB292A]">CERECILLA</span>
+              <span className="text-gray-800"> CRM</span>
             </span>
           </Link>
 
