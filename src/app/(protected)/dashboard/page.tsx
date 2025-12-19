@@ -1,7 +1,8 @@
 import { PageHeader } from "@/components/page-header";
-import { LayoutDashboard, Mail, FileText, CheckCircle, XCircle, Clock } from "lucide-react";
+import { LayoutDashboard, Mail, FileText, CheckCircle, XCircle, Clock, Users, HardHat } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
+import { DashboardCharts } from "./dashboard-charts";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
@@ -21,10 +22,74 @@ export default async function DashboardPage() {
     .select("*", { count: "exact", head: true })
     .eq("status", "failed");
 
+  const { count: deliveredEmails } = await supabase
+    .from("emails")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "delivered");
+
+  const { count: queuedEmails } = await supabase
+    .from("emails")
+    .select("*", { count: "exact", head: true })
+    .eq("status", "queued");
+
   // Get template count
   const { count: totalTemplates } = await supabase
     .from("email_templates")
     .select("*", { count: "exact", head: true });
+
+  // Get clientes and operarios count
+  const { count: clientesCount } = await supabase
+    .from("clientes")
+    .select("*", { count: "exact", head: true });
+
+  const { count: operariosCount } = await supabase
+    .from("operarios")
+    .select("*", { count: "exact", head: true });
+
+  // Get emails from last 7 days for chart
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const { data: recentEmailsForChart } = await supabase
+    .from("emails")
+    .select("status, created_at")
+    .gte("created_at", sevenDaysAgo.toISOString());
+
+  // Process emails by day
+  const emailsByDayMap: Record<string, { enviados: number; fallidos: number }> = {};
+  const days = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    const dateStr = date.toLocaleDateString("es-ES", { weekday: "short", day: "numeric" });
+    days.push(dateStr);
+    emailsByDayMap[dateStr] = { enviados: 0, fallidos: 0 };
+  }
+
+  recentEmailsForChart?.forEach((email) => {
+    const date = new Date(email.created_at);
+    const dateStr = date.toLocaleDateString("es-ES", { weekday: "short", day: "numeric" });
+    if (emailsByDayMap[dateStr]) {
+      if (email.status === "sent" || email.status === "delivered") {
+        emailsByDayMap[dateStr].enviados++;
+      } else if (email.status === "failed") {
+        emailsByDayMap[dateStr].fallidos++;
+      }
+    }
+  });
+
+  const emailsByDay = days.map((date) => ({
+    date,
+    enviados: emailsByDayMap[date]?.enviados || 0,
+    fallidos: emailsByDayMap[date]?.fallidos || 0,
+  }));
+
+  // Email status for pie chart
+  const emailStatus = [
+    { name: "Enviados", value: (sentEmails || 0) + (deliveredEmails || 0), color: "#22c55e" },
+    { name: "Fallidos", value: failedEmails || 0, color: "#ef4444" },
+    { name: "En cola", value: queuedEmails || 0, color: "#f59e0b" },
+  ];
 
   // Get recent emails
   const { data: recentEmails } = await supabase
@@ -76,7 +141,7 @@ export default async function DashboardPage() {
       />
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
         {stats.map((stat) => (
           <div
             key={stat.name}
@@ -92,7 +157,37 @@ export default async function DashboardPage() {
             <p className="text-sm text-gray-500 mt-1">{stat.description}</p>
           </div>
         ))}
+        {/* Clientes card */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-[#BB292A]/10 flex items-center justify-center">
+              <Users className="w-5 h-5 text-[#BB292A]" />
+            </div>
+            <h3 className="font-medium text-gray-900">Clientes</h3>
+          </div>
+          <p className="text-3xl font-semibold text-gray-900">{clientesCount || 0}</p>
+          <p className="text-sm text-gray-500 mt-1">Registrados</p>
+        </div>
+        {/* Operarios card */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-lg bg-[#87CEEB]/20 flex items-center justify-center">
+              <HardHat className="w-5 h-5 text-[#0ea5e9]" />
+            </div>
+            <h3 className="font-medium text-gray-900">Operarios</h3>
+          </div>
+          <p className="text-3xl font-semibold text-gray-900">{operariosCount || 0}</p>
+          <p className="text-sm text-gray-500 mt-1">Registrados</p>
+        </div>
       </div>
+
+      {/* Charts */}
+      <DashboardCharts
+        emailsByDay={emailsByDay}
+        emailStatus={emailStatus}
+        clientesCount={clientesCount || 0}
+        operariosCount={operariosCount || 0}
+      />
 
       {/* Recent emails */}
       {recentEmails && recentEmails.length > 0 ? (

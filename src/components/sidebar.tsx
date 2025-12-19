@@ -136,22 +136,6 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
         <Menu className="w-5 h-5" />
       </button>
 
-      {/* Desktop collapse button */}
-      {!isMobile && (
-        <button
-          onClick={toggleCollapsed}
-          className={`fixed top-5 z-50 p-1.5 bg-white border border-gray-200 rounded-full shadow-sm hover:bg-gray-50 text-gray-500 transition-all duration-300 hidden md:block ${
-            collapsed ? "left-[60px]" : "left-[268px]"
-          }`}
-          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-        >
-          {collapsed ? (
-            <ChevronRight className="w-4 h-4" />
-          ) : (
-            <ChevronLeft className="w-4 h-4" />
-          )}
-        </button>
-      )}
 
       {/* Mobile overlay */}
       {isMobile && mobileOpen && (
@@ -235,6 +219,28 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
             </div>
           ))}
         </nav>
+
+        {/* Desktop collapse button */}
+        {!isMobile && (
+          <div className="px-3 pb-2">
+            <button
+              onClick={toggleCollapsed}
+              className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-gray-500 hover:bg-gray-100 hover:text-gray-700 transition-colors ${
+                collapsed ? "justify-center" : ""
+              }`}
+              aria-label={collapsed ? "Expandir sidebar" : "Contraer sidebar"}
+            >
+              {collapsed ? (
+                <ChevronRight className="w-5 h-5" />
+              ) : (
+                <>
+                  <ChevronLeft className="w-5 h-5" />
+                  <span className="text-sm">Contraer menú</span>
+                </>
+              )}
+            </button>
+          </div>
+        )}
 
         {/* User profile */}
         <div className="border-t border-gray-200 p-3 relative">
