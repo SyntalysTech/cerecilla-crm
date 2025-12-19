@@ -159,7 +159,6 @@ const searchFields = [
   { value: "nombre_apellidos", label: "NOMBRE Y APELLIDOS" },
   { value: "documento_nuevo_titular", label: "DOCUMENTO" },
   { value: "razon_social", label: "EMPRESA" },
-  { value: "cif", label: "CIF" },
   { value: "telefono", label: "TELEFONO" },
   { value: "cups_gas", label: "CUPS GAS" },
   { value: "cups_luz", label: "CUPS LUZ" },
@@ -167,6 +166,8 @@ const searchFields = [
   { value: "direccion", label: "CALLE" },
   { value: "estado", label: "ESTADO" },
   { value: "servicio", label: "SERVICIO" },
+  { value: "email", label: "EMAIL" },
+  { value: "cuenta_bancaria", label: "CUENTA BANCARIA" },
 ];
 
 export function ClientesList({ clientes, error }: ClientesListProps) {
@@ -220,12 +221,21 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
   }
 
   const filteredClientes = clientes.filter((cliente) => {
-    if (searchTerm === "") return true;
+    if (searchTerm.trim() === "") return true;
+
+    const searchLower = searchTerm.toLowerCase().trim();
+
+    // Special case: when searching by nombre, also search razon_social
+    if (searchField === "nombre_apellidos") {
+      const nombre = cliente.nombre_apellidos?.toLowerCase() || "";
+      const razon = cliente.razon_social?.toLowerCase() || "";
+      return nombre.includes(searchLower) || razon.includes(searchLower);
+    }
 
     const fieldValue = cliente[searchField as keyof Cliente];
     if (fieldValue === null || fieldValue === undefined) return false;
 
-    return String(fieldValue).toLowerCase().includes(searchTerm.toLowerCase());
+    return String(fieldValue).toLowerCase().includes(searchLower);
   });
 
   const totalPages = Math.ceil(filteredClientes.length / itemsPerPage);
