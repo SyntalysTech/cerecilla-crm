@@ -504,8 +504,8 @@ export function TemplateForm({ template }: TemplateFormProps) {
           id,
           type: "attachment",
           content: {
-            fileName: "documento.pdf",
-            url: "https://",
+            fileName: "",
+            url: "",
             fileSize: "",
             fileExtension: "PDF",
             textColor: "#333333",
@@ -598,6 +598,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
   async function uploadFile(file: File): Promise<{ url: string; name: string; extension: string; size: string } | null> {
     setUploading(true);
+    setError(null);
     try {
       const supabase = createClient();
       const fileName = `${Date.now()}-${file.name.replace(/[^a-zA-Z0-9.-]/g, "_")}`;
@@ -609,7 +610,13 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
       if (uploadError) {
         console.error("Upload error:", uploadError);
-        setError("Error al subir el archivo");
+        const errorMsg = uploadError.message.includes("mime")
+          ? "Tipo de archivo no permitido. Contacta al administrador."
+          : uploadError.message.includes("size")
+          ? "El archivo es demasiado grande (máx 10MB)"
+          : `Error al subir: ${uploadError.message}`;
+        setError(errorMsg);
+        alert(errorMsg);
         return null;
       }
 
@@ -636,7 +643,9 @@ export function TemplateForm({ template }: TemplateFormProps) {
       };
     } catch (err) {
       console.error("Upload error:", err);
-      setError("Error al subir el archivo");
+      const errorMsg = "Error al subir el archivo. Verifica tu conexión.";
+      setError(errorMsg);
+      alert(errorMsg);
       return null;
     } finally {
       setUploading(false);
@@ -1571,7 +1580,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                     <>
                       <div>
                         <label className="block text-xs text-gray-500 mb-2">Subir documento</label>
-                        {selectedBlock.content.url ? (
+                        {selectedBlock.content.url && (selectedBlock.content.url as string).length > 10 ? (
                           <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
                             <div className="flex items-center gap-3">
                               <div
@@ -1586,7 +1595,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                               </div>
                               <button
                                 type="button"
-                                onClick={() => updateBlock(selectedBlock.id, { url: "", fileName: "documento.pdf", fileSize: "", fileExtension: "PDF" })}
+                                onClick={() => updateBlock(selectedBlock.id, { url: "", fileName: "", fileSize: "", fileExtension: "PDF" })}
                                 className="p-1 text-red-500 hover:bg-red-50 rounded"
                               >
                                 <Trash2 className="w-4 h-4" />
