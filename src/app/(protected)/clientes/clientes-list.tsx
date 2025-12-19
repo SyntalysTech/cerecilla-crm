@@ -5,12 +5,15 @@ import {
   Search,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   MoreVertical,
   Eye,
   Pencil,
   Trash2,
   X,
   Bell,
+  ArrowUpAZ,
+  ArrowDownAZ,
 } from "lucide-react";
 
 interface Cliente {
@@ -155,37 +158,64 @@ function ObservacionesModal({ cliente, onClose }: { cliente: Cliente; onClose: (
   );
 }
 
-const searchFields = [
-  { value: "nombre_apellidos", label: "NOMBRE Y APELLIDOS" },
-  { value: "documento_nuevo_titular", label: "DOCUMENTO" },
-  { value: "razon_social", label: "EMPRESA" },
-  { value: "telefono", label: "TELEFONO" },
-  { value: "cups_gas", label: "CUPS GAS" },
-  { value: "cups_luz", label: "CUPS LUZ" },
-  { value: "operador", label: "OPERADOR" },
-  { value: "direccion", label: "CALLE" },
-  { value: "estado", label: "ESTADO" },
-  { value: "servicio", label: "SERVICIO" },
-  { value: "email", label: "EMAIL" },
-  { value: "cuenta_bancaria", label: "CUENTA BANCARIA" },
+const filterFields = [
+  { value: "", label: "TODOS", hasSubOptions: false },
+  { value: "nombre_apellidos", label: "NOMBRE Y APELLIDOS", hasSubOptions: true, subOptions: [
+    { value: "asc", label: "A → Z" },
+    { value: "desc", label: "Z → A" },
+  ]},
+  { value: "documento_nuevo_titular", label: "DOCUMENTO", hasSubOptions: true, subOptions: [
+    { value: "all", label: "TODOS" },
+    { value: "dni", label: "DNI (8 números + letra)" },
+    { value: "nie", label: "NIE (X/Y/Z + números)" },
+    { value: "cif", label: "CIF (letra + números)" },
+  ]},
+  { value: "razon_social", label: "EMPRESA", hasSubOptions: false },
+  { value: "telefono", label: "TELEFONO", hasSubOptions: false },
+  { value: "cups_gas", label: "CUPS GAS", hasSubOptions: false },
+  { value: "cups_luz", label: "CUPS LUZ", hasSubOptions: false },
+  { value: "operador", label: "OPERADOR", hasSubOptions: false },
+  { value: "direccion", label: "CALLE", hasSubOptions: false },
+  { value: "estado", label: "ESTADO", hasSubOptions: true, subOptions: [
+    { value: "all", label: "TODOS" },
+    { value: "LIQUIDADO", label: "LIQUIDADO" },
+    { value: "PENDIENTE", label: "PENDIENTE" },
+    { value: "EN TRAMITE", label: "EN TRAMITE" },
+    { value: "SEGUIMIENTO", label: "SEGUIMIENTO" },
+    { value: "FALLIDO", label: "FALLIDO" },
+  ]},
+  { value: "servicio", label: "SERVICIO", hasSubOptions: true, subOptions: [
+    { value: "all", label: "TODOS" },
+    { value: "Luz", label: "LUZ" },
+    { value: "Gas", label: "GAS" },
+    { value: "Luz y Gas", label: "LUZ Y GAS" },
+  ]},
+  { value: "email", label: "EMAIL", hasSubOptions: false },
+  { value: "cuenta_bancaria", label: "CUENTA BANCARIA", hasSubOptions: false },
 ];
 
 export function ClientesList({ clientes, error }: ClientesListProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [searchField, setSearchField] = useState("nombre_apellidos");
+  const [activeFilter, setActiveFilter] = useState(""); // Campo activo para filtrar (vacío = todos)
+  const [subFilterValue, setSubFilterValue] = useState(""); // Valor del subfiltro (orden, tipo doc, etc.)
   const [showFieldDropdown, setShowFieldDropdown] = useState(false);
+  const [showSubDropdown, setShowSubDropdown] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
   const [observacionesCliente, setObservacionesCliente] = useState<Cliente | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const subDropdownRef = useRef<HTMLDivElement>(null);
   const itemsPerPage = 20;
 
-  // Close dropdown when clicking outside
+  // Close dropdowns when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setShowFieldDropdown(false);
+      }
+      if (subDropdownRef.current && !subDropdownRef.current.contains(event.target as Node)) {
+        setShowSubDropdown(false);
       }
     }
     document.addEventListener("mousedown", handleClickOutside);
@@ -220,33 +250,82 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
     );
   }
 
-  // Debug: log search parameters
-  console.log("Filter Debug:", { searchTerm, searchField, totalClientes: clientes.length });
+  // Helper to check document type
+  const getDocumentType = (doc: string | null): string => {
+    if (!doc) return "unknown";
+    const cleaned = doc.toUpperCase().replace(/[^A-Z0-9]/g, "");
+    if (/^[XYZ]\d+[A-Z]?$/.test(cleaned)) return "nie";
+    if (/^[A-Z]\d{7}[A-Z0-9]$/.test(cleaned)) return "cif";
+    if (/^\d{8}[A-Z]$/.test(cleaned)) return "dni";
+    return "other";
+  };
 
   const filteredClientes = clientes.filter((cliente) => {
+    // First apply the field filter (show only clients that have this field with a value)
+    if (activeFilter !== "") {
+      const fieldValue = cliente[activeFilter as keyof Cliente];
+      if (fieldValue === null || fieldValue === undefined || fieldValue === "") {
+        return false;
+      }
+
+      // Apply sub-filter if active
+      if (subFilterValue && subFilterValue !== "all" && subFilterValue !== "asc" && subFilterValue !== "desc") {
+        // For documento filter by type
+        if (activeFilter === "documento_nuevo_titular") {
+          const docType = getDocumentType(cliente.documento_nuevo_titular);
+          if (docType !== subFilterValue) return false;
+        }
+        // For estado filter by exact value
+        if (activeFilter === "estado") {
+          if (cliente.estado !== subFilterValue) return false;
+        }
+        // For servicio filter by exact value
+        if (activeFilter === "servicio") {
+          if (cliente.servicio !== subFilterValue) return false;
+        }
+      }
+    }
+
+    // Then apply the search term if any
     if (searchTerm.trim() === "") return true;
 
     const searchLower = searchTerm.toLowerCase().trim();
 
-    // Special case: when searching by nombre, also search razon_social
-    if (searchField === "nombre_apellidos") {
-      const nombre = cliente.nombre_apellidos?.toLowerCase() || "";
-      const razon = cliente.razon_social?.toLowerCase() || "";
-      return nombre.includes(searchLower) || razon.includes(searchLower);
-    }
+    // Search across multiple fields
+    const searchableFields = [
+      cliente.nombre_apellidos,
+      cliente.razon_social,
+      cliente.documento_nuevo_titular,
+      cliente.email,
+      cliente.telefono,
+      cliente.operador,
+      cliente.direccion,
+      cliente.estado,
+      cliente.servicio,
+    ];
 
-    const fieldValue = cliente[searchField as keyof Cliente];
-    if (fieldValue === null || fieldValue === undefined) return false;
-
-    return String(fieldValue).toLowerCase().includes(searchLower);
+    return searchableFields.some(field =>
+      field?.toLowerCase().includes(searchLower)
+    );
   });
 
-  // Debug: log filtered results
-  console.log("Filter Results:", { filtered: filteredClientes.length });
+  // Sort if needed (for nombre_apellidos)
+  const sortedClientes = [...filteredClientes];
+  if (activeFilter === "nombre_apellidos" && (subFilterValue === "asc" || subFilterValue === "desc")) {
+    sortedClientes.sort((a, b) => {
+      const nameA = (a.nombre_apellidos || a.razon_social || "").toLowerCase();
+      const nameB = (b.nombre_apellidos || b.razon_social || "").toLowerCase();
+      if (subFilterValue === "asc") {
+        return nameA.localeCompare(nameB, "es");
+      } else {
+        return nameB.localeCompare(nameA, "es");
+      }
+    });
+  }
 
-  const totalPages = Math.ceil(filteredClientes.length / itemsPerPage);
+  const totalPages = Math.ceil(sortedClientes.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedClientes = filteredClientes.slice(
+  const paginatedClientes = sortedClientes.slice(
     startIndex,
     startIndex + itemsPerPage
   );
@@ -286,31 +365,36 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
     return pages;
   };
 
+  // Get current filter config
+  const currentFilterConfig = filterFields.find(f => f.value === activeFilter);
+  const hasSubOptions = currentFilterConfig?.hasSubOptions && currentFilterConfig?.subOptions;
+
   return (
     <div className="space-y-4">
       {/* Search Bar - Like old CRM */}
       <div className="flex items-center gap-2">
-        {/* Field selector dropdown */}
+        {/* Filter dropdown - click to filter instantly */}
         <div className="relative" ref={dropdownRef}>
           <button
             onClick={() => setShowFieldDropdown(!showFieldDropdown)}
             className="px-3 py-2 bg-white border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 min-w-[180px] justify-between"
           >
-            {searchFields.find(f => f.value === searchField)?.label}
-            <ChevronRight className={`w-4 h-4 transition-transform ${showFieldDropdown ? "rotate-90" : ""}`} />
+            {filterFields.find(f => f.value === activeFilter)?.label || "TODOS"}
+            <ChevronDown className={`w-4 h-4 transition-transform ${showFieldDropdown ? "rotate-180" : ""}`} />
           </button>
           {showFieldDropdown && (
             <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-300 rounded shadow-lg z-50 max-h-80 overflow-y-auto">
-              {searchFields.map((field) => (
+              {filterFields.map((field) => (
                 <button
                   key={field.value}
                   onClick={() => {
-                    setSearchField(field.value);
+                    setActiveFilter(field.value);
+                    setSubFilterValue(""); // Reset sub filter
                     setShowFieldDropdown(false);
                     setCurrentPage(1);
                   }}
                   className={`w-full px-3 py-2 text-left text-sm hover:bg-[#2196F3] hover:text-white ${
-                    searchField === field.value ? "bg-[#2196F3] text-white" : "text-gray-700"
+                    activeFilter === field.value ? "bg-[#2196F3] text-white" : "text-gray-700"
                   }`}
                 >
                   {field.label}
@@ -319,6 +403,39 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
             </div>
           )}
         </div>
+
+        {/* Sub-filter dropdown (appears when filter has sub-options) */}
+        {hasSubOptions && (
+          <div className="relative" ref={subDropdownRef}>
+            <button
+              onClick={() => setShowSubDropdown(!showSubDropdown)}
+              className="px-3 py-2 bg-white border border-gray-300 rounded text-sm font-medium text-gray-700 hover:bg-gray-50 flex items-center gap-2 min-w-[140px] justify-between"
+            >
+              {currentFilterConfig.subOptions?.find(s => s.value === subFilterValue)?.label ||
+               (activeFilter === "nombre_apellidos" ? "Ordenar" : "Filtrar")}
+              <ChevronDown className={`w-4 h-4 transition-transform ${showSubDropdown ? "rotate-180" : ""}`} />
+            </button>
+            {showSubDropdown && (
+              <div className="absolute top-full left-0 mt-1 w-full bg-white border border-gray-300 rounded shadow-lg z-50 max-h-80 overflow-y-auto">
+                {currentFilterConfig.subOptions?.map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => {
+                      setSubFilterValue(option.value);
+                      setShowSubDropdown(false);
+                      setCurrentPage(1);
+                    }}
+                    className={`w-full px-3 py-2 text-left text-sm hover:bg-[#2196F3] hover:text-white ${
+                      subFilterValue === option.value ? "bg-[#2196F3] text-white" : "text-gray-700"
+                    }`}
+                  >
+                    {option.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Search input */}
         <div className="relative flex-1 max-w-md">
@@ -337,7 +454,7 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
 
         {/* Results count */}
         <span className="text-sm text-gray-500">
-          {filteredClientes.length} de {clientes.length} clientes
+          {sortedClientes.length} de {clientes.length} clientes
         </span>
       </div>
 
