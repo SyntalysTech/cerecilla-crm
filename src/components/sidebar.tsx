@@ -156,8 +156,8 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
         }`}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center px-3 border-b border-gray-200 overflow-hidden">
-          <Link href="/dashboard" className={`flex items-center gap-3 ${collapsed && !isMobile ? "justify-center w-full" : ""}`} onClick={handleNavClick}>
+        <div className="h-16 flex items-center justify-center px-3 border-b border-gray-200 overflow-hidden">
+          <Link href="/dashboard" className={`flex items-center gap-3 ${collapsed && !isMobile ? "justify-center" : ""}`} onClick={handleNavClick}>
             <Image
               src="/logos/logo-isotope-cerezas.png"
               alt="Cerecilla"
