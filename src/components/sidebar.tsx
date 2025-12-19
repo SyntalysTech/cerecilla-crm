@@ -157,22 +157,24 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
       >
         {/* Logo */}
         <div className="h-16 flex items-center justify-between px-3 border-b border-gray-200 overflow-hidden">
-          <Link href="/dashboard" className={`flex items-center gap-3 min-w-0 ${collapsed && !isMobile ? "justify-center w-full" : ""}`} onClick={handleNavClick}>
-            <Image
-              src="/logos/logo-isotope-cerezas.png"
-              alt="Cerecilla"
-              width={36}
-              height={36}
-              className="flex-shrink-0"
-            />
-            <span
-              className={`text-lg font-semibold whitespace-nowrap transition-opacity duration-200 ${
-                collapsed && !isMobile ? "opacity-0 w-0" : "opacity-100"
-              }`}
-            >
-              <span className="text-[#BB292A]">CERECILLA</span>
-              <span className="text-gray-800"> CRM</span>
-            </span>
+          <Link href="/dashboard" className={`flex items-center min-w-0 ${collapsed && !isMobile ? "justify-center w-full" : ""}`} onClick={handleNavClick}>
+            {collapsed && !isMobile ? (
+              <Image
+                src="/logos/logo-isotope-cerezas.png"
+                alt="Cerecilla"
+                width={36}
+                height={36}
+                className="flex-shrink-0"
+              />
+            ) : (
+              <Image
+                src="/logos/logo-horizontal.png"
+                alt="Cerecilla"
+                width={160}
+                height={40}
+                className="flex-shrink-0"
+              />
+            )}
           </Link>
 
           {/* Mobile close button */}
