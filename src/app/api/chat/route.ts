@@ -11,44 +11,82 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY!
 );
 
+// Helper to fetch all rows in batches (Supabase limit is 1000 per query)
+async function fetchAllRows<T>(
+  table: string,
+  selectFields: string,
+  orderBy?: { column: string; ascending: boolean }
+): Promise<T[]> {
+  const { count } = await supabase
+    .from(table)
+    .select("*", { count: "exact", head: true });
+
+  if (!count) return [];
+
+  const batchSize = 1000;
+  const totalBatches = Math.ceil(count / batchSize);
+  let allRows: T[] = [];
+
+  for (let i = 0; i < totalBatches; i++) {
+    let query = supabase
+      .from(table)
+      .select(selectFields)
+      .range(i * batchSize, (i + 1) * batchSize - 1);
+
+    if (orderBy) {
+      query = query.order(orderBy.column, { ascending: orderBy.ascending });
+    }
+
+    const { data } = await query;
+    if (data) {
+      allRows = allRows.concat(data as T[]);
+    }
+  }
+
+  return allRows;
+}
+
 // Function to get database stats
 async function getDatabaseStats() {
-  // Get clientes stats
+  // Get clientes count
   const { count: totalClientes } = await supabase
     .from("clientes")
     .select("*", { count: "exact", head: true });
 
-  const { data: clientesByEstado } = await supabase
-    .from("clientes")
-    .select("estado");
+  // Fetch all clientes for stats (only needed fields)
+  const allClientesData = await fetchAllRows<{ estado: string | null; servicio: string | null; operador: string | null }>(
+    "clientes",
+    "estado, servicio, operador"
+  );
 
   const estadoStats: Record<string, number> = {};
-  clientesByEstado?.forEach((c) => {
+  const servicioStats: Record<string, number> = {};
+  const operadorStats: Record<string, number> = {};
+
+  allClientesData.forEach((c) => {
     const estado = c.estado || "Sin estado";
     estadoStats[estado] = (estadoStats[estado] || 0) + 1;
-  });
 
-  const { data: clientesByServicio } = await supabase
-    .from("clientes")
-    .select("servicio");
-
-  const servicioStats: Record<string, number> = {};
-  clientesByServicio?.forEach((c) => {
     const servicio = c.servicio || "Sin servicio";
     servicioStats[servicio] = (servicioStats[servicio] || 0) + 1;
+
+    if (c.operador) {
+      operadorStats[c.operador] = (operadorStats[c.operador] || 0) + 1;
+    }
   });
 
-  // Get operarios stats
+  // Get operarios count and stats
   const { count: totalOperarios } = await supabase
     .from("operarios")
     .select("*", { count: "exact", head: true });
 
-  const { data: operariosByTipo } = await supabase
-    .from("operarios")
-    .select("tipo");
+  const allOperariosData = await fetchAllRows<{ tipo: string | null }>(
+    "operarios",
+    "tipo"
+  );
 
   const tipoStats: Record<string, number> = {};
-  operariosByTipo?.forEach((o) => {
+  allOperariosData.forEach((o) => {
     const tipo = o.tipo || "Sin tipo";
     tipoStats[tipo] = (tipoStats[tipo] || 0) + 1;
   });
@@ -59,18 +97,6 @@ async function getDatabaseStats() {
     .select("nombre_apellidos, razon_social, estado, servicio, operador, created_at")
     .order("created_at", { ascending: false })
     .limit(5);
-
-  // Get top operadores (by number of clients)
-  const { data: allClientes } = await supabase
-    .from("clientes")
-    .select("operador");
-
-  const operadorStats: Record<string, number> = {};
-  allClientes?.forEach((c) => {
-    if (c.operador) {
-      operadorStats[c.operador] = (operadorStats[c.operador] || 0) + 1;
-    }
-  });
 
   const topOperadores = Object.entries(operadorStats)
     .sort((a, b) => b[1] - a[1])
