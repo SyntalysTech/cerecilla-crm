@@ -266,7 +266,7 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
                 </div>
                 <ChevronUp
                   className={`w-4 h-4 text-gray-400 transition-transform ${
-                    profileOpen ? "" : "rotate-180"
+                    profileOpen ? "rotate-180" : ""
                   }`}
                 />
               </>
