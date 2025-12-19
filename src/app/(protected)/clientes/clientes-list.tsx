@@ -316,17 +316,23 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
 
         {/* Search input */}
         <div className="relative flex-1 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Búsqueda"
+            placeholder="Búsqueda..."
             value={searchTerm}
             onChange={(e) => {
               setSearchTerm(e.target.value);
               setCurrentPage(1);
             }}
-            className="w-full px-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
           />
         </div>
+
+        {/* Results count */}
+        <span className="text-sm text-gray-500">
+          {filteredClientes.length} de {clientes.length} clientes
+        </span>
       </div>
 
       {/* Full width table with horizontal scroll */}
