@@ -9,7 +9,8 @@ export default async function ClientesPage() {
   const { data: clientes, error } = await supabase
     .from("clientes")
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .range(0, 1999);
 
   const { count } = await supabase
     .from("clientes")

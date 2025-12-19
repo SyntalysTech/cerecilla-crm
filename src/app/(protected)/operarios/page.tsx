@@ -9,7 +9,8 @@ export default async function OperariosPage() {
   const { data: operarios, error } = await supabase
     .from("operarios")
     .select("*")
-    .order("alias", { ascending: true });
+    .order("alias", { ascending: true })
+    .range(0, 999);
 
   const { count } = await supabase
     .from("operarios")
