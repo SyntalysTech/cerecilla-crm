@@ -44,7 +44,7 @@ export async function createCampaign(data: CreateCampaignData) {
     query = query.eq("servicio", data.filters.servicio);
   }
   if (data.filters?.operador) {
-    query = query.ilike("operador", `%${data.filters.operador}%`);
+    query = query.eq("operador", data.filters.operador);
   }
 
   // Check for unsubscribed - if column exists
