@@ -156,8 +156,8 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
         }`}
       >
         {/* Logo */}
-        <div className="h-16 flex items-center justify-between px-3 border-b border-gray-200 overflow-hidden">
-          <Link href="/dashboard" className={`flex items-center min-w-0 ${collapsed && !isMobile ? "justify-center w-full" : ""}`} onClick={handleNavClick}>
+        <div className="h-20 flex items-center justify-between px-3 border-b border-gray-200 overflow-hidden">
+          <Link href="/dashboard" className={`flex flex-col items-center w-full ${collapsed && !isMobile ? "" : "items-start"}`} onClick={handleNavClick}>
             {collapsed && !isMobile ? (
               <Image
                 src="/logos/logo-isotope-cerezas.png"
@@ -167,13 +167,16 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
                 className="flex-shrink-0"
               />
             ) : (
-              <Image
-                src="/logos/logo-horizontal.png"
-                alt="Cerecilla"
-                width={160}
-                height={40}
-                className="flex-shrink-0"
-              />
+              <>
+                <Image
+                  src="/logos/logo-horizontal.png"
+                  alt="Cerecilla"
+                  width={180}
+                  height={45}
+                  className="flex-shrink-0"
+                />
+                <span className="text-xs font-semibold text-gray-500 tracking-widest -mt-1">CRM</span>
+              </>
             )}
           </Link>
 
