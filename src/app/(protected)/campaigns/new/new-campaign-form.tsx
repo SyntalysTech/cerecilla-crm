@@ -12,12 +12,18 @@ interface Template {
   html: string;
 }
 
+interface Operario {
+  id: string;
+  nombre: string;
+}
+
 interface NewCampaignFormProps {
   templates: Template[];
   totalClients: number;
+  operarios: Operario[];
 }
 
-export function NewCampaignForm({ templates, totalClients }: NewCampaignFormProps) {
+export function NewCampaignForm({ templates, totalClients, operarios }: NewCampaignFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -225,14 +231,19 @@ export function NewCampaignForm({ templates, totalClients }: NewCampaignFormProp
             <label htmlFor="filterOperador" className="block text-xs font-medium text-gray-500 mb-1">
               Por operador
             </label>
-            <input
+            <select
               id="filterOperador"
-              type="text"
               value={formData.filterByOperador}
               onChange={(e) => setFormData({ ...formData, filterByOperador: e.target.value })}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-              placeholder="Nombre del operador..."
-            />
+            >
+              <option value="">Todos los operadores</option>
+              {operarios.map((operario) => (
+                <option key={operario.id} value={operario.nombre}>
+                  {operario.nombre}
+                </option>
+              ))}
+            </select>
           </div>
         </div>
       </div>

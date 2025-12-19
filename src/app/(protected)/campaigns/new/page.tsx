@@ -20,6 +20,12 @@ export default async function NewCampaignPage() {
     .not("email", "is", null)
     .eq("unsubscribed", false);
 
+  // Get operarios for dropdown
+  const { data: operarios } = await supabase
+    .from("operarios")
+    .select("id, nombre")
+    .order("nombre", { ascending: true });
+
   return (
     <div>
       <div className="mb-4">
@@ -40,6 +46,7 @@ export default async function NewCampaignPage() {
       <NewCampaignForm
         templates={templates || []}
         totalClients={totalClients || 0}
+        operarios={operarios || []}
       />
     </div>
   );
