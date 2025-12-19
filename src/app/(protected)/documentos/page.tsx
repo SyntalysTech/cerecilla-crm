@@ -5,8 +5,8 @@ import Link from "next/link";
 const documentos = [
   {
     id: "autorizacion-cliente",
-    nombre: "Autorización Cliente",
-    descripcion: "Documento de autorización para clientes de Cerecilla SL. Plantilla oficial para la gestión de autorizaciones.",
+    nombre: "Encargo de Cambio de Titularidad",
+    descripcion: "Documento oficial para el encargo de cambio de titularidad de luz, gas, telefonía, seguros y alarmas.",
     tipo: "plantilla",
     archivo: "/documentos/autorizacion-cliente.pdf",
     icon: FileCheck,
@@ -14,7 +14,7 @@ const documentos = [
   {
     id: "guia-uso-crm",
     nombre: "Guía de Uso del CRM",
-    descripcion: "Manual completo de uso del CRM de Cerecilla. Incluye instrucciones detalladas para todas las funcionalidades.",
+    descripcion: "Manual completo de uso del CRM de Cerecilla. Incluye instrucciones para clientes, operarios, emails, campañas y CerecIA.",
     tipo: "guia",
     archivo: "/documentos/guia-uso-crm.pdf",
     icon: BookOpen,
