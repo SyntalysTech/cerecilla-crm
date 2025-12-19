@@ -111,3 +111,61 @@ export async function getTemplate(id: string) {
 
   return data;
 }
+
+export async function duplicateTemplate(id: string) {
+  const user = await getUser();
+
+  if (!user) {
+    return { error: "No autorizado" };
+  }
+
+  const supabase = await createClient();
+
+  // Get original template
+  const { data: original, error: fetchError } = await supabase
+    .from("email_templates")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (fetchError || !original) {
+    return { error: "Plantilla no encontrada" };
+  }
+
+  // Create duplicate with new name
+  const { data: template, error } = await supabase
+    .from("email_templates")
+    .insert({
+      name: `${original.name} (copia)`,
+      subject: original.subject,
+      html: original.html,
+      text: original.text || "",
+      created_by: user.id,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === "23505") {
+      // Try with timestamp if name already exists
+      const { error: error2 } = await supabase
+        .from("email_templates")
+        .insert({
+          name: `${original.name} (copia ${Date.now()})`,
+          subject: original.subject,
+          html: original.html,
+          text: original.text || "",
+          created_by: user.id,
+        });
+
+      if (error2) {
+        return { error: error2.message };
+      }
+    } else {
+      return { error: error.message };
+    }
+  }
+
+  revalidatePath("/email-templates");
+  return { success: true, template };
+}

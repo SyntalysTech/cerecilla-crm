@@ -25,6 +25,10 @@ import {
   Paperclip,
   ExternalLink,
   LayoutPanelTop,
+  UserMinus,
+  FileText,
+  File,
+  Plus,
 } from "lucide-react";
 import { createTemplate, updateTemplate, TemplateFormData } from "./actions";
 import { createClient } from "@/lib/supabase/client";
@@ -39,7 +43,9 @@ interface TemplateFormProps {
   };
 }
 
-type BlockType = "header" | "text" | "image" | "button" | "divider" | "spacer" | "columns" | "social" | "link" | "attachment" | "footer";
+type BlockType = "header" | "text" | "image" | "button" | "divider" | "spacer" | "columns" | "social" | "link" | "attachment" | "footer" | "unsubscribe";
+
+type ColumnContentType = "text" | "image" | "link" | "file";
 
 // Social media icons SVGs for email compatibility
 const socialIcons = {
@@ -178,17 +184,41 @@ function blocksToHtml(blocks: EmailBlock[]): string {
     </tr>`;
 
         case "columns":
+          const numColumns = parseInt(block.content.numColumns as string) || 2;
+          const columnWidth = Math.floor(100 / numColumns);
+          const columnsHtml = [];
+          for (let i = 0; i < numColumns; i++) {
+            const colType = block.content[`col${i}Type`] as string || "text";
+            const colContent = block.content[`col${i}Content`] as string || "";
+            const colImageUrl = block.content[`col${i}ImageUrl`] as string || "";
+            const colLinkUrl = block.content[`col${i}LinkUrl`] as string || "";
+            const colLinkText = block.content[`col${i}LinkText`] as string || "Enlace";
+            const colFileUrl = block.content[`col${i}FileUrl`] as string || "";
+            const colFileName = block.content[`col${i}FileName`] as string || "documento.pdf";
+            const colFileExt = block.content[`col${i}FileExt`] as string || "PDF";
+
+            let cellContent = "";
+            switch (colType) {
+              case "image":
+                cellContent = colImageUrl ? `<img src="${colImageUrl}" alt="" style="max-width: 100%; height: auto; display: block;" />` : "<p style='color: #999;'>Sin imagen</p>";
+                break;
+              case "link":
+                cellContent = `<a href="${colLinkUrl || "#"}" style="color: #BB292A; text-decoration: none;">${colLinkText}</a>`;
+                break;
+              case "file":
+                cellContent = `<a href="${colFileUrl || "#"}" style="color: #333; text-decoration: none; display: flex; align-items: center; gap: 8px;"><span style="background: #BB292A; color: white; padding: 4px 8px; border-radius: 4px; font-size: 10px; font-weight: bold;">${colFileExt}</span>${colFileName}</a>`;
+                break;
+              default:
+                cellContent = `<p style="margin: 0; color: #666666;">${colContent || "Columna " + (i + 1)}</p>`;
+            }
+            columnsHtml.push(`<td width="${columnWidth}%" style="vertical-align: top; padding: 0 ${i < numColumns - 1 ? "2%" : "0"} 0 ${i > 0 ? "2%" : "0"};">${cellContent}</td>`);
+          }
           return `
     <tr>
       <td style="padding: 20px 30px;">
         <table width="100%" cellspacing="0" cellpadding="0">
           <tr>
-            <td width="48%" style="vertical-align: top; padding-right: 2%;">
-              <p style="margin: 0; color: #666666;">${block.content.leftContent || "Columna izquierda"}</p>
-            </td>
-            <td width="48%" style="vertical-align: top; padding-left: 2%;">
-              <p style="margin: 0; color: #666666;">${block.content.rightContent || "Columna derecha"}</p>
-            </td>
+            ${columnsHtml.join("\n            ")}
           </tr>
         </table>
       </td>
@@ -274,6 +304,19 @@ function blocksToHtml(blocks: EmailBlock[]): string {
         ${footerLinksHtml}
         ${block.content.copyright ? `<p style="margin: 10px 0 0 0; font-size: 11px; color: ${block.content.copyrightColor || "#999999"};">${block.content.copyright}</p>` : ""}
         ${block.content.unsubscribeUrl ? `<p style="margin: 10px 0 0 0; font-size: 11px;"><a href="${block.content.unsubscribeUrl}" style="color: ${block.content.linkColor || "#666666"}; text-decoration: underline;">Darme de baja</a></p>` : ""}
+      </td>
+    </tr>`;
+
+        case "unsubscribe":
+          return `
+    <tr>
+      <td style="padding: ${block.content.padding || 20}px 30px; background-color: ${block.content.backgroundColor || "#f8f8f8"}; text-align: center;">
+        <p style="margin: 0 0 10px 0; font-size: ${block.content.fontSize || 12}px; color: ${block.content.textColor || "#666666"};">
+          ${block.content.text || "Si no deseas recibir más comunicaciones, puedes darte de baja."}
+        </p>
+        <a href="${block.content.unsubscribeUrl || "/api/unsubscribe?email={{email}}"}" style="color: ${block.content.linkColor || "#BB292A"}; font-size: ${block.content.fontSize || 12}px; text-decoration: underline;">
+          ${block.content.linkText || "Darme de baja de esta lista"}
+        </a>
       </td>
     </tr>`;
 
@@ -406,8 +449,15 @@ export function TemplateForm({ template }: TemplateFormProps) {
           id,
           type: "columns",
           content: {
-            leftContent: "Columna izquierda",
-            rightContent: "Columna derecha",
+            numColumns: "2",
+            col0Type: "text",
+            col0Content: "Columna 1",
+            col1Type: "text",
+            col1Content: "Columna 2",
+            col2Type: "text",
+            col2Content: "Columna 3",
+            col3Type: "text",
+            col3Content: "Columna 4",
           },
         };
         break;
@@ -472,20 +522,36 @@ export function TemplateForm({ template }: TemplateFormProps) {
           type: "footer",
           content: {
             companyName: "Cerecilla SL",
-            address: "Calle Ejemplo 123, 28001 Madrid",
+            address: "Calle Lope de Vega 10 Esc Izq 4º6ª, 08005 Barcelona",
             copyright: `© ${new Date().getFullYear()} Cerecilla SL. Todos los derechos reservados.`,
             link1Text: "Política de privacidad",
-            link1Url: "https://",
+            link1Url: "/politica-privacidad",
             link2Text: "Términos y condiciones",
-            link2Url: "https://",
-            link3Text: "",
-            link3Url: "",
+            link2Url: "/terminos-condiciones",
+            link3Text: "LOPD",
+            link3Url: "/lopd",
             unsubscribeUrl: "",
             backgroundColor: "#f8f8f8",
             textColor: "#666666",
             linkColor: "#BB292A",
             copyrightColor: "#999999",
             padding: "30",
+          },
+        };
+        break;
+      case "unsubscribe":
+        newBlock = {
+          id,
+          type: "unsubscribe",
+          content: {
+            text: "Si no deseas recibir más comunicaciones de Cerecilla, puedes darte de baja.",
+            linkText: "Darme de baja de esta lista",
+            unsubscribeUrl: "/api/unsubscribe?email={{email}}",
+            backgroundColor: "#f8f8f8",
+            textColor: "#666666",
+            linkColor: "#BB292A",
+            fontSize: "12",
+            padding: "20",
           },
         };
         break;
@@ -530,7 +596,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
     setHtmlCode(blocksToHtml(newBlocks));
   }
 
-  async function uploadImage(file: File): Promise<string | null> {
+  async function uploadFile(file: File): Promise<{ url: string; name: string; extension: string; size: string } | null> {
     setUploading(true);
     try {
       const supabase = createClient();
@@ -543,19 +609,43 @@ export function TemplateForm({ template }: TemplateFormProps) {
 
       if (uploadError) {
         console.error("Upload error:", uploadError);
-        setError("Error al subir la imagen");
+        setError("Error al subir el archivo");
         return null;
       }
 
       const { data } = supabase.storage.from("email-assets").getPublicUrl(filePath);
-      return data.publicUrl;
+
+      // Get file extension
+      const ext = file.name.split(".").pop()?.toUpperCase() || "FILE";
+      // Format file size
+      const sizeBytes = file.size;
+      let sizeStr = "";
+      if (sizeBytes < 1024) {
+        sizeStr = `${sizeBytes} B`;
+      } else if (sizeBytes < 1024 * 1024) {
+        sizeStr = `${(sizeBytes / 1024).toFixed(1)} KB`;
+      } else {
+        sizeStr = `${(sizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+      }
+
+      return {
+        url: data.publicUrl,
+        name: file.name,
+        extension: ext,
+        size: sizeStr,
+      };
     } catch (err) {
       console.error("Upload error:", err);
-      setError("Error al subir la imagen");
+      setError("Error al subir el archivo");
       return null;
     } finally {
       setUploading(false);
     }
+  }
+
+  async function uploadImage(file: File): Promise<string | null> {
+    const result = await uploadFile(file);
+    return result?.url || null;
   }
 
   async function handleImageUpload(e: React.ChangeEvent<HTMLInputElement>, blockId: string) {
@@ -565,6 +655,39 @@ export function TemplateForm({ template }: TemplateFormProps) {
     const url = await uploadImage(file);
     if (url) {
       updateBlock(blockId, { src: url });
+    }
+  }
+
+  async function handleDocumentUpload(e: React.ChangeEvent<HTMLInputElement>, blockId: string) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const result = await uploadFile(file);
+    if (result) {
+      updateBlock(blockId, {
+        url: result.url,
+        fileName: result.name,
+        fileExtension: result.extension,
+        fileSize: result.size,
+      });
+    }
+  }
+
+  function handleDocumentDrop(e: React.DragEvent<HTMLLabelElement>, blockId: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    const file = e.dataTransfer.files?.[0];
+    if (file) {
+      uploadFile(file).then((result) => {
+        if (result) {
+          updateBlock(blockId, {
+            url: result.url,
+            fileName: result.name,
+            fileExtension: result.extension,
+            fileSize: result.size,
+          });
+        }
+      });
     }
   }
 
@@ -598,12 +721,13 @@ export function TemplateForm({ template }: TemplateFormProps) {
     { type: "image" as BlockType, icon: ImageIcon, label: "Imagen" },
     { type: "button" as BlockType, icon: Square, label: "Botón" },
     { type: "link" as BlockType, icon: ExternalLink, label: "Enlace" },
-    { type: "attachment" as BlockType, icon: Paperclip, label: "Archivo" },
+    { type: "attachment" as BlockType, icon: Paperclip, label: "Documento" },
     { type: "divider" as BlockType, icon: Minus, label: "Separador" },
     { type: "spacer" as BlockType, icon: ChevronDown, label: "Espacio" },
     { type: "columns" as BlockType, icon: Columns, label: "Columnas" },
     { type: "social" as BlockType, icon: Share2, label: "Redes Sociales" },
     { type: "footer" as BlockType, icon: LayoutPanelTop, label: "Pie de página" },
+    { type: "unsubscribe" as BlockType, icon: UserMinus, label: "Baja" },
   ];
 
   return (
@@ -960,23 +1084,129 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   {selectedBlock.type === "columns" && (
                     <>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">Columna izquierda</label>
-                        <textarea
-                          rows={3}
-                          value={selectedBlock.content.leftContent as string}
-                          onChange={(e) => updateBlock(selectedBlock.id, { leftContent: e.target.value })}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-                        />
+                        <label className="block text-xs text-gray-500 mb-1">Número de columnas</label>
+                        <div className="flex gap-1">
+                          {[1, 2, 3, 4].map((num) => (
+                            <button
+                              key={num}
+                              type="button"
+                              onClick={() => updateBlock(selectedBlock.id, { numColumns: String(num) })}
+                              className={`flex-1 p-2 border rounded text-sm font-medium ${
+                                parseInt(selectedBlock.content.numColumns as string) === num
+                                  ? "border-[#BB292A] bg-red-50 text-[#BB292A]"
+                                  : "border-gray-300"
+                              }`}
+                            >
+                              {num}
+                            </button>
+                          ))}
+                        </div>
                       </div>
-                      <div>
-                        <label className="block text-xs text-gray-500 mb-1">Columna derecha</label>
-                        <textarea
-                          rows={3}
-                          value={selectedBlock.content.rightContent as string}
-                          onChange={(e) => updateBlock(selectedBlock.id, { rightContent: e.target.value })}
-                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
-                        />
-                      </div>
+                      {Array.from({ length: parseInt(selectedBlock.content.numColumns as string) || 2 }).map((_, i) => (
+                        <div key={i} className="pt-2 border-t">
+                          <label className="block text-xs font-medium text-gray-700 mb-2">Columna {i + 1}</label>
+                          <div className="space-y-2">
+                            <div>
+                              <label className="block text-xs text-gray-500 mb-1">Tipo de contenido</label>
+                              <select
+                                value={selectedBlock.content[`col${i}Type`] as string || "text"}
+                                onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}Type`]: e.target.value })}
+                                className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                              >
+                                <option value="text">Texto</option>
+                                <option value="image">Imagen</option>
+                                <option value="link">Enlace</option>
+                                <option value="file">Archivo</option>
+                              </select>
+                            </div>
+                            {(selectedBlock.content[`col${i}Type`] as string || "text") === "text" && (
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">Texto</label>
+                                <textarea
+                                  rows={2}
+                                  value={selectedBlock.content[`col${i}Content`] as string || ""}
+                                  onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}Content`]: e.target.value })}
+                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                                />
+                              </div>
+                            )}
+                            {(selectedBlock.content[`col${i}Type`] as string) === "image" && (
+                              <div>
+                                <label className="block text-xs text-gray-500 mb-1">URL de imagen</label>
+                                <input
+                                  type="url"
+                                  value={selectedBlock.content[`col${i}ImageUrl`] as string || ""}
+                                  onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}ImageUrl`]: e.target.value })}
+                                  placeholder="https://..."
+                                  className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                                />
+                              </div>
+                            )}
+                            {(selectedBlock.content[`col${i}Type`] as string) === "link" && (
+                              <>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Texto del enlace</label>
+                                  <input
+                                    type="text"
+                                    value={selectedBlock.content[`col${i}LinkText`] as string || ""}
+                                    onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}LinkText`]: e.target.value })}
+                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">URL</label>
+                                  <input
+                                    type="url"
+                                    value={selectedBlock.content[`col${i}LinkUrl`] as string || ""}
+                                    onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}LinkUrl`]: e.target.value })}
+                                    placeholder="https://..."
+                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                                  />
+                                </div>
+                              </>
+                            )}
+                            {(selectedBlock.content[`col${i}Type`] as string) === "file" && (
+                              <>
+                                <div>
+                                  <label className="block text-xs text-gray-500 mb-1">Nombre del archivo</label>
+                                  <input
+                                    type="text"
+                                    value={selectedBlock.content[`col${i}FileName`] as string || ""}
+                                    onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}FileName`]: e.target.value })}
+                                    placeholder="documento.pdf"
+                                    className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                                  />
+                                </div>
+                                <div className="grid grid-cols-2 gap-1">
+                                  <div>
+                                    <label className="block text-xs text-gray-500 mb-1">Extensión</label>
+                                    <select
+                                      value={selectedBlock.content[`col${i}FileExt`] as string || "PDF"}
+                                      onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}FileExt`]: e.target.value })}
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                    >
+                                      <option value="PDF">PDF</option>
+                                      <option value="DOC">DOC</option>
+                                      <option value="XLS">XLS</option>
+                                      <option value="PPT">PPT</option>
+                                    </select>
+                                  </div>
+                                  <div>
+                                    <label className="block text-xs text-gray-500 mb-1">URL</label>
+                                    <input
+                                      type="url"
+                                      value={selectedBlock.content[`col${i}FileUrl`] as string || ""}
+                                      onChange={(e) => updateBlock(selectedBlock.id, { [`col${i}FileUrl`]: e.target.value })}
+                                      placeholder="https://..."
+                                      className="w-full px-2 py-1 text-xs border border-gray-300 rounded"
+                                    />
+                                  </div>
+                                </div>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      ))}
                     </>
                   )}
 
@@ -1197,6 +1427,53 @@ export function TemplateForm({ template }: TemplateFormProps) {
                   {selectedBlock.type === "attachment" && (
                     <>
                       <div>
+                        <label className="block text-xs text-gray-500 mb-2">Subir documento</label>
+                        {selectedBlock.content.url ? (
+                          <div className="p-3 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className="w-10 h-10 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+                                style={{ backgroundColor: selectedBlock.content.iconBgColor as string || "#BB292A" }}
+                              >
+                                {selectedBlock.content.fileExtension as string || "PDF"}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium text-gray-900 truncate">{selectedBlock.content.fileName as string}</p>
+                                <p className="text-xs text-gray-500">{selectedBlock.content.fileSize as string}</p>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => updateBlock(selectedBlock.id, { url: "", fileName: "documento.pdf", fileSize: "", fileExtension: "PDF" })}
+                                className="p-1 text-red-500 hover:bg-red-50 rounded"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <label
+                            className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-gray-300 rounded-lg cursor-pointer hover:border-[#BB292A] hover:bg-red-50/30 transition-colors"
+                            onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
+                            onDrop={(e) => handleDocumentDrop(e, selectedBlock.id)}
+                          >
+                            <Upload className="w-8 h-8 text-gray-400 mb-2" />
+                            <span className="text-sm text-gray-600 font-medium">
+                              {uploading ? "Subiendo..." : "Arrastra un archivo aquí"}
+                            </span>
+                            <span className="text-xs text-gray-400 mt-1">o haz clic para seleccionar</span>
+                            <span className="text-xs text-gray-400 mt-2">PDF, Word, Excel, PowerPoint...</span>
+                            <input
+                              type="file"
+                              accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.rar,.txt,.csv"
+                              onChange={(e) => handleDocumentUpload(e, selectedBlock.id)}
+                              className="hidden"
+                              disabled={uploading}
+                            />
+                          </label>
+                        )}
+                      </div>
+                      <div className="text-xs text-gray-400 text-center">— o introduce los datos manualmente —</div>
+                      <div>
                         <label className="block text-xs text-gray-500 mb-1">Nombre del archivo</label>
                         <input
                           type="text"
@@ -1207,7 +1484,7 @@ export function TemplateForm({ template }: TemplateFormProps) {
                         />
                       </div>
                       <div>
-                        <label className="block text-xs text-gray-500 mb-1">URL del archivo *</label>
+                        <label className="block text-xs text-gray-500 mb-1">URL del archivo</label>
                         <input
                           type="url"
                           value={selectedBlock.content.url as string}
@@ -1226,16 +1503,18 @@ export function TemplateForm({ template }: TemplateFormProps) {
                           >
                             <option value="PDF">PDF</option>
                             <option value="DOC">DOC</option>
+                            <option value="DOCX">DOCX</option>
                             <option value="XLS">XLS</option>
+                            <option value="XLSX">XLSX</option>
                             <option value="PPT">PPT</option>
+                            <option value="PPTX">PPTX</option>
                             <option value="ZIP">ZIP</option>
-                            <option value="IMG">IMG</option>
-                            <option value="MP4">MP4</option>
-                            <option value="MP3">MP3</option>
+                            <option value="TXT">TXT</option>
+                            <option value="CSV">CSV</option>
                           </select>
                         </div>
                         <div>
-                          <label className="block text-xs text-gray-500 mb-1">Tamaño (ej: 2.5 MB)</label>
+                          <label className="block text-xs text-gray-500 mb-1">Tamaño</label>
                           <input
                             type="text"
                             value={selectedBlock.content.fileSize as string}
@@ -1375,6 +1654,61 @@ export function TemplateForm({ template }: TemplateFormProps) {
                         </div>
                         <div>
                           <label className="block text-xs text-gray-500 mb-1">Color enlaces</label>
+                          <input
+                            type="color"
+                            value={selectedBlock.content.linkColor as string}
+                            onChange={(e) => updateBlock(selectedBlock.id, { linkColor: e.target.value })}
+                            className="w-full h-8 rounded cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {selectedBlock.type === "unsubscribe" && (
+                    <>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Texto explicativo</label>
+                        <textarea
+                          rows={2}
+                          value={selectedBlock.content.text as string}
+                          onChange={(e) => updateBlock(selectedBlock.id, { text: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                          placeholder="Si no deseas recibir más comunicaciones..."
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">Texto del enlace</label>
+                        <input
+                          type="text"
+                          value={selectedBlock.content.linkText as string}
+                          onChange={(e) => updateBlock(selectedBlock.id, { linkText: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                          placeholder="Darme de baja"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-gray-500 mb-1">URL de baja (usa {"{{email}}"} para el email)</label>
+                        <input
+                          type="text"
+                          value={selectedBlock.content.unsubscribeUrl as string}
+                          onChange={(e) => updateBlock(selectedBlock.id, { unsubscribeUrl: e.target.value })}
+                          className="w-full px-2 py-1.5 text-sm border border-gray-300 rounded"
+                          placeholder="/api/unsubscribe?email={{email}}"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Color fondo</label>
+                          <input
+                            type="color"
+                            value={selectedBlock.content.backgroundColor as string}
+                            onChange={(e) => updateBlock(selectedBlock.id, { backgroundColor: e.target.value })}
+                            className="w-full h-8 rounded cursor-pointer"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-xs text-gray-500 mb-1">Color enlace</label>
                           <input
                             type="color"
                             value={selectedBlock.content.linkColor as string}
@@ -1556,12 +1890,33 @@ export function TemplateForm({ template }: TemplateFormProps) {
                         <table width="100%" cellSpacing={0} cellPadding={0}>
                           <tbody>
                             <tr>
-                              <td width="48%" style={{ verticalAlign: "top", paddingRight: "2%" }}>
-                                <p style={{ margin: 0, color: "#666666" }}>{block.content.leftContent as string}</p>
-                              </td>
-                              <td width="48%" style={{ verticalAlign: "top", paddingLeft: "2%" }}>
-                                <p style={{ margin: 0, color: "#666666" }}>{block.content.rightContent as string}</p>
-                              </td>
+                              {Array.from({ length: parseInt(block.content.numColumns as string) || 2 }).map((_, i) => {
+                                const colType = block.content[`col${i}Type`] as string || "text";
+                                const colContent = block.content[`col${i}Content`] as string || `Columna ${i + 1}`;
+                                const colImageUrl = block.content[`col${i}ImageUrl`] as string || "";
+                                const colLinkText = block.content[`col${i}LinkText`] as string || "Enlace";
+                                const colFileName = block.content[`col${i}FileName`] as string || "documento.pdf";
+                                const colFileExt = block.content[`col${i}FileExt`] as string || "PDF";
+                                const numCols = parseInt(block.content.numColumns as string) || 2;
+
+                                return (
+                                  <td
+                                    key={i}
+                                    width={`${Math.floor(100 / numCols)}%`}
+                                    style={{ verticalAlign: "top", padding: `0 ${i < numCols - 1 ? "2%" : "0"} 0 ${i > 0 ? "2%" : "0"}` }}
+                                  >
+                                    {colType === "text" && <p style={{ margin: 0, color: "#666666" }}>{colContent}</p>}
+                                    {colType === "image" && (colImageUrl ? <img src={colImageUrl} alt="" style={{ maxWidth: "100%", height: "auto" }} /> : <div className="bg-gray-100 border-2 border-dashed border-gray-300 rounded p-4 text-center text-xs text-gray-400">Sin imagen</div>)}
+                                    {colType === "link" && <a href="#" onClick={(e) => e.preventDefault()} style={{ color: "#BB292A", textDecoration: "none" }}>{colLinkText}</a>}
+                                    {colType === "file" && (
+                                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                        <span style={{ background: "#BB292A", color: "white", padding: "4px 8px", borderRadius: "4px", fontSize: "10px", fontWeight: "bold" }}>{colFileExt}</span>
+                                        <span style={{ color: "#333" }}>{colFileName}</span>
+                                      </div>
+                                    )}
+                                  </td>
+                                );
+                              })}
                             </tr>
                           </tbody>
                         </table>
@@ -1761,6 +2116,27 @@ export function TemplateForm({ template }: TemplateFormProps) {
                             </a>
                           </p>
                         )}
+                      </div>
+                    )}
+
+                    {block.type === "unsubscribe" && (
+                      <div
+                        style={{
+                          padding: `${block.content.padding || 20}px 30px`,
+                          backgroundColor: (block.content.backgroundColor as string) || "#f8f8f8",
+                          textAlign: "center",
+                        }}
+                      >
+                        <p style={{ margin: "0 0 10px 0", fontSize: `${block.content.fontSize || 12}px`, color: (block.content.textColor as string) || "#666666" }}>
+                          {(block.content.text as string) || "Si no deseas recibir más comunicaciones, puedes darte de baja."}
+                        </p>
+                        <a
+                          href="#"
+                          onClick={(e) => e.preventDefault()}
+                          style={{ color: (block.content.linkColor as string) || "#BB292A", fontSize: `${block.content.fontSize || 12}px`, textDecoration: "underline" }}
+                        >
+                          {(block.content.linkText as string) || "Darme de baja de esta lista"}
+                        </a>
                       </div>
                     )}
                   </div>

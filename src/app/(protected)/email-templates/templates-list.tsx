@@ -2,8 +2,8 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { FileText, Edit, Trash2, MoreVertical, Eye } from "lucide-react";
-import { deleteTemplate } from "./actions";
+import { FileText, Edit, Trash2, MoreVertical, Eye, Copy } from "lucide-react";
+import { deleteTemplate, duplicateTemplate } from "./actions";
 
 interface Template {
   id: string;
@@ -20,6 +20,7 @@ interface TemplatesListProps {
 export function TemplatesList({ templates }: TemplatesListProps) {
   const [openMenu, setOpenMenu] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [duplicating, setDuplicating] = useState<string | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
@@ -56,6 +57,18 @@ export function TemplatesList({ templates }: TemplatesListProps) {
   function handlePreview(id: string) {
     setOpenMenu(null);
     router.push(`/email-templates/${id}/preview`);
+  }
+
+  async function handleDuplicate(id: string) {
+    setDuplicating(id);
+    const result = await duplicateTemplate(id);
+    setDuplicating(null);
+    setOpenMenu(null);
+    if (result.error) {
+      alert(`Error al duplicar: ${result.error}`);
+    } else {
+      router.refresh();
+    }
   }
 
   return (
@@ -107,6 +120,15 @@ export function TemplatesList({ templates }: TemplatesListProps) {
                     >
                       <Edit className="w-4 h-4" />
                       Editar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleDuplicate(template.id)}
+                      disabled={duplicating === template.id}
+                      className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 text-left"
+                    >
+                      <Copy className="w-4 h-4" />
+                      {duplicating === template.id ? "Duplicando..." : "Duplicar"}
                     </button>
                     <button
                       type="button"
@@ -202,6 +224,15 @@ export function TemplatesList({ templates }: TemplatesListProps) {
                         >
                           <Edit className="w-4 h-4" />
                           Editar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDuplicate(template.id)}
+                          disabled={duplicating === template.id}
+                          className="w-full flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 disabled:opacity-50 text-left"
+                        >
+                          <Copy className="w-4 h-4" />
+                          {duplicating === template.id ? "Duplicando..." : "Duplicar"}
                         </button>
                         <button
                           type="button"
