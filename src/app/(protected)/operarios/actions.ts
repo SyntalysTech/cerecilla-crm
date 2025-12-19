@@ -14,10 +14,14 @@ export interface OperarioFormData {
   documento?: string;
   direccion?: string;
   cuenta_bancaria?: string;
+  nombre_admin?: string;
+  dni_admin?: string;
+  password_operario?: string;
   tiene_doc_autonomo?: boolean;
   tiene_doc_escritura?: boolean;
   tiene_doc_cif?: boolean;
   tiene_doc_contrato?: boolean;
+  tiene_cuenta_bancaria?: boolean;
 }
 
 export async function updateOperario(id: string, data: OperarioFormData) {

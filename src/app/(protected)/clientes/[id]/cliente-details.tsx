@@ -10,6 +10,9 @@ interface Cliente {
   tipo_persona: string | null;
   nombre_apellidos: string | null;
   razon_social: string | null;
+  cif_empresa: string | null;
+  nombre_admin: string | null;
+  dni_admin: string | null;
   documento_nuevo_titular: string | null;
   documento_anterior_titular: string | null;
   email: string | null;
@@ -22,6 +25,8 @@ interface Cliente {
   compania_luz: string | null;
   potencia_gas: string | null;
   potencia_luz: string | null;
+  tiene_suministro: boolean | null;
+  es_cambio_titular: boolean | null;
   facturado: boolean;
   cobrado: boolean;
   pagado: boolean;
@@ -110,7 +115,9 @@ export function ClienteDetails({ cliente }: { cliente: Cliente }) {
             {cliente.tipo_persona === "empresa" ? (
               <>
                 <InfoField label="Razón Social" value={cliente.razon_social} icon={Building2} />
-                <InfoField label="Representante" value={cliente.nombre_apellidos} icon={User} />
+                <InfoField label="CIF Empresa" value={cliente.cif_empresa} icon={FileText} />
+                <InfoField label="Nombre Administrador" value={cliente.nombre_admin} icon={User} />
+                <InfoField label="DNI Administrador" value={cliente.dni_admin} icon={FileText} />
               </>
             ) : (
               <InfoField label="Nombre y Apellidos" value={cliente.nombre_apellidos} icon={User} />
@@ -122,6 +129,42 @@ export function ClienteDetails({ cliente }: { cliente: Cliente }) {
             <InfoField label="Dirección" value={cliente.direccion} icon={MapPin} />
             <InfoField label="Cuenta Bancaria" value={cliente.cuenta_bancaria} icon={CreditCard} />
           </dl>
+
+          {/* Suministro y Titularidad */}
+          <div className="mt-4 pt-4 border-t border-gray-200 grid grid-cols-2 gap-4">
+            <div>
+              <span className="text-xs font-medium text-gray-500 uppercase">¿Tiene Suministro?</span>
+              <p className="text-sm text-gray-900 mt-1">
+                {cliente.tiene_suministro === null ? (
+                  <span className="text-gray-400 italic">No especificado</span>
+                ) : cliente.tiene_suministro ? (
+                  <span className="inline-flex items-center gap-1 text-green-700">
+                    <CheckCircle className="w-4 h-4" /> Sí
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-gray-600">
+                    <XCircle className="w-4 h-4" /> No
+                  </span>
+                )}
+              </p>
+            </div>
+            <div>
+              <span className="text-xs font-medium text-gray-500 uppercase">¿Es Cambio de Titularidad?</span>
+              <p className="text-sm text-gray-900 mt-1">
+                {cliente.es_cambio_titular === null ? (
+                  <span className="text-gray-400 italic">No especificado</span>
+                ) : cliente.es_cambio_titular ? (
+                  <span className="inline-flex items-center gap-1 text-green-700">
+                    <CheckCircle className="w-4 h-4" /> Sí
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-gray-600">
+                    <XCircle className="w-4 h-4" /> No
+                  </span>
+                )}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* Servicios Energéticos */}

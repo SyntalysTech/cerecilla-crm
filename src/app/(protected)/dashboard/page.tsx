@@ -158,7 +158,7 @@ export default async function DashboardPage() {
           </div>
         ))}
         {/* Clientes card */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <Link href="/clientes" className="bg-white rounded-lg border border-gray-200 p-6 hover:border-[#BB292A]/50 transition-colors cursor-pointer block">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-lg bg-[#BB292A]/10 flex items-center justify-center">
               <Users className="w-5 h-5 text-[#BB292A]" />
@@ -167,9 +167,9 @@ export default async function DashboardPage() {
           </div>
           <p className="text-3xl font-semibold text-gray-900">{clientesCount || 0}</p>
           <p className="text-sm text-gray-500 mt-1">Registrados</p>
-        </div>
+        </Link>
         {/* Operarios card */}
-        <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <Link href="/operarios" className="bg-white rounded-lg border border-gray-200 p-6 hover:border-[#0ea5e9]/50 transition-colors cursor-pointer block">
           <div className="flex items-center gap-3 mb-3">
             <div className="w-10 h-10 rounded-lg bg-[#87CEEB]/20 flex items-center justify-center">
               <HardHat className="w-5 h-5 text-[#0ea5e9]" />
@@ -178,7 +178,7 @@ export default async function DashboardPage() {
           </div>
           <p className="text-3xl font-semibold text-gray-900">{operariosCount || 0}</p>
           <p className="text-sm text-gray-500 mt-1">Registrados</p>
-        </div>
+        </Link>
       </div>
 
       {/* Charts */}

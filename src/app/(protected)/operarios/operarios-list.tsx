@@ -31,6 +31,7 @@ interface Operario {
   tiene_doc_escritura: boolean;
   tiene_doc_cif: boolean;
   tiene_doc_contrato: boolean;
+  tiene_cuenta_bancaria: boolean;
   tipo: string | null;
   nombre: string | null;
   documento: string | null;
@@ -38,6 +39,9 @@ interface Operario {
   cif: string | null;
   cuenta_bancaria: string | null;
   direccion: string | null;
+  nombre_admin: string | null;
+  dni_admin: string | null;
+  password_operario: string | null;
   created_at: string;
   ultima_carga?: string | null;
 }
@@ -71,6 +75,18 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
     telefonos?: string;
     tipo?: string;
     empresa?: string;
+    cif?: string;
+    documento?: string;
+    direccion?: string;
+    cuenta_bancaria?: string;
+    nombre_admin?: string;
+    dni_admin?: string;
+    password_operario?: string;
+    tiene_doc_autonomo?: boolean;
+    tiene_doc_escritura?: boolean;
+    tiene_doc_cif?: boolean;
+    tiene_doc_contrato?: boolean;
+    tiene_cuenta_bancaria?: boolean;
   }>({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -111,6 +127,18 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
       telefonos: operario.telefonos || "",
       tipo: operario.tipo || "",
       empresa: operario.empresa || "",
+      cif: operario.cif || "",
+      documento: operario.documento || "",
+      direccion: operario.direccion || "",
+      cuenta_bancaria: operario.cuenta_bancaria || "",
+      nombre_admin: operario.nombre_admin || "",
+      dni_admin: operario.dni_admin || "",
+      password_operario: operario.password_operario || "",
+      tiene_doc_autonomo: operario.tiene_doc_autonomo || false,
+      tiene_doc_escritura: operario.tiene_doc_escritura || false,
+      tiene_doc_cif: operario.tiene_doc_cif || false,
+      tiene_doc_contrato: operario.tiene_doc_contrato || false,
+      tiene_cuenta_bancaria: operario.tiene_cuenta_bancaria || false,
     });
   }
 
@@ -552,8 +580,8 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
 
       {/* Edit Modal */}
       {editingId && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6 my-8">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Editar Operario</h3>
               <button onClick={() => setEditingId(null)} className="text-gray-400 hover:text-gray-600">
@@ -561,67 +589,237 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
               </button>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-2">
+              {/* Basic Info */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Alias</label>
+                  <input
+                    type="text"
+                    value={editForm.alias || ""}
+                    onChange={(e) => setEditForm({ ...editForm, alias: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
+                  <select
+                    value={editForm.tipo || ""}
+                    onChange={(e) => setEditForm({ ...editForm, tipo: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                  >
+                    <option value="">Seleccionar...</option>
+                    <option value="Empresa">Empresa</option>
+                    <option value="Autonomo">Autónomo</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Fields for Autonomo */}
+              {editForm.tipo === "Autonomo" && (
+                <div className="bg-purple-50 p-4 rounded-lg space-y-4">
+                  <h4 className="text-sm font-medium text-purple-900">Datos Autónomo</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre y Apellidos</label>
+                      <input
+                        type="text"
+                        value={editForm.nombre || ""}
+                        onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Documento (DNI/NIE)</label>
+                      <input
+                        type="text"
+                        value={editForm.documento || ""}
+                        onChange={(e) => setEditForm({ ...editForm, documento: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Fields for Empresa */}
+              {editForm.tipo === "Empresa" && (
+                <div className="bg-blue-50 p-4 rounded-lg space-y-4">
+                  <h4 className="text-sm font-medium text-blue-900">Datos Empresa</h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de la Empresa</label>
+                      <input
+                        type="text"
+                        value={editForm.empresa || ""}
+                        onChange={(e) => setEditForm({ ...editForm, empresa: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">CIF</label>
+                      <input
+                        type="text"
+                        value={editForm.cif || ""}
+                        onChange={(e) => setEditForm({ ...editForm, cif: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Nombre y Apellidos del Administrador</label>
+                      <input
+                        type="text"
+                        value={editForm.nombre_admin || ""}
+                        onChange={(e) => setEditForm({ ...editForm, nombre_admin: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Documento del Administrador</label>
+                      <input
+                        type="text"
+                        value={editForm.dni_admin || ""}
+                        onChange={(e) => setEditForm({ ...editForm, dni_admin: e.target.value })}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Contact Info - Always visible */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+                  <input
+                    type="email"
+                    value={editForm.email || ""}
+                    onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Teléfonos</label>
+                  <input
+                    type="text"
+                    value={editForm.telefonos || ""}
+                    onChange={(e) => setEditForm({ ...editForm, telefonos: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+                  <input
+                    type="text"
+                    value={editForm.direccion || ""}
+                    onChange={(e) => setEditForm({ ...editForm, direccion: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Cuenta Bancaria (IBAN)</label>
+                  <input
+                    type="text"
+                    value={editForm.cuenta_bancaria || ""}
+                    onChange={(e) => setEditForm({ ...editForm, cuenta_bancaria: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                  />
+                </div>
+              </div>
+
+              {/* Password */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Alias</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña del Operario</label>
                 <input
                   type="text"
-                  value={editForm.alias || ""}
-                  onChange={(e) => setEditForm({ ...editForm, alias: e.target.value })}
+                  value={editForm.password_operario || ""}
+                  onChange={(e) => setEditForm({ ...editForm, password_operario: e.target.value })}
+                  placeholder="Contraseña que usará el operario"
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                <input
-                  type="text"
-                  value={editForm.nombre || ""}
-                  onChange={(e) => setEditForm({ ...editForm, nombre: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Empresa</label>
-                <input
-                  type="text"
-                  value={editForm.empresa || ""}
-                  onChange={(e) => setEditForm({ ...editForm, empresa: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                <input
-                  type="email"
-                  value={editForm.email || ""}
-                  onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Teléfonos</label>
-                <input
-                  type="text"
-                  value={editForm.telefonos || ""}
-                  onChange={(e) => setEditForm({ ...editForm, telefonos: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo</label>
-                <select
-                  value={editForm.tipo || ""}
-                  onChange={(e) => setEditForm({ ...editForm, tipo: e.target.value })}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
-                >
-                  <option value="">Seleccionar...</option>
-                  <option value="Empresa">Empresa</option>
-                  <option value="Autonomo">Autónomo</option>
-                </select>
+
+              {/* Documents Section */}
+              <div className="bg-gray-50 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-gray-900 mb-3">Documentos Recibidos</h4>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.tiene_doc_autonomo || false}
+                      onChange={(e) => setEditForm({ ...editForm, tiene_doc_autonomo: e.target.checked })}
+                      className="w-4 h-4 text-[#BB292A] border-gray-300 rounded focus:ring-[#BB292A]"
+                    />
+                    <span className="text-sm text-gray-700">Doc. Autónomo</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.tiene_doc_escritura || false}
+                      onChange={(e) => setEditForm({ ...editForm, tiene_doc_escritura: e.target.checked })}
+                      className="w-4 h-4 text-[#BB292A] border-gray-300 rounded focus:ring-[#BB292A]"
+                    />
+                    <span className="text-sm text-gray-700">Doc. Escritura</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.tiene_doc_cif || false}
+                      onChange={(e) => setEditForm({ ...editForm, tiene_doc_cif: e.target.checked })}
+                      className="w-4 h-4 text-[#BB292A] border-gray-300 rounded focus:ring-[#BB292A]"
+                    />
+                    <span className="text-sm text-gray-700">Doc. CIF</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.tiene_doc_contrato || false}
+                      onChange={(e) => setEditForm({ ...editForm, tiene_doc_contrato: e.target.checked })}
+                      className="w-4 h-4 text-[#BB292A] border-gray-300 rounded focus:ring-[#BB292A]"
+                    />
+                    <span className="text-sm text-gray-700">Doc. Contrato</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.tiene_cuenta_bancaria || false}
+                      onChange={(e) => setEditForm({ ...editForm, tiene_cuenta_bancaria: e.target.checked })}
+                      className="w-4 h-4 text-[#BB292A] border-gray-300 rounded focus:ring-[#BB292A]"
+                    />
+                    <span className="text-sm text-gray-700">Cuenta Bancaria</span>
+                  </label>
+                </div>
+
+                {/* Document requirements warning */}
+                {editForm.tipo && (
+                  <div className="mt-3 text-xs">
+                    {editForm.tipo === "Autonomo" ? (
+                      <p className={`${
+                        editForm.tiene_cuenta_bancaria && editForm.tiene_doc_autonomo && editForm.tiene_doc_contrato
+                          ? "text-green-600"
+                          : "text-amber-600"
+                      }`}>
+                        {editForm.tiene_cuenta_bancaria && editForm.tiene_doc_autonomo && editForm.tiene_doc_contrato
+                          ? "✓ Documentación completa para facturación"
+                          : "⚠ Para facturar se requiere: Cuenta bancaria, Doc. Autónomo, Doc. Contrato"}
+                      </p>
+                    ) : (
+                      <p className={`${
+                        editForm.tiene_cuenta_bancaria && editForm.tiene_doc_cif && editForm.tiene_doc_escritura && editForm.tiene_doc_contrato
+                          ? "text-green-600"
+                          : "text-amber-600"
+                      }`}>
+                        {editForm.tiene_cuenta_bancaria && editForm.tiene_doc_cif && editForm.tiene_doc_escritura && editForm.tiene_doc_contrato
+                          ? "✓ Documentación completa para facturación"
+                          : "⚠ Para facturar se requiere: Cuenta bancaria, Doc. CIF, Doc. Escritura, Doc. Contrato"}
+                      </p>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
               <button
                 onClick={() => setEditingId(null)}
                 className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"

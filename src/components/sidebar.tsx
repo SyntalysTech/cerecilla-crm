@@ -22,6 +22,9 @@ import {
   Users,
   Building2,
   BarChart3,
+  Plus,
+  Receipt,
+  RefreshCw,
 } from "lucide-react";
 import { logout, type UserRole } from "@/lib/auth/actions";
 import { useSidebar } from "./sidebar-provider";
@@ -46,6 +49,8 @@ const navigation = [
       { name: "Clientes", href: "/clientes", icon: Users },
       { name: "Operarios", href: "/operarios", icon: Building2 },
       { name: "Documentos", href: "/documentos", icon: FolderOpen },
+      { name: "Facturar", href: "/facturacion", icon: Receipt },
+      { name: "Cambiar Estados", href: "/cambiar-estados", icon: RefreshCw },
     ],
   },
   {
@@ -201,27 +206,40 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
               <ul className="space-y-1">
                 {group.items.map((item) => {
                   const isActive = pathname === item.href || pathname.startsWith(item.href + "/");
+                  const showAddButton = item.name === "Clientes";
                   return (
                     <li key={item.name}>
-                      <Link
-                        href={item.href}
-                        onClick={handleNavClick}
-                        className={`flex items-center gap-3 px-3 py-2 rounded-md ${
-                          isActive
-                            ? "bg-[#BB292A]/10 text-[#BB292A] font-medium"
-                            : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
-                        } ${collapsed && !isMobile ? "justify-center" : ""}`}
-                        title={collapsed && !isMobile ? item.name : undefined}
-                      >
-                        <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-[#BB292A]" : ""}`} />
-                        <span
-                          className={`whitespace-nowrap transition-opacity duration-200 ${
-                            collapsed && !isMobile ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-                          }`}
+                      <div className="flex items-center gap-1">
+                        <Link
+                          href={item.href}
+                          onClick={handleNavClick}
+                          className={`flex-1 flex items-center gap-3 px-3 py-2 rounded-md ${
+                            isActive
+                              ? "bg-[#BB292A]/10 text-[#BB292A] font-medium"
+                              : "text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                          } ${collapsed && !isMobile ? "justify-center" : ""}`}
+                          title={collapsed && !isMobile ? item.name : undefined}
                         >
-                          {item.name}
-                        </span>
-                      </Link>
+                          <item.icon className={`w-5 h-5 flex-shrink-0 ${isActive ? "text-[#BB292A]" : ""}`} />
+                          <span
+                            className={`whitespace-nowrap transition-opacity duration-200 ${
+                              collapsed && !isMobile ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
+                            }`}
+                          >
+                            {item.name}
+                          </span>
+                        </Link>
+                        {showAddButton && !(collapsed && !isMobile) && (
+                          <Link
+                            href="/clientes/new"
+                            onClick={handleNavClick}
+                            className="p-1.5 rounded-md text-gray-400 hover:text-[#BB292A] hover:bg-[#BB292A]/10 transition-colors"
+                            title="Añadir cliente"
+                          >
+                            <Plus className="w-4 h-4" />
+                          </Link>
+                        )}
+                      </div>
                     </li>
                   );
                 })}

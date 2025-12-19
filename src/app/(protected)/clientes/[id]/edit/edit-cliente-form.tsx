@@ -13,6 +13,9 @@ interface Cliente {
   tipo_persona: string | null;
   nombre_apellidos: string | null;
   razon_social: string | null;
+  cif_empresa: string | null;
+  nombre_admin: string | null;
+  dni_admin: string | null;
   documento_nuevo_titular: string | null;
   documento_anterior_titular: string | null;
   email: string | null;
@@ -25,6 +28,8 @@ interface Cliente {
   compania_luz: string | null;
   potencia_gas: string | null;
   potencia_luz: string | null;
+  tiene_suministro: boolean | null;
+  es_cambio_titular: boolean | null;
   facturado: boolean;
   cobrado: boolean;
   pagado: boolean;
@@ -65,6 +70,9 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
     tipo_persona: cliente.tipo_persona || "particular",
     nombre_apellidos: cliente.nombre_apellidos || "",
     razon_social: cliente.razon_social || "",
+    cif_empresa: cliente.cif_empresa || "",
+    nombre_admin: cliente.nombre_admin || "",
+    dni_admin: cliente.dni_admin || "",
     documento_nuevo_titular: cliente.documento_nuevo_titular || "",
     documento_anterior_titular: cliente.documento_anterior_titular || "",
     email: cliente.email || "",
@@ -77,6 +85,8 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
     compania_luz: cliente.compania_luz || "",
     potencia_gas: cliente.potencia_gas || "",
     potencia_luz: cliente.potencia_luz || "",
+    tiene_suministro: cliente.tiene_suministro ?? null,
+    es_cambio_titular: cliente.es_cambio_titular ?? null,
     facturado: cliente.facturado || false,
     cobrado: cliente.cobrado || false,
     pagado: cliente.pagado || false,
@@ -103,7 +113,7 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
     }
   }
 
-  function handleChange(field: keyof ClienteFormData, value: string | boolean) {
+  function handleChange(field: keyof ClienteFormData, value: string | boolean | null) {
     setFormData(prev => ({ ...prev, [field]: value }));
   }
 
@@ -122,7 +132,7 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
           Estado y Servicio
         </h3>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
             <select
@@ -133,20 +143,6 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
               <option value="">Seleccionar...</option>
               {estados.map(estado => (
                 <option key={estado} value={estado}>{estado}</option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Servicio</label>
-            <select
-              value={formData.servicio}
-              onChange={(e) => handleChange("servicio", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-            >
-              <option value="">Seleccionar...</option>
-              {servicios.map(servicio => (
-                <option key={servicio} value={servicio}>{servicio}</option>
               ))}
             </select>
           </div>
@@ -163,6 +159,42 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
                 <option key={op.id} value={op.nombre}>{op.nombre}</option>
               ))}
             </select>
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">Servicios</label>
+            <div className="flex flex-wrap gap-3">
+              {servicios.map(servicio => {
+                const selectedServicios = formData.servicio?.split(", ").filter(Boolean) || [];
+                const isSelected = selectedServicios.includes(servicio);
+                return (
+                  <label
+                    key={servicio}
+                    className={`inline-flex items-center gap-2 px-3 py-2 border rounded-md cursor-pointer transition-colors ${
+                      isSelected
+                        ? "bg-[#BB292A]/10 border-[#BB292A] text-[#BB292A]"
+                        : "border-gray-300 text-gray-700 hover:bg-gray-50"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isSelected}
+                      onChange={(e) => {
+                        let newServicios = [...selectedServicios];
+                        if (e.target.checked) {
+                          newServicios.push(servicio);
+                        } else {
+                          newServicios = newServicios.filter(s => s !== servicio);
+                        }
+                        handleChange("servicio", newServicios.join(", "));
+                      }}
+                      className="w-4 h-4 text-[#BB292A] border-gray-300 rounded focus:ring-[#BB292A]"
+                    />
+                    <span className="text-sm font-medium">{servicio}</span>
+                  </label>
+                );
+              })}
+            </div>
           </div>
         </div>
       </div>
@@ -188,21 +220,50 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
             </select>
           </div>
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">
-              {formData.tipo_persona === "empresa" ? "Razón Social" : "Nombre y Apellidos"}
-            </label>
-            <input
-              type="text"
-              value={formData.tipo_persona === "empresa" ? formData.razon_social : formData.nombre_apellidos}
-              onChange={(e) => handleChange(formData.tipo_persona === "empresa" ? "razon_social" : "nombre_apellidos", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-            />
-          </div>
-
-          {formData.tipo_persona === "empresa" && (
+          {formData.tipo_persona === "empresa" ? (
+            <>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Razón Social</label>
+                <input
+                  type="text"
+                  value={formData.razon_social}
+                  onChange={(e) => handleChange("razon_social", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">CIF Empresa</label>
+                <input
+                  type="text"
+                  value={formData.cif_empresa}
+                  onChange={(e) => handleChange("cif_empresa", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                  placeholder="B12345678"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre y Apellidos Administrador</label>
+                <input
+                  type="text"
+                  value={formData.nombre_admin}
+                  onChange={(e) => handleChange("nombre_admin", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">DNI Administrador</label>
+                <input
+                  type="text"
+                  value={formData.dni_admin}
+                  onChange={(e) => handleChange("dni_admin", e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                  placeholder="12345678A"
+                />
+              </div>
+            </>
+          ) : (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Representante</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nombre y Apellidos</label>
               <input
                 type="text"
                 value={formData.nombre_apellidos}
@@ -230,6 +291,32 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
               onChange={(e) => handleChange("documento_anterior_titular", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
             />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">¿Tiene suministro?</label>
+            <select
+              value={formData.tiene_suministro === null ? "" : formData.tiene_suministro ? "si" : "no"}
+              onChange={(e) => handleChange("tiene_suministro", e.target.value === "" ? null : e.target.value === "si")}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            >
+              <option value="">Seleccionar...</option>
+              <option value="si">Sí</option>
+              <option value="no">No</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">¿Es cambio de titularidad?</label>
+            <select
+              value={formData.es_cambio_titular === null ? "" : formData.es_cambio_titular ? "si" : "no"}
+              onChange={(e) => handleChange("es_cambio_titular", e.target.value === "" ? null : e.target.value === "si")}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            >
+              <option value="">Seleccionar...</option>
+              <option value="si">Sí</option>
+              <option value="no">No</option>
+            </select>
           </div>
 
           <div>
@@ -427,32 +514,6 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
               type="text"
               value={formData.factura_cobros}
               onChange={(e) => handleChange("factura_cobros", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Observaciones */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Observaciones</h3>
-
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones</label>
-            <textarea
-              value={formData.observaciones}
-              onChange={(e) => handleChange("observaciones", e.target.value)}
-              rows={3}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Observaciones Admin</label>
-            <textarea
-              value={formData.observaciones_admin}
-              onChange={(e) => handleChange("observaciones_admin", e.target.value)}
-              rows={3}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
             />
           </div>
