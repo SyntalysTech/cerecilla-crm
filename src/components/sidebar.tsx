@@ -277,7 +277,7 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
         )}
 
         {/* User profile */}
-        <div className="border-t border-gray-200 p-3 relative overflow-hidden">
+        <div className="border-t border-gray-200 p-3 relative">
           <button
             onClick={() => setProfileOpen(!profileOpen)}
             className={`w-full flex items-center gap-3 p-2 rounded-md hover:bg-gray-100 ${
@@ -312,8 +312,8 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
           {/* Profile dropdown */}
           {profileOpen && (
             <div
-              className={`absolute bottom-full mb-2 bg-white border border-gray-200 rounded-md shadow-lg py-1 ${
-                collapsed && !isMobile ? "left-full ml-2 w-48" : "left-3 right-3"
+              className={`absolute bottom-full left-3 right-3 mb-2 bg-white border border-gray-200 rounded-md shadow-lg py-1 z-[60] ${
+                collapsed && !isMobile ? "left-full ml-2 w-48 right-auto" : ""
               }`}
             >
               <Link

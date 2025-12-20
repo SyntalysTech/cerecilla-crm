@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Trash2, MessageSquare, ShieldAlert, Loader2 } from "lucide-react";
-import { addObservacion, deleteObservacion, type Observacion } from "./observaciones-actions";
+import { Send, Trash2, MessageSquare, ShieldAlert, Loader2, Mail } from "lucide-react";
+import { addObservacion, deleteObservacion, sendObservacionEmail, type Observacion } from "./observaciones-actions";
 
 interface ObservacionesChatProps {
   clienteId: string;
@@ -21,6 +21,7 @@ export function ObservacionesChat({
 }: ObservacionesChatProps) {
   const [mensaje, setMensaje] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sendingEmail, setSendingEmail] = useState<string | null>(null);
   const [localObservaciones, setLocalObservaciones] = useState(observaciones);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -57,6 +58,20 @@ export function ObservacionesChat({
     if (result.success) {
       setLocalObservaciones((prev) => prev.filter((o) => o.id !== observacionId));
     }
+  }
+
+  async function handleSendEmail(obs: Observacion) {
+    if (sendingEmail) return;
+
+    setSendingEmail(obs.id);
+    const result = await sendObservacionEmail(clienteId, obs.mensaje);
+
+    if (result.error) {
+      alert(result.error);
+    } else {
+      alert("Observación enviada por email al operador");
+    }
+    setSendingEmail(null);
   }
 
   const formatDate = (dateStr: string) => {
@@ -115,17 +130,35 @@ export function ObservacionesChat({
               >
                 <div className="flex items-start gap-2 justify-between">
                   <p className="text-sm whitespace-pre-wrap break-words">{obs.mensaje}</p>
-                  {isAdmin && (
-                    <button
-                      onClick={() => handleDelete(obs.id)}
-                      className={`flex-shrink-0 p-1 rounded hover:bg-black/10 ${
-                        isOwnMessage(obs) ? "text-white/70 hover:text-white" : "text-gray-400 hover:text-red-500"
-                      }`}
-                      title="Eliminar"
-                    >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  )}
+                  <div className="flex items-center gap-1 flex-shrink-0">
+                    {variant !== "admin" && (
+                      <button
+                        onClick={() => handleSendEmail(obs)}
+                        disabled={sendingEmail === obs.id}
+                        className={`p-1 rounded hover:bg-black/10 ${
+                          isOwnMessage(obs) ? "text-white/70 hover:text-white" : "text-gray-400 hover:text-blue-500"
+                        }`}
+                        title="Enviar por email al operador"
+                      >
+                        {sendingEmail === obs.id ? (
+                          <Loader2 className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Mail className="w-3 h-3" />
+                        )}
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button
+                        onClick={() => handleDelete(obs.id)}
+                        className={`p-1 rounded hover:bg-black/10 ${
+                          isOwnMessage(obs) ? "text-white/70 hover:text-white" : "text-gray-400 hover:text-red-500"
+                        }`}
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-3 h-3" />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div
                   className={`text-xs mt-1 ${

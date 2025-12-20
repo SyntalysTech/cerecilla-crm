@@ -18,6 +18,15 @@ interface Cliente {
   email: string | null;
   telefono: string | null;
   direccion: string | null;
+  tipo_via: string | null;
+  nombre_via: string | null;
+  numero: string | null;
+  escalera: string | null;
+  piso: string | null;
+  puerta: string | null;
+  codigo_postal: string | null;
+  poblacion: string | null;
+  provincia: string | null;
   cuenta_bancaria: string | null;
   cups_gas: string | null;
   cups_luz: string | null;
@@ -41,12 +50,42 @@ interface Cliente {
 
 const estadoColors: Record<string, string> = {
   LIQUIDADO: "bg-gray-900 text-white",
-  PENDIENTE: "bg-blue-100 text-blue-800",
+  "SIN ESTADO": "bg-blue-100 text-blue-800",
   SEGUIMIENTO: "bg-green-100 text-green-800",
   "EN TRAMITE": "bg-green-200 text-green-900",
   COMISIONABLE: "bg-purple-100 text-purple-800",
+  FINALIZADO: "bg-emerald-100 text-emerald-800",
   FALLIDO: "bg-red-100 text-red-800",
 };
+
+function formatDireccion(cliente: Cliente): string | null {
+  const parts = [];
+
+  if (cliente.tipo_via && cliente.nombre_via) {
+    let dir = `${cliente.tipo_via} ${cliente.nombre_via}`;
+    if (cliente.numero) dir += `, ${cliente.numero}`;
+    if (cliente.escalera) dir += `, Esc. ${cliente.escalera}`;
+    if (cliente.piso) dir += `, ${cliente.piso}º`;
+    if (cliente.puerta) dir += ` ${cliente.puerta}`;
+    parts.push(dir);
+  }
+
+  if (cliente.codigo_postal || cliente.poblacion) {
+    const loc = [cliente.codigo_postal, cliente.poblacion].filter(Boolean).join(" ");
+    parts.push(loc);
+  }
+
+  if (cliente.provincia) {
+    parts.push(cliente.provincia);
+  }
+
+  // Fallback to old direccion field if new fields are empty
+  if (parts.length === 0 && cliente.direccion) {
+    return cliente.direccion;
+  }
+
+  return parts.length > 0 ? parts.join(", ") : null;
+}
 
 function InfoField({ label, value, icon: Icon }: { label: string; value: string | null | undefined; icon?: React.ElementType }) {
   return (
@@ -120,13 +159,15 @@ export function ClienteDetails({ cliente }: { cliente: Cliente }) {
                 <InfoField label="DNI Administrador" value={cliente.dni_admin} icon={FileText} />
               </>
             ) : (
-              <InfoField label="Nombre y Apellidos" value={cliente.nombre_apellidos} icon={User} />
+              <>
+                <InfoField label="Nombre y Apellidos" value={cliente.nombre_apellidos} icon={User} />
+                <InfoField label="DNI/NIE Titular" value={cliente.documento_nuevo_titular} icon={FileText} />
+              </>
             )}
-            <InfoField label="Documento Nuevo Titular" value={cliente.documento_nuevo_titular} icon={FileText} />
             <InfoField label="Documento Anterior Titular" value={cliente.documento_anterior_titular} icon={FileText} />
             <InfoField label="Email" value={cliente.email} icon={Mail} />
             <InfoField label="Teléfono" value={cliente.telefono} icon={Phone} />
-            <InfoField label="Dirección" value={cliente.direccion} icon={MapPin} />
+            <InfoField label="Dirección" value={formatDireccion(cliente)} icon={MapPin} />
             <InfoField label="Cuenta Bancaria" value={cliente.cuenta_bancaria} icon={CreditCard} />
           </dl>
 

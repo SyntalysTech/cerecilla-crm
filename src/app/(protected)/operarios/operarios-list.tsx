@@ -40,12 +40,37 @@ interface Operario {
   cif: string | null;
   cuenta_bancaria: string | null;
   direccion: string | null;
+  tipo_via?: string | null;
+  nombre_via?: string | null;
+  numero?: string | null;
+  escalera?: string | null;
+  piso?: string | null;
+  puerta?: string | null;
+  codigo_postal?: string | null;
+  poblacion?: string | null;
+  provincia?: string | null;
   nombre_admin?: string | null;
   dni_admin?: string | null;
   password_operario?: string | null;
   created_at: string;
   ultima_carga?: string | null;
 }
+
+const tiposVia = [
+  "Calle", "Avenida", "Plaza", "Paseo", "Urbanización", "Polígono",
+  "Lugar", "Carretera", "Camino", "Callejón", "Pasaje", "Sendero",
+  "Bulevar", "Rambla", "Travesía", "Vía"
+];
+
+const provincias = [
+  "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila", "Badajoz",
+  "Barcelona", "Burgos", "Cáceres", "Cádiz", "Cantabria", "Castellón", "Ciudad Real",
+  "Córdoba", "Cuenca", "Gerona", "Granada", "Guadalajara", "Guipúzcoa", "Huelva",
+  "Huesca", "Islas Baleares", "Jaén", "La Coruña", "La Rioja", "Las Palmas", "León",
+  "Lérida", "Lugo", "Madrid", "Málaga", "Murcia", "Navarra", "Orense", "Palencia",
+  "Pontevedra", "Salamanca", "Santa Cruz de Tenerife", "Segovia", "Sevilla", "Soria",
+  "Tarragona", "Teruel", "Toledo", "Valencia", "Valladolid", "Vizcaya", "Zamora", "Zaragoza"
+];
 
 interface OperariosListProps {
   operarios: Operario[];
@@ -79,6 +104,15 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
     cif?: string;
     documento?: string;
     direccion?: string;
+    tipo_via?: string;
+    nombre_via?: string;
+    numero?: string;
+    escalera?: string;
+    piso?: string;
+    puerta?: string;
+    codigo_postal?: string;
+    poblacion?: string;
+    provincia?: string;
     cuenta_bancaria?: string;
     nombre_admin?: string;
     dni_admin?: string;
@@ -155,6 +189,15 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
       cif: operario.cif || "",
       documento: operario.documento || "",
       direccion: operario.direccion || "",
+      tipo_via: operario.tipo_via || "",
+      nombre_via: operario.nombre_via || "",
+      numero: operario.numero || "",
+      escalera: operario.escalera || "",
+      piso: operario.piso || "",
+      puerta: operario.puerta || "",
+      codigo_postal: operario.codigo_postal || "",
+      poblacion: operario.poblacion || "",
+      provincia: operario.provincia || "",
       cuenta_bancaria: operario.cuenta_bancaria || "",
       nombre_admin: operario.nombre_admin || "",
       dni_admin: operario.dni_admin || "",
@@ -751,15 +794,6 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
-                  <input
-                    type="text"
-                    value={editForm.direccion || ""}
-                    onChange={(e) => setEditForm({ ...editForm, direccion: e.target.value })}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
-                  />
-                </div>
-                <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Cuenta Bancaria (IBAN)</label>
                   <input
                     type="text"
@@ -767,6 +801,106 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
                     onChange={(e) => setEditForm({ ...editForm, cuenta_bancaria: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
                   />
+                </div>
+              </div>
+
+              {/* Dirección desglosada */}
+              <div className="bg-green-50 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-green-900 mb-3 flex items-center gap-2">
+                  <MapPin className="w-4 h-4" />
+                  Dirección
+                </h4>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  <div className="col-span-2 md:col-span-1">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Tipo de vía</label>
+                    <select
+                      value={editForm.tipo_via || ""}
+                      onChange={(e) => setEditForm({ ...editForm, tipo_via: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                    >
+                      <option value="">Seleccionar...</option>
+                      {tiposVia.map((t) => (
+                        <option key={t} value={t}>{t}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="col-span-2 md:col-span-3">
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Nombre de la vía</label>
+                    <input
+                      type="text"
+                      value={editForm.nombre_via || ""}
+                      onChange={(e) => setEditForm({ ...editForm, nombre_via: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Número</label>
+                    <input
+                      type="text"
+                      value={editForm.numero || ""}
+                      onChange={(e) => setEditForm({ ...editForm, numero: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Escalera</label>
+                    <input
+                      type="text"
+                      value={editForm.escalera || ""}
+                      onChange={(e) => setEditForm({ ...editForm, escalera: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Piso</label>
+                    <input
+                      type="text"
+                      value={editForm.piso || ""}
+                      onChange={(e) => setEditForm({ ...editForm, piso: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Puerta</label>
+                    <input
+                      type="text"
+                      value={editForm.puerta || ""}
+                      onChange={(e) => setEditForm({ ...editForm, puerta: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Código Postal</label>
+                    <input
+                      type="text"
+                      value={editForm.codigo_postal || ""}
+                      onChange={(e) => setEditForm({ ...editForm, codigo_postal: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                      maxLength={5}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Población</label>
+                    <input
+                      type="text"
+                      value={editForm.poblacion || ""}
+                      onChange={(e) => setEditForm({ ...editForm, poblacion: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-medium text-gray-600 mb-1">Provincia</label>
+                    <select
+                      value={editForm.provincia || ""}
+                      onChange={(e) => setEditForm({ ...editForm, provincia: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                    >
+                      <option value="">Seleccionar...</option>
+                      {provincias.map((p) => (
+                        <option key={p} value={p}>{p}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               </div>
 

@@ -2,8 +2,26 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, User, Building2, Zap, Flame, FileText } from "lucide-react";
+import { Loader2, Save, User, Building2, Zap, Flame, FileText, MapPin } from "lucide-react";
 import { createCliente, type ClienteFormData } from "../actions";
+
+const tiposVia = [
+  "Calle", "Avenida", "Plaza", "Paseo", "Urbanización", "Polígono",
+  "Lugar", "Carretera", "Camino", "Callejón", "Pasaje", "Sendero",
+  "Bulevar", "Rambla", "Travesía", "Vía"
+];
+
+const provincias = [
+  "Álava", "Albacete", "Alicante", "Almería", "Asturias", "Ávila",
+  "Badajoz", "Barcelona", "Burgos", "Cáceres", "Cádiz", "Cantabria",
+  "Castellón", "Ciudad Real", "Córdoba", "A Coruña", "Cuenca",
+  "Girona", "Granada", "Guadalajara", "Guipúzcoa", "Huelva", "Huesca",
+  "Islas Baleares", "Jaén", "León", "Lleida", "Lugo", "Madrid",
+  "Málaga", "Murcia", "Navarra", "Ourense", "Palencia", "Las Palmas",
+  "Pontevedra", "La Rioja", "Salamanca", "Santa Cruz de Tenerife",
+  "Segovia", "Sevilla", "Soria", "Tarragona", "Teruel", "Toledo",
+  "Valencia", "Valladolid", "Vizcaya", "Zamora", "Zaragoza", "Ceuta", "Melilla"
+];
 
 interface Operario {
   id: string;
@@ -15,7 +33,7 @@ interface NuevoClienteFormProps {
   operarios: Operario[];
 }
 
-const estados = ["PENDIENTE", "SEGUIMIENTO", "EN TRAMITE", "COMISIONABLE", "LIQUIDADO", "FALLIDO"];
+const estados = ["SIN ESTADO", "SEGUIMIENTO", "EN TRAMITE", "COMISIONABLE", "LIQUIDADO", "FINALIZADO", "FALLIDO"];
 const servicios = ["Luz", "Gas", "Telefonía", "Seguros", "Alarmas"];
 const tiposPersona = [
   { value: "particular", label: "Particular" },
@@ -30,7 +48,7 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
   const [formData, setFormData] = useState<ClienteFormData>({
     operador: "",
     servicio: "",
-    estado: "PENDIENTE",
+    estado: "SIN ESTADO",
     tipo_persona: "particular",
     nombre_apellidos: "",
     razon_social: "",
@@ -42,6 +60,15 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
     email: "",
     telefono: "",
     direccion: "",
+    tipo_via: "",
+    nombre_via: "",
+    numero: "",
+    escalera: "",
+    piso: "",
+    puerta: "",
+    codigo_postal: "",
+    poblacion: "",
+    provincia: "",
     cuenta_bancaria: "",
     cups_gas: "",
     cups_luz: "",
@@ -344,16 +371,117 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
             />
           </div>
+        </div>
+      </div>
+
+      {/* Dirección */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+          <MapPin className="w-5 h-5 text-gray-400" />
+          Dirección
+        </h3>
+
+        <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Dirección</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Vía</label>
+            <select
+              value={formData.tipo_via}
+              onChange={(e) => handleChange("tipo_via", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            >
+              <option value="">Seleccionar...</option>
+              {tiposVia.map(tipo => (
+                <option key={tipo} value={tipo}>{tipo}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="md:col-span-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de Vía</label>
             <input
               type="text"
-              value={formData.direccion}
-              onChange={(e) => handleChange("direccion", e.target.value)}
+              value={formData.nombre_via}
+              onChange={(e) => handleChange("nombre_via", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
             />
           </div>
-          <div className="md:col-span-2">
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
+            <input
+              type="text"
+              value={formData.numero}
+              onChange={(e) => handleChange("numero", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Escalera</label>
+            <input
+              type="text"
+              value={formData.escalera}
+              onChange={(e) => handleChange("escalera", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Piso</label>
+            <input
+              type="text"
+              value={formData.piso}
+              onChange={(e) => handleChange("piso", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Puerta</label>
+            <input
+              type="text"
+              value={formData.puerta}
+              onChange={(e) => handleChange("puerta", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal</label>
+            <input
+              type="text"
+              value={formData.codigo_postal}
+              onChange={(e) => handleChange("codigo_postal", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+              maxLength={5}
+            />
+          </div>
+
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Población</label>
+            <input
+              type="text"
+              value={formData.poblacion}
+              onChange={(e) => handleChange("poblacion", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            />
+          </div>
+
+          <div className="md:col-span-3">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Provincia</label>
+            <select
+              value={formData.provincia}
+              onChange={(e) => handleChange("provincia", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            >
+              <option value="">Seleccionar...</option>
+              {provincias.map(prov => (
+                <option key={prov} value={prov}>{prov}</option>
+              ))}
+            </select>
+          </div>
+
+          <div className="md:col-span-6">
             <label className="block text-sm font-medium text-gray-700 mb-1">Cuenta Bancaria (IBAN)</label>
             <input
               type="text"

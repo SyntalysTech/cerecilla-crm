@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { sendEmail, isEmailConfigured } from "@/lib/email";
 
 export interface ClienteFormData {
   operador?: string;
@@ -18,6 +19,15 @@ export interface ClienteFormData {
   email?: string;
   telefono?: string;
   direccion?: string;
+  tipo_via?: string;
+  nombre_via?: string;
+  numero?: string;
+  escalera?: string;
+  piso?: string;
+  puerta?: string;
+  codigo_postal?: string;
+  poblacion?: string;
+  provincia?: string;
   cuenta_bancaria?: string;
   cups_gas?: string;
   cups_luz?: string;
@@ -212,4 +222,80 @@ export async function updateClienteOperadores(clienteId: string, operarioIds: st
   revalidatePath(`/clientes/${clienteId}`);
   revalidatePath(`/clientes/${clienteId}/edit`);
   return { success: true };
+}
+
+// Notificar cambio de estado al operador
+export async function notifyEstadoChange(
+  clienteId: string,
+  estadoAnterior: string,
+  estadoNuevo: string
+) {
+  if (!isEmailConfigured()) {
+    return { error: "Email no configurado" };
+  }
+
+  const supabase = await createClient();
+
+  // Get cliente info including operador
+  const { data: cliente, error: clienteError } = await supabase
+    .from("clientes")
+    .select("id, nombre_apellidos, razon_social, operador")
+    .eq("id", clienteId)
+    .single();
+
+  if (clienteError || !cliente) {
+    return { error: "Cliente no encontrado" };
+  }
+
+  if (!cliente.operador) {
+    return { error: "El cliente no tiene operador asignado" };
+  }
+
+  // Get operario email
+  const { data: operario, error: operarioError } = await supabase
+    .from("operarios")
+    .select("email, nombre, alias")
+    .or(`alias.eq.${cliente.operador},nombre.eq.${cliente.operador}`)
+    .single();
+
+  if (operarioError || !operario?.email) {
+    return { error: "El operador no tiene email configurado" };
+  }
+
+  const clienteName = cliente.nombre_apellidos || cliente.razon_social || "Cliente";
+
+  try {
+    const result = await sendEmail({
+      to: [{ email: operario.email, name: operario.nombre || operario.alias || "Operador" }],
+      from: { email: process.env.SMTP_FROM_EMAIL || "noreply@cerecilla.com", name: "CRM Cerecilla" },
+      subject: `Cambio de estado: ${clienteName}`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #BB292A;">Cambio de Estado</h2>
+          <p>El cliente <strong>${clienteName}</strong> ha cambiado de estado:</p>
+          <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0; text-align: center;">
+            <span style="display: inline-block; padding: 8px 16px; background: #e5e5e5; border-radius: 6px; font-weight: bold;">${estadoAnterior || "Sin estado"}</span>
+            <span style="display: inline-block; margin: 0 15px; font-size: 24px;">→</span>
+            <span style="display: inline-block; padding: 8px 16px; background: #BB292A; color: white; border-radius: 6px; font-weight: bold;">${estadoNuevo}</span>
+          </div>
+          <p style="color: #666; font-size: 14px;">
+            Fecha: ${new Date().toLocaleDateString("es-ES", { dateStyle: "full" })}
+          </p>
+          <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
+          <p style="color: #999; font-size: 12px;">
+            Este mensaje fue enviado desde CRM Cerecilla.
+          </p>
+        </div>
+      `,
+    });
+
+    if (!result.success) {
+      return { error: result.error || "Error al enviar email" };
+    }
+
+    return { success: true };
+  } catch (e) {
+    console.error("Error sending estado change email:", e);
+    return { error: "Error al enviar email" };
+  }
 }

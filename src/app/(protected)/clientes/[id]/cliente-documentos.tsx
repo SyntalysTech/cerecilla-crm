@@ -106,8 +106,8 @@ export function ClienteDocumentos({
     }
   }
 
-  const canDelete = (doc: ClienteDocumento) =>
-    isAdmin || doc.uploaded_by_email === currentUserEmail;
+  // Solo admins pueden eliminar documentos
+  const canDelete = () => isAdmin;
 
   const formatDate = (dateStr: string) => {
     return new Date(dateStr).toLocaleDateString("es-ES", {
@@ -181,7 +181,7 @@ export function ClienteDocumentos({
                       >
                         <Download className="w-4 h-4" />
                       </a>
-                      {canDelete(doc) && (
+                      {canDelete() && (
                         <button
                           onClick={() => handleDelete(doc.id)}
                           className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md"

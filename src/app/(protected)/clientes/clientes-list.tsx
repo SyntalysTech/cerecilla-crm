@@ -59,10 +59,11 @@ interface ClientesListProps {
 
 const estadoColors: Record<string, string> = {
   LIQUIDADO: "bg-gray-900 text-white",
-  PENDIENTE: "bg-blue-500 text-white",
+  "SIN ESTADO": "bg-blue-500 text-white",
   SEGUIMIENTO: "bg-green-400 text-white",
   "EN TRAMITE": "bg-green-600 text-white",
   COMISIONABLE: "bg-purple-500 text-white",
+  FINALIZADO: "bg-emerald-600 text-white",
   FALLIDO: "bg-red-500 text-white",
   CANCELADO: "bg-gray-500 text-white",
 };

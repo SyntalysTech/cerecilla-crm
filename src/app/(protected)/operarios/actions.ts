@@ -13,6 +13,15 @@ export interface OperarioFormData {
   cif?: string;
   documento?: string;
   direccion?: string;
+  tipo_via?: string;
+  nombre_via?: string;
+  numero?: string;
+  escalera?: string;
+  piso?: string;
+  puerta?: string;
+  codigo_postal?: string;
+  poblacion?: string;
+  provincia?: string;
   cuenta_bancaria?: string;
   nombre_admin?: string;
   dni_admin?: string;
