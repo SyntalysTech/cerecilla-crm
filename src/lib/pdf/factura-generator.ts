@@ -186,23 +186,24 @@ export async function generateFacturaPDF(data: FacturaData): Promise<FacturaResu
 
   // Fechas
   const fechaBoxY = 85;
-  doc.setFillColor(colorSecundario[0], colorSecundario[1], colorSecundario[2]);
-  doc.setDrawColor(colorSecundario[0], colorSecundario[1], colorSecundario[2]);
 
-  // Caja de fecha emisión (fondo azul claro, texto oscuro para contraste)
+  // Caja de fecha emisión (fondo azul claro, texto oscuro)
+  doc.setFillColor(colorSecundario[0], colorSecundario[1], colorSecundario[2]);
   doc.roundedRect(15, fechaBoxY, 55, 16, 2, 2, "F");
-  doc.setTextColor(30, 58, 95); // Azul oscuro para buen contraste
+  doc.setTextColor(0, 51, 102); // Azul marino oscuro
   doc.setFontSize(8);
   doc.setFont("helvetica", "bold");
   doc.text("FECHA EMISIÓN", 18, fechaBoxY + 6);
   doc.setFontSize(11);
   doc.text(data.fecha, 18, fechaBoxY + 12);
 
-  // Caja de fecha vencimiento
+  // Caja de fecha vencimiento (fondo azul claro, texto oscuro)
   if (data.fechaVencimiento) {
+    doc.setFillColor(colorSecundario[0], colorSecundario[1], colorSecundario[2]);
     doc.roundedRect(75, fechaBoxY, 55, 16, 2, 2, "F");
-    doc.setTextColor(30, 58, 95); // Azul oscuro para buen contraste
+    doc.setTextColor(0, 51, 102); // Azul marino oscuro
     doc.setFontSize(8);
+    doc.setFont("helvetica", "bold");
     doc.text("FECHA VENCIMIENTO", 78, fechaBoxY + 6);
     doc.setFontSize(11);
     doc.text(data.fechaVencimiento, 78, fechaBoxY + 12);

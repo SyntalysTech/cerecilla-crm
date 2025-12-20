@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS public.facturas_clientes (
   iva INTEGER NOT NULL DEFAULT 21,
   total DECIMAL(10,2) NOT NULL DEFAULT 0,
   estado TEXT NOT NULL DEFAULT 'emitida',
+  iban_usado TEXT, -- IBAN que aparece en la factura
   cobrada_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()

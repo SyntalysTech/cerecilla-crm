@@ -14,6 +14,9 @@ interface EmpresaConfig {
   telefono: string;
   email: string;
   cuentaBancaria: string;
+  cuentaBancaria2: string;
+  ibanNombre: string;
+  iban2Nombre: string;
 }
 
 interface Props {
@@ -161,22 +164,57 @@ export function EmpresaConfigForm({ initialConfig }: Props) {
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BB292A]/50 focus:border-[#BB292A]"
           />
         </div>
+      </div>
 
-        {/* IBAN */}
-        <div className="md:col-span-2">
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            IBAN (Cuenta Bancaria)
-          </label>
-          <input
-            type="text"
-            value={config.cuentaBancaria}
-            onChange={(e) => handleChange("cuentaBancaria", e.target.value)}
-            placeholder="ES00 0000 0000 0000 0000 0000"
-            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BB292A]/50 focus:border-[#BB292A] font-mono"
-          />
-          <p className="mt-1 text-xs text-gray-500">
-            Este IBAN aparecerá en las facturas generadas
-          </p>
+      {/* Cuentas Bancarias */}
+      <div className="border-t border-gray-200 pt-6">
+        <h3 className="text-sm font-medium text-gray-900 mb-4">Cuentas Bancarias para Cobros</h3>
+        <p className="text-xs text-gray-500 mb-4">
+          Configura las cuentas donde recibes los cobros. Al generar una factura podrás elegir cuál usar.
+        </p>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* IBAN 1 */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Cuenta 1 - Nombre (opcional)
+            </label>
+            <input
+              type="text"
+              value={config.ibanNombre}
+              onChange={(e) => handleChange("ibanNombre", e.target.value)}
+              placeholder="Ej: Cerecilla Energía"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BB292A]/50 focus:border-[#BB292A]"
+            />
+            <input
+              type="text"
+              value={config.cuentaBancaria}
+              onChange={(e) => handleChange("cuentaBancaria", e.target.value)}
+              placeholder="ES00 0000 0000 0000 0000 0000"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BB292A]/50 focus:border-[#BB292A] font-mono"
+            />
+          </div>
+
+          {/* IBAN 2 */}
+          <div className="space-y-2">
+            <label className="block text-sm font-medium text-gray-700">
+              Cuenta 2 - Nombre (opcional)
+            </label>
+            <input
+              type="text"
+              value={config.iban2Nombre}
+              onChange={(e) => handleChange("iban2Nombre", e.target.value)}
+              placeholder="Ej: Cerecilla Solar"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BB292A]/50 focus:border-[#BB292A]"
+            />
+            <input
+              type="text"
+              value={config.cuentaBancaria2}
+              onChange={(e) => handleChange("cuentaBancaria2", e.target.value)}
+              placeholder="ES00 0000 0000 0000 0000 0000"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BB292A]/50 focus:border-[#BB292A] font-mono"
+            />
+          </div>
         </div>
       </div>
 

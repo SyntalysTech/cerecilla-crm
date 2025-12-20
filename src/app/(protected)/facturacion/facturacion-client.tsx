@@ -52,6 +52,9 @@ interface EmpresaConfig {
   telefono: string;
   email: string;
   cuentaBancaria: string;
+  cuentaBancaria2: string;
+  ibanNombre: string;
+  iban2Nombre: string;
 }
 
 interface FacturacionClientProps {
@@ -95,6 +98,7 @@ export function FacturacionClient({
     importe: "",
     iva: "21",
     fechaFactura: new Date().toISOString().split("T")[0],
+    cuentaSeleccionada: "1" as "1" | "2",
   });
   const [generatingPDF, setGeneratingPDF] = useState<string | null>(null);
 
@@ -187,6 +191,7 @@ export function FacturacionClient({
       importe: "",
       iva: "21",
       fechaFactura: new Date().toISOString().split("T")[0],
+      cuentaSeleccionada: "1",
     });
     setShowFacturaModal(true);
   }
@@ -198,12 +203,18 @@ export function FacturacionClient({
       return;
     }
 
+    // Determinar qué IBAN usar
+    const ibanUsado = facturaForm.cuentaSeleccionada === "2"
+      ? empresaConfig.cuentaBancaria2
+      : empresaConfig.cuentaBancaria;
+
     setLoading(true);
     const result = await generarFacturaCliente(selectedCliente.id, {
       concepto: facturaForm.concepto,
       importe: parseFloat(facturaForm.importe),
       iva: parseInt(facturaForm.iva),
       fechaFactura: facturaForm.fechaFactura,
+      ibanUsado: ibanUsado || undefined,
     });
 
     if (result.error) {
@@ -283,7 +294,8 @@ export function FacturacionClient({
           },
         ],
         metodoPago: "Transferencia bancaria",
-        cuentaBancaria: empresaConfig.cuentaBancaria,
+        // Usar el IBAN guardado en la factura, o el principal como fallback
+        cuentaBancaria: factura.iban_usado || empresaConfig.cuentaBancaria,
         notas: "Gracias por confiar en nosotros.",
       };
 
@@ -969,6 +981,61 @@ export function FacturacionClient({
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#BB292A] focus:border-[#BB292A]"
                 />
               </div>
+
+              {/* Selector de cuenta bancaria */}
+              {(empresaConfig.cuentaBancaria || empresaConfig.cuentaBancaria2) && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Cuenta para el cobro
+                  </label>
+                  <div className="space-y-2">
+                    {empresaConfig.cuentaBancaria && (
+                      <label className={`flex items-center gap-3 p-3 border rounded-md cursor-pointer transition-colors ${
+                        facturaForm.cuentaSeleccionada === "1"
+                          ? "border-[#BB292A] bg-[#BB292A]/5"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}>
+                        <input
+                          type="radio"
+                          name="cuenta"
+                          value="1"
+                          checked={facturaForm.cuentaSeleccionada === "1"}
+                          onChange={() => setFacturaForm({ ...facturaForm, cuentaSeleccionada: "1" })}
+                          className="text-[#BB292A] focus:ring-[#BB292A]"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">
+                            {empresaConfig.ibanNombre || "Cuenta Principal"}
+                          </p>
+                          <p className="text-xs text-gray-500 font-mono">{empresaConfig.cuentaBancaria}</p>
+                        </div>
+                      </label>
+                    )}
+                    {empresaConfig.cuentaBancaria2 && (
+                      <label className={`flex items-center gap-3 p-3 border rounded-md cursor-pointer transition-colors ${
+                        facturaForm.cuentaSeleccionada === "2"
+                          ? "border-[#BB292A] bg-[#BB292A]/5"
+                          : "border-gray-200 hover:border-gray-300"
+                      }`}>
+                        <input
+                          type="radio"
+                          name="cuenta"
+                          value="2"
+                          checked={facturaForm.cuentaSeleccionada === "2"}
+                          onChange={() => setFacturaForm({ ...facturaForm, cuentaSeleccionada: "2" })}
+                          className="text-[#BB292A] focus:ring-[#BB292A]"
+                        />
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-gray-900">
+                            {empresaConfig.iban2Nombre || "Cuenta Secundaria"}
+                          </p>
+                          <p className="text-xs text-gray-500 font-mono">{empresaConfig.cuentaBancaria2}</p>
+                        </div>
+                      </label>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {facturaForm.importe && (
                 <div className="bg-gray-50 rounded-lg p-4">

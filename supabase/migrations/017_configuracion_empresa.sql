@@ -17,8 +17,11 @@ CREATE TABLE IF NOT EXISTS public.configuracion_empresa (
   telefono TEXT,
   email TEXT,
 
-  -- Datos bancarios
+  -- Datos bancarios (dos cuentas para cobros)
   iban TEXT,
+  iban2 TEXT,
+  iban_nombre TEXT, -- Nombre descriptivo ej: "Cerecilla Energía"
+  iban2_nombre TEXT, -- Nombre descriptivo ej: "Cerecilla Solar"
 
   -- Metadatos
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),

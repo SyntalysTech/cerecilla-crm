@@ -414,6 +414,7 @@ export interface FacturaClienteLinea {
   iva: number;
   total: number;
   estado: string;
+  iban_usado: string | null;
   created_at: string;
 }
 
@@ -439,6 +440,9 @@ export async function getEmpresaConfig() {
       telefono: "",
       email: "",
       cuentaBancaria: "",
+      cuentaBancaria2: "",
+      ibanNombre: "",
+      iban2Nombre: "",
     };
   }
 
@@ -452,6 +456,9 @@ export async function getEmpresaConfig() {
     telefono: data.telefono || "",
     email: data.email || "",
     cuentaBancaria: data.iban || "",
+    cuentaBancaria2: data.iban2 || "",
+    ibanNombre: data.iban_nombre || "",
+    iban2Nombre: data.iban2_nombre || "",
   };
 }
 
@@ -466,6 +473,9 @@ export async function updateEmpresaConfig(config: {
   telefono?: string;
   email?: string;
   cuentaBancaria?: string;
+  cuentaBancaria2?: string;
+  ibanNombre?: string;
+  iban2Nombre?: string;
 }) {
   const supabase = await createClient();
 
@@ -490,6 +500,9 @@ export async function updateEmpresaConfig(config: {
         telefono: config.telefono || null,
         email: config.email || null,
         iban: config.cuentaBancaria || null,
+        iban2: config.cuentaBancaria2 || null,
+        iban_nombre: config.ibanNombre || null,
+        iban2_nombre: config.iban2Nombre || null,
       })
       .eq("id", existing.id);
 
@@ -508,6 +521,9 @@ export async function updateEmpresaConfig(config: {
       telefono: config.telefono || null,
       email: config.email || null,
       iban: config.cuentaBancaria || null,
+      iban2: config.cuentaBancaria2 || null,
+      iban_nombre: config.ibanNombre || null,
+      iban2_nombre: config.iban2Nombre || null,
     });
 
     if (error) {
@@ -590,6 +606,7 @@ export async function getFacturasClientes() {
     iva: f.iva || 21,
     total: f.total || 0,
     estado: f.estado,
+    iban_usado: f.iban_usado || null,
     created_at: f.created_at,
   })) as FacturaClienteLinea[];
 }
@@ -602,6 +619,7 @@ export async function generarFacturaCliente(
     importe: number;
     iva: number;
     fechaFactura: string;
+    ibanUsado?: string;
   }
 ) {
   const supabase = await createClient();
@@ -638,6 +656,7 @@ export async function generarFacturaCliente(
       iva: datos.iva,
       total: total,
       estado: "emitida",
+      iban_usado: datos.ibanUsado || null,
     })
     .select()
     .single();
