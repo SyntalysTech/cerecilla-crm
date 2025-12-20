@@ -36,7 +36,8 @@ interface SidebarProps {
   userRole?: UserRole;
 }
 
-const navigation = [
+// Navegación completa para admins y personal interno
+const fullNavigation = [
   {
     category: "General",
     items: [
@@ -65,10 +66,22 @@ const navigation = [
   },
 ];
 
+// Navegación limitada para operarios
+const operarioNavigation = [
+  {
+    category: "Mi Portal",
+    items: [
+      { name: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
+      { name: "Mis Clientes", href: "/clientes", icon: Users },
+      { name: "Documentos", href: "/documentos", icon: FolderOpen },
+    ],
+  },
+];
+
 const adminNavigation = {
   category: "Administración",
   items: [
-    { name: "Usuarios", href: "/admin/users", icon: Shield },
+    // Usuarios se gestiona ahora desde Operarios
     { name: "Configuración", href: "/admin/settings", icon: Settings },
   ],
 };
@@ -80,11 +93,14 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
   const { mobileOpen, setMobileOpen, isMobile } = useSidebar();
 
   const isAdmin = userRole === "admin" || userRole === "super_admin" || userRole === "manager";
+  const isOperario = userRole === "operario";
 
   // Build navigation based on role
-  const fullNavigation = isAdmin
-    ? [...navigation, adminNavigation]
-    : navigation;
+  const navigation = isOperario
+    ? operarioNavigation
+    : isAdmin
+      ? [...fullNavigation, adminNavigation]
+      : fullNavigation;
 
   // Restore collapsed state from localStorage
   useEffect(() => {
@@ -196,7 +212,7 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3">
-          {fullNavigation.map((group) => (
+          {navigation.map((group) => (
             <div key={group.category} className="mb-6">
               <h3
                 className={`px-3 mb-2 text-xs font-medium text-gray-400 uppercase tracking-wider whitespace-nowrap transition-opacity duration-200 ${

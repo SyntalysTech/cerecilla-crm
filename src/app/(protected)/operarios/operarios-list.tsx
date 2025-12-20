@@ -20,8 +20,21 @@ import {
   X,
   Save,
   Euro,
+  Key,
+  UserPlus,
+  UserCheck,
+  Eye,
+  EyeOff,
 } from "lucide-react";
-import { updateOperario, deleteOperario, getOperarioComisiones, updateOperarioComisiones } from "./actions";
+import {
+  updateOperario,
+  deleteOperario,
+  getOperarioComisiones,
+  updateOperarioComisiones,
+  getOperarioUserStatus,
+  createOperarioAccount,
+  resetOperarioPassword,
+} from "./actions";
 
 interface Operario {
   id: string;
@@ -54,6 +67,16 @@ interface Operario {
   password_operario?: string | null;
   created_at: string;
   ultima_carga?: string | null;
+  user_id?: string | null;
+}
+
+interface UserAccountStatus {
+  hasAccount: boolean;
+  userId?: string;
+  email?: string | null;
+  fullName?: string | null;
+  isActive?: boolean;
+  error?: string;
 }
 
 const tiposVia = [
@@ -133,6 +156,12 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
     Alarmas: 25,
   });
   const [loadingComisiones, setLoadingComisiones] = useState(false);
+  const [userAccountStatus, setUserAccountStatus] = useState<UserAccountStatus | null>(null);
+  const [loadingAccountStatus, setLoadingAccountStatus] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [creatingAccount, setCreatingAccount] = useState(false);
+  const [resettingPassword, setResettingPassword] = useState(false);
   const itemsPerPage = 20;
 
   const servicios = ["Luz", "Gas", "Telefonía", "Seguros", "Alarmas"];
@@ -179,6 +208,9 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
 
   async function startEdit(operario: Operario) {
     setEditingId(operario.id);
+    setNewPassword("");
+    setShowPassword(false);
+    setUserAccountStatus(null);
     setEditForm({
       alias: operario.alias || "",
       nombre: operario.nombre || "",
@@ -226,6 +258,49 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
     }
     setComisiones(newComisiones);
     setLoadingComisiones(false);
+
+    // Load user account status
+    setLoadingAccountStatus(true);
+    const accountStatus = await getOperarioUserStatus(operario.id);
+    setUserAccountStatus(accountStatus as UserAccountStatus);
+    setLoadingAccountStatus(false);
+  }
+
+  async function handleCreateAccount(operarioId: string) {
+    if (!newPassword || newPassword.length < 6) {
+      alert("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
+    setCreatingAccount(true);
+    const result = await createOperarioAccount(operarioId, newPassword);
+    if (result.error) {
+      alert(`Error: ${result.error}`);
+    } else {
+      alert("Cuenta creada correctamente. El operario puede acceder con su email y la contraseña establecida.");
+      // Reload account status
+      const accountStatus = await getOperarioUserStatus(operarioId);
+      setUserAccountStatus(accountStatus as UserAccountStatus);
+      setNewPassword("");
+    }
+    setCreatingAccount(false);
+  }
+
+  async function handleResetPassword(operarioId: string) {
+    if (!newPassword || newPassword.length < 6) {
+      alert("La contraseña debe tener al menos 6 caracteres");
+      return;
+    }
+
+    setResettingPassword(true);
+    const result = await resetOperarioPassword(operarioId, newPassword);
+    if (result.error) {
+      alert(`Error: ${result.error}`);
+    } else {
+      alert("Contraseña actualizada correctamente");
+      setNewPassword("");
+    }
+    setResettingPassword(false);
   }
 
   if (error) {
@@ -1043,6 +1118,97 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
                         )}
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Cuenta de Acceso al CRM */}
+              <div className="bg-blue-50 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-blue-900 mb-3 flex items-center gap-2">
+                  <Key className="w-4 h-4" />
+                  Acceso al CRM
+                </h4>
+                <p className="text-xs text-blue-700 mb-3">
+                  Permite al operario acceder al CRM para ver sus clientes, crear nuevos clientes y consultar sus comisiones.
+                </p>
+
+                {loadingAccountStatus ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Cargando estado de cuenta...
+                  </div>
+                ) : userAccountStatus?.hasAccount ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-green-700 bg-green-100 px-3 py-2 rounded-md">
+                      <UserCheck className="w-4 h-4" />
+                      <span>Cuenta activa: {userAccountStatus.email}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Nueva contraseña (mín. 6 caracteres)"
+                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleResetPassword(editingId)}
+                        disabled={resettingPassword || !newPassword}
+                        className="px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {resettingPassword ? <Loader2 className="w-4 h-4 animate-spin" /> : <Key className="w-4 h-4" />}
+                        Cambiar
+                      </button>
+                    </div>
+                  </div>
+                ) : editForm.email ? (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm text-gray-600 bg-gray-100 px-3 py-2 rounded-md">
+                      <User className="w-4 h-4" />
+                      <span>Sin cuenta de acceso</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="Contraseña para el operario (mín. 6 caracteres)"
+                          className="w-full px-3 py-2 pr-10 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                      <button
+                        onClick={() => handleCreateAccount(editingId)}
+                        disabled={creatingAccount || !newPassword}
+                        className="px-3 py-2 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 disabled:opacity-50 flex items-center gap-1"
+                      >
+                        {creatingAccount ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4" />}
+                        Crear cuenta
+                      </button>
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Se usará el email: <strong>{editForm.email}</strong>
+                    </p>
+                  </div>
+                ) : (
+                  <div className="text-sm text-amber-600 bg-amber-50 px-3 py-2 rounded-md">
+                    Añade un email al operario para poder crear su cuenta de acceso.
                   </div>
                 )}
               </div>

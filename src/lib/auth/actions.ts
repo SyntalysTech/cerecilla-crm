@@ -35,7 +35,7 @@ export async function getUser() {
   return user;
 }
 
-export type UserRole = "super_admin" | "admin" | "manager" | "agent" | "collaborator" | "viewer";
+export type UserRole = "super_admin" | "admin" | "manager" | "agent" | "collaborator" | "viewer" | "operario";
 
 export interface UserProfile {
   id: string;

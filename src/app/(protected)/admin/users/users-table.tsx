@@ -18,6 +18,7 @@ import {
   Pencil,
   X,
   Save,
+  HardHat,
   Loader2,
 } from "lucide-react";
 import {
@@ -52,6 +53,7 @@ const roleIcons: Record<UserRole, typeof User> = {
   agent: Users,
   collaborator: Shield,
   viewer: Eye,
+  operario: HardHat,
 };
 
 // Fallback para roles que no existen en roleLabels (compatibilidad con datos antiguos)

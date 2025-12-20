@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
+import { isAdmin, getUser } from "@/lib/auth/actions";
 
 export interface OperarioFormData {
   alias?: string;
@@ -155,5 +156,193 @@ export async function updateOperarioComisiones(operarioId: string, comisiones: {
   }
 
   revalidatePath("/operarios");
+  return { success: true };
+}
+
+// ==========================================
+// Funciones para gestión de cuentas de operarios
+// ==========================================
+
+export async function getOperarioUserStatus(operarioId: string) {
+  const supabase = await createClient();
+
+  const { data: operario, error } = await supabase
+    .from("operarios")
+    .select("user_id, email, alias, nombre")
+    .eq("id", operarioId)
+    .single();
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  if (!operario.user_id) {
+    return { hasAccount: false, email: operario.email };
+  }
+
+  // Obtener info del usuario
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("email, full_name, is_active")
+    .eq("id", operario.user_id)
+    .single();
+
+  return {
+    hasAccount: true,
+    userId: operario.user_id,
+    email: profile?.email || operario.email,
+    fullName: profile?.full_name,
+    isActive: profile?.is_active ?? true,
+  };
+}
+
+export async function createOperarioAccount(
+  operarioId: string,
+  password: string
+) {
+  const isAdminUser = await isAdmin();
+  const currentUser = await getUser();
+
+  if (!isAdminUser || !currentUser) {
+    return { error: "No tienes permisos para realizar esta acción" };
+  }
+
+  const supabase = await createClient();
+
+  // Obtener datos del operario
+  const { data: operario, error: operarioError } = await supabase
+    .from("operarios")
+    .select("id, email, alias, nombre, user_id")
+    .eq("id", operarioId)
+    .single();
+
+  if (operarioError || !operario) {
+    return { error: "Operario no encontrado" };
+  }
+
+  if (operario.user_id) {
+    return { error: "Este operario ya tiene una cuenta vinculada" };
+  }
+
+  if (!operario.email) {
+    return { error: "El operario no tiene email configurado" };
+  }
+
+  // Crear usuario en Supabase Auth
+  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+    email: operario.email,
+    password: password,
+    options: {
+      data: {
+        full_name: operario.nombre || operario.alias || operario.email,
+      },
+    },
+  });
+
+  if (signUpError) {
+    return { error: `Error al crear usuario: ${signUpError.message}` };
+  }
+
+  if (!signUpData?.user?.id) {
+    return { error: "No se pudo obtener el ID del usuario creado" };
+  }
+
+  const userId = signUpData.user.id;
+
+  // Esperar un momento para que se cree el trigger de profile
+  await new Promise((resolve) => setTimeout(resolve, 1000));
+
+  // Actualizar profile con datos adicionales
+  const { error: profileError } = await supabase.from("profiles").upsert({
+    id: userId,
+    email: operario.email,
+    full_name: operario.nombre || operario.alias || operario.email,
+    invited_by: currentUser.id,
+    is_active: true,
+  });
+
+  if (profileError) {
+    console.error("Error updating profile:", profileError);
+  }
+
+  // Asignar rol 'operario'
+  const { error: roleError } = await supabase.from("user_roles").upsert({
+    user_id: userId,
+    role: "operario",
+    created_by: currentUser.id,
+  });
+
+  if (roleError) {
+    console.error("Error assigning role:", roleError);
+    return { error: `Usuario creado pero error al asignar rol: ${roleError.message}` };
+  }
+
+  // Vincular operario con usuario
+  const { error: linkError } = await supabase
+    .from("operarios")
+    .update({ user_id: userId })
+    .eq("id", operarioId);
+
+  if (linkError) {
+    return { error: `Usuario creado pero error al vincularlo: ${linkError.message}` };
+  }
+
+  revalidatePath("/operarios");
+  return { success: true, userId };
+}
+
+export async function unlinkOperarioAccount(operarioId: string) {
+  const isAdminUser = await isAdmin();
+
+  if (!isAdminUser) {
+    return { error: "No tienes permisos para realizar esta acción" };
+  }
+
+  const supabase = await createClient();
+
+  // Desvincular (no eliminar el usuario, solo quitar el vínculo)
+  const { error } = await supabase
+    .from("operarios")
+    .update({ user_id: null })
+    .eq("id", operarioId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/operarios");
+  return { success: true };
+}
+
+export async function resetOperarioPassword(operarioId: string, newPassword: string) {
+  const isAdminUser = await isAdmin();
+
+  if (!isAdminUser) {
+    return { error: "No tienes permisos para realizar esta acción" };
+  }
+
+  const supabase = await createClient();
+
+  // Obtener user_id del operario
+  const { data: operario, error: operarioError } = await supabase
+    .from("operarios")
+    .select("user_id, email")
+    .eq("id", operarioId)
+    .single();
+
+  if (operarioError || !operario?.user_id) {
+    return { error: "Operario no tiene cuenta vinculada" };
+  }
+
+  // Actualizar contraseña usando admin API
+  const { error: updateError } = await supabase.auth.admin.updateUserById(
+    operario.user_id,
+    { password: newPassword }
+  );
+
+  if (updateError) {
+    return { error: `Error al actualizar contraseña: ${updateError.message}` };
+  }
+
   return { success: true };
 }

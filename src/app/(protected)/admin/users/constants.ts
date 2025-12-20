@@ -1,4 +1,4 @@
-export type UserRole = "super_admin" | "admin" | "manager" | "agent" | "collaborator" | "viewer";
+export type UserRole = "super_admin" | "admin" | "manager" | "agent" | "collaborator" | "viewer" | "operario";
 
 export const roleLabels: Record<UserRole, { label: string; description: string; color: string }> = {
   super_admin: {
@@ -30,5 +30,10 @@ export const roleLabels: Record<UserRole, { label: string; description: string; 
     label: "Visor",
     description: "Solo lectura",
     color: "bg-gray-100 text-gray-800",
+  },
+  operario: {
+    label: "Operario",
+    description: "Acceso limitado a sus clientes",
+    color: "bg-orange-100 text-orange-800",
   },
 };
