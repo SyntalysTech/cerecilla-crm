@@ -377,3 +377,397 @@ export async function deleteFactura(facturaId: string) {
   revalidatePath("/facturacion");
   return { success: true };
 }
+
+// ==================== FACTURACIÓN DE CLIENTES ====================
+
+export interface ClienteFacturable {
+  id: string;
+  nombre: string;
+  nif: string | null;
+  email: string | null;
+  telefono: string | null;
+  direccion: string | null;
+  tipo_via: string | null;
+  nombre_via: string | null;
+  numero: string | null;
+  escalera: string | null;
+  piso: string | null;
+  puerta: string | null;
+  codigo_postal: string | null;
+  poblacion: string | null;
+  provincia: string | null;
+  servicio: string | null;
+  estado: string | null;
+  facturado: boolean;
+  factura_cobros: string | null;
+}
+
+export interface FacturaClienteLinea {
+  id: string;
+  cliente_id: string;
+  cliente_nombre: string;
+  cliente_email: string | null;
+  numero_factura: string;
+  fecha_factura: string;
+  concepto: string;
+  importe: number;
+  iva: number;
+  total: number;
+  estado: string;
+  created_at: string;
+}
+
+// Configuración de la empresa para las facturas
+export async function getEmpresaConfig() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("configuracion_empresa")
+    .select("*")
+    .limit(1)
+    .single();
+
+  if (error || !data) {
+    // Valores por defecto si no existe configuración
+    return {
+      nombre: "CERECILLA ENERGÍA S.L.",
+      cif: "B12345678",
+      direccion: "Calle Principal, 1",
+      poblacion: "Madrid",
+      provincia: "Madrid",
+      codigoPostal: "28001",
+      telefono: "",
+      email: "",
+      cuentaBancaria: "",
+    };
+  }
+
+  return {
+    nombre: data.nombre || "CERECILLA ENERGÍA S.L.",
+    cif: data.cif || "B12345678",
+    direccion: data.direccion || "",
+    poblacion: data.poblacion || "",
+    provincia: data.provincia || "",
+    codigoPostal: data.codigo_postal || "",
+    telefono: data.telefono || "",
+    email: data.email || "",
+    cuentaBancaria: data.iban || "",
+  };
+}
+
+// Actualizar configuración de la empresa
+export async function updateEmpresaConfig(config: {
+  nombre: string;
+  cif: string;
+  direccion: string;
+  poblacion: string;
+  provincia: string;
+  codigoPostal: string;
+  telefono?: string;
+  email?: string;
+  cuentaBancaria?: string;
+}) {
+  const supabase = await createClient();
+
+  // Verificar si existe configuración
+  const { data: existing } = await supabase
+    .from("configuracion_empresa")
+    .select("id")
+    .limit(1)
+    .single();
+
+  if (existing) {
+    // Actualizar
+    const { error } = await supabase
+      .from("configuracion_empresa")
+      .update({
+        nombre: config.nombre,
+        cif: config.cif,
+        direccion: config.direccion,
+        poblacion: config.poblacion,
+        provincia: config.provincia,
+        codigo_postal: config.codigoPostal,
+        telefono: config.telefono || null,
+        email: config.email || null,
+        iban: config.cuentaBancaria || null,
+      })
+      .eq("id", existing.id);
+
+    if (error) {
+      return { error: error.message };
+    }
+  } else {
+    // Insertar
+    const { error } = await supabase.from("configuracion_empresa").insert({
+      nombre: config.nombre,
+      cif: config.cif,
+      direccion: config.direccion,
+      poblacion: config.poblacion,
+      provincia: config.provincia,
+      codigo_postal: config.codigoPostal,
+      telefono: config.telefono || null,
+      email: config.email || null,
+      iban: config.cuentaBancaria || null,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+  }
+
+  revalidatePath("/admin/settings");
+  revalidatePath("/facturacion");
+  return { success: true };
+}
+
+// Obtener clientes facturables (COMISIONABLE o FINALIZADO no facturados)
+export async function getClientesFacturables() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("clientes")
+    .select("*")
+    .in("estado", ["COMISIONABLE", "FINALIZADO"])
+    .or("facturado.is.null,facturado.eq.false")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching clientes facturables:", error);
+    return [];
+  }
+
+  return (data || []).map((c) => ({
+    id: c.id,
+    nombre: c.nombre_apellidos || c.razon_social || "Sin nombre",
+    nif: c.documento_nuevo_titular || c.cif_empresa || null,
+    email: c.email,
+    telefono: c.telefono,
+    direccion: c.direccion,
+    tipo_via: c.tipo_via,
+    nombre_via: c.nombre_via,
+    numero: c.numero,
+    escalera: c.escalera,
+    piso: c.piso,
+    puerta: c.puerta,
+    codigo_postal: c.codigo_postal,
+    poblacion: c.poblacion,
+    provincia: c.provincia,
+    servicio: c.servicio,
+    estado: c.estado,
+    facturado: c.facturado || false,
+    factura_cobros: c.factura_cobros,
+  })) as ClienteFacturable[];
+}
+
+// Obtener facturas de clientes emitidas
+export async function getFacturasClientes() {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("facturas_clientes")
+    .select(`
+      *,
+      clientes (id, nombre_apellidos, razon_social, email)
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching facturas clientes:", error);
+    return [];
+  }
+
+  return (data || []).map((f) => ({
+    id: f.id,
+    cliente_id: f.cliente_id,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    cliente_nombre: (f.clientes as any)?.nombre_apellidos || (f.clientes as any)?.razon_social || "Sin nombre",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    cliente_email: (f.clientes as any)?.email,
+    numero_factura: f.numero_factura,
+    fecha_factura: f.fecha_factura,
+    concepto: f.concepto,
+    importe: f.importe || 0,
+    iva: f.iva || 21,
+    total: f.total || 0,
+    estado: f.estado,
+    created_at: f.created_at,
+  })) as FacturaClienteLinea[];
+}
+
+// Generar factura para un cliente
+export async function generarFacturaCliente(
+  clienteId: string,
+  datos: {
+    concepto: string;
+    importe: number;
+    iva: number;
+    fechaFactura: string;
+  }
+) {
+  const supabase = await createClient();
+
+  // Obtener último número de factura
+  const { data: lastFactura } = await supabase
+    .from("facturas_clientes")
+    .select("numero_factura")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .single();
+
+  let nextNumber = 1;
+  if (lastFactura?.numero_factura) {
+    const match = lastFactura.numero_factura.match(/(\d+)$/);
+    if (match) {
+      nextNumber = parseInt(match[1]) + 1;
+    }
+  }
+
+  const year = new Date(datos.fechaFactura).getFullYear();
+  const numeroFactura = `FC-${year}-${String(nextNumber).padStart(5, "0")}`;
+
+  const total = datos.importe * (1 + datos.iva / 100);
+
+  const { data: factura, error } = await supabase
+    .from("facturas_clientes")
+    .insert({
+      cliente_id: clienteId,
+      numero_factura: numeroFactura,
+      fecha_factura: datos.fechaFactura,
+      concepto: datos.concepto,
+      importe: datos.importe,
+      iva: datos.iva,
+      total: total,
+      estado: "emitida",
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating factura cliente:", error);
+    return { error: error.message };
+  }
+
+  // Marcar cliente como facturado
+  await supabase
+    .from("clientes")
+    .update({
+      facturado: true,
+      factura_cobros: numeroFactura,
+    })
+    .eq("id", clienteId);
+
+  revalidatePath("/facturacion");
+  revalidatePath("/clientes");
+  return { success: true, factura };
+}
+
+// Obtener datos completos de un cliente para la factura
+export async function getClienteParaFactura(clienteId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("clientes")
+    .select("*")
+    .eq("id", clienteId)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  // Construir dirección formateada
+  let direccion = "";
+  if (data.tipo_via && data.nombre_via) {
+    direccion = `${data.tipo_via} ${data.nombre_via}`;
+    if (data.numero) direccion += `, ${data.numero}`;
+    if (data.escalera) direccion += `, Esc. ${data.escalera}`;
+    if (data.piso) direccion += `, ${data.piso}º`;
+    if (data.puerta) direccion += ` ${data.puerta}`;
+  } else if (data.direccion) {
+    direccion = data.direccion;
+  }
+
+  return {
+    id: data.id,
+    nombre: data.nombre_apellidos || data.razon_social || "Sin nombre",
+    nif: data.documento_nuevo_titular || data.cif_empresa || null,
+    email: data.email,
+    telefono: data.telefono,
+    direccion,
+    poblacion: data.poblacion,
+    provincia: data.provincia,
+    codigoPostal: data.codigo_postal,
+    servicio: data.servicio,
+  };
+}
+
+// Eliminar factura de cliente
+export async function deleteFacturaCliente(facturaId: string) {
+  const supabase = await createClient();
+
+  // Obtener la factura para saber el cliente
+  const { data: factura } = await supabase
+    .from("facturas_clientes")
+    .select("cliente_id")
+    .eq("id", facturaId)
+    .single();
+
+  const { error } = await supabase
+    .from("facturas_clientes")
+    .delete()
+    .eq("id", facturaId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  // Desmarcar el cliente como facturado
+  if (factura?.cliente_id) {
+    await supabase
+      .from("clientes")
+      .update({
+        facturado: false,
+        factura_cobros: null,
+      })
+      .eq("id", factura.cliente_id);
+  }
+
+  revalidatePath("/facturacion");
+  revalidatePath("/clientes");
+  return { success: true };
+}
+
+// Marcar factura como cobrada
+export async function marcarFacturaCobrada(facturaId: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("facturas_clientes")
+    .update({
+      estado: "cobrada",
+      cobrada_at: new Date().toISOString(),
+    })
+    .eq("id", facturaId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  // Actualizar el cliente
+  const { data: factura } = await supabase
+    .from("facturas_clientes")
+    .select("cliente_id")
+    .eq("id", facturaId)
+    .single();
+
+  if (factura?.cliente_id) {
+    await supabase
+      .from("clientes")
+      .update({ cobrado: true })
+      .eq("id", factura.cliente_id);
+  }
+
+  revalidatePath("/facturacion");
+  revalidatePath("/clientes");
+  return { success: true };
+}

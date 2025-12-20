@@ -1,21 +1,33 @@
 import { PageHeader } from "@/components/page-header";
 import { FacturacionClient } from "./facturacion-client";
-import { getOperariosComisionables, getFacturasEmitidas } from "./actions";
+import {
+  getOperariosComisionables,
+  getFacturasEmitidas,
+  getClientesFacturables,
+  getFacturasClientes,
+  getEmpresaConfig,
+} from "./actions";
 
 export default async function FacturacionPage() {
   const operariosComisionables = await getOperariosComisionables();
   const facturasEmitidas = await getFacturasEmitidas();
+  const clientesFacturables = await getClientesFacturables();
+  const facturasClientes = await getFacturasClientes();
+  const empresaConfig = await getEmpresaConfig();
 
   return (
     <div>
       <PageHeader
-        title="Facturación de Operarios"
-        description="Genera y envía facturas a los operarios con clientes en estado comisionable"
+        title="Facturación"
+        description="Genera y gestiona facturas para operarios y clientes"
       />
 
       <FacturacionClient
         operariosComisionables={operariosComisionables}
         facturasEmitidas={facturasEmitidas}
+        clientesFacturables={clientesFacturables}
+        facturasClientes={facturasClientes}
+        empresaConfig={empresaConfig}
       />
     </div>
   );

@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { isAdmin } from "@/lib/auth/actions";
 import { PageHeader } from "@/components/page-header";
-import { Mail, Database, Bell, Shield, CheckCircle } from "lucide-react";
+import { Mail, Database, Bell, Shield, Building2 } from "lucide-react";
+import { getEmpresaConfig } from "../../facturacion/actions";
+import { EmpresaConfigForm } from "./empresa-config-form";
 
 export default async function AdminSettingsPage() {
   const isAdminUser = await isAdmin();
@@ -9,6 +11,9 @@ export default async function AdminSettingsPage() {
   if (!isAdminUser) {
     redirect("/dashboard");
   }
+
+  // Get empresa config
+  const empresaConfig = await getEmpresaConfig();
 
   // Check SMTP/SES configuration (using SMTP_* variables from .env.local)
   const smtpHost = process.env.SMTP_HOST;
@@ -80,6 +85,29 @@ export default async function AdminSettingsPage() {
       />
 
       <div className="grid gap-6">
+        {/* Configuración de la Empresa - Editable */}
+        <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
+          <div className="p-6 border-b border-gray-100">
+            <div className="flex items-start justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-lg bg-[#BB292A]/10 flex items-center justify-center">
+                  <Building2 className="w-5 h-5 text-[#BB292A]" />
+                </div>
+                <div>
+                  <h3 className="font-medium text-gray-900">Datos de la Empresa</h3>
+                  <p className="text-sm text-gray-500">Configuración para facturas y documentos oficiales</p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-full text-xs font-medium text-green-600 bg-green-50">
+                Editable
+              </span>
+            </div>
+          </div>
+          <div className="p-6">
+            <EmpresaConfigForm initialConfig={empresaConfig} />
+          </div>
+        </div>
+
         {settings.map((setting) => (
           <div
             key={setting.title}
