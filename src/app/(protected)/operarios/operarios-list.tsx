@@ -19,8 +19,9 @@ import {
   Loader2,
   X,
   Save,
+  Euro,
 } from "lucide-react";
-import { updateOperario, deleteOperario } from "./actions";
+import { updateOperario, deleteOperario, getOperarioComisiones, updateOperarioComisiones } from "./actions";
 
 interface Operario {
   id: string;
@@ -90,17 +91,41 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
   }>({});
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [comisiones, setComisiones] = useState<Record<string, number>>({
+    Luz: 25,
+    Gas: 25,
+    Telefonía: 25,
+    Seguros: 25,
+    Alarmas: 25,
+  });
+  const [loadingComisiones, setLoadingComisiones] = useState(false);
   const itemsPerPage = 20;
+
+  const servicios = ["Luz", "Gas", "Telefonía", "Seguros", "Alarmas"];
 
   async function handleSave(id: string) {
     setSaving(true);
+
+    // Save operario data
     const result = await updateOperario(id, editForm);
     if (result.error) {
       alert(`Error: ${result.error}`);
-    } else {
-      setEditingId(null);
-      window.location.reload();
+      setSaving(false);
+      return;
     }
+
+    // Save comisiones
+    const comisionesData = servicios.map((s) => ({
+      servicio: s,
+      comision: comisiones[s] || 25,
+    }));
+    const comisionResult = await updateOperarioComisiones(id, comisionesData);
+    if (comisionResult.error) {
+      alert(`Error guardando comisiones: ${comisionResult.error}`);
+    }
+
+    setEditingId(null);
+    window.location.reload();
     setSaving(false);
   }
 
@@ -118,7 +143,7 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
     }
   }
 
-  function startEdit(operario: Operario) {
+  async function startEdit(operario: Operario) {
     setEditingId(operario.id);
     setEditForm({
       alias: operario.alias || "",
@@ -140,6 +165,24 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
       tiene_doc_contrato: operario.tiene_doc_contrato || false,
       tiene_cuenta_bancaria: operario.tiene_cuenta_bancaria || false,
     });
+
+    // Load custom comisiones
+    setLoadingComisiones(true);
+    const opComisiones = await getOperarioComisiones(operario.id);
+
+    // Start with defaults, then override with custom
+    const newComisiones: Record<string, number> = {
+      Luz: 25,
+      Gas: 25,
+      Telefonía: 25,
+      Seguros: 25,
+      Alarmas: 25,
+    };
+    for (const c of opComisiones) {
+      newComisiones[c.servicio] = c.comision;
+    }
+    setComisiones(newComisiones);
+    setLoadingComisiones(false);
   }
 
   if (error) {
@@ -814,6 +857,58 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
                           : "⚠ Para facturar se requiere: Cuenta bancaria, Doc. CIF, Doc. Escritura, Doc. Contrato"}
                       </p>
                     )}
+                  </div>
+                )}
+              </div>
+
+              {/* Comisiones personalizadas */}
+              <div className="bg-yellow-50 p-4 rounded-lg">
+                <h4 className="text-sm font-medium text-yellow-900 mb-3 flex items-center gap-2">
+                  <Euro className="w-4 h-4" />
+                  Comisiones Personalizadas
+                </h4>
+                <p className="text-xs text-yellow-700 mb-3">
+                  Define comisiones diferentes a las por defecto (25€) para este operario.
+                </p>
+                {loadingComisiones ? (
+                  <div className="flex items-center gap-2 text-sm text-gray-500">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Cargando comisiones...
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                    {servicios.map((servicio) => (
+                      <div key={servicio}>
+                        <label className="block text-xs font-medium text-gray-600 mb-1">
+                          {servicio}
+                        </label>
+                        <div className="relative">
+                          <input
+                            type="number"
+                            min="0"
+                            step="0.01"
+                            value={comisiones[servicio] || 25}
+                            onChange={(e) =>
+                              setComisiones({
+                                ...comisiones,
+                                [servicio]: parseFloat(e.target.value) || 0,
+                              })
+                            }
+                            className={`w-full px-3 py-2 pr-6 border rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A] ${
+                              comisiones[servicio] !== 25
+                                ? "border-yellow-400 bg-yellow-50"
+                                : "border-gray-300"
+                            }`}
+                          />
+                          <span className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">
+                            €
+                          </span>
+                        </div>
+                        {comisiones[servicio] !== 25 && (
+                          <p className="text-[10px] text-yellow-600 mt-0.5">Personalizada</p>
+                        )}
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>

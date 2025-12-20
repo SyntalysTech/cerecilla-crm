@@ -25,6 +25,7 @@ import {
   Plus,
   Receipt,
   RefreshCw,
+  UserPlus,
 } from "lucide-react";
 import { logout, type UserRole } from "@/lib/auth/actions";
 import { useSidebar } from "./sidebar-provider";
@@ -48,6 +49,7 @@ const navigation = [
     items: [
       { name: "Clientes", href: "/clientes", icon: Users },
       { name: "Operarios", href: "/operarios", icon: Building2 },
+      { name: "Referidos", href: "/referidos", icon: UserPlus },
       { name: "Documentos", href: "/documentos", icon: FolderOpen },
       { name: "Facturar", href: "/facturacion", icon: Receipt },
       { name: "Cambiar Estados", href: "/cambiar-estados", icon: RefreshCw },
@@ -231,7 +233,7 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
                         </Link>
                         {showAddButton && !(collapsed && !isMobile) && (
                           <Link
-                            href="/clientes/new"
+                            href="/clientes/nuevo"
                             onClick={handleNavClick}
                             className="p-1.5 rounded-md text-gray-400 hover:text-[#BB292A] hover:bg-[#BB292A]/10 transition-colors"
                             title="Añadir cliente"
