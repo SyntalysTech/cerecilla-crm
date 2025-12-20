@@ -727,8 +727,15 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
       )}
 
       {/* Action Menu - Fixed position */}
-      {openMenuId && menuPosition && (
-        <div style={{ position: "fixed", top: menuPosition.top, left: menuPosition.left, zIndex: 100 }}>
+      {openMenuId && menuPosition && paginatedClientes.find(c => c.id === openMenuId) && (
+        <div
+          style={{
+            position: "fixed",
+            top: Math.min(menuPosition.top, window.innerHeight - 200),
+            left: Math.min(menuPosition.left, window.innerWidth - 180),
+            zIndex: 9999
+          }}
+        >
           <ActionMenu
             cliente={paginatedClientes.find(c => c.id === openMenuId)!}
             onClose={() => {
