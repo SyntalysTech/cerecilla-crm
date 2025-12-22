@@ -266,14 +266,14 @@ const tools: OpenAI.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "get_clientes_by_estado",
-      description: "Obtiene clientes filtrados por estado (PENDIENTE, SEGUIMIENTO, EN TRAMITE, COMISIONABLE, LIQUIDADO, FALLIDO)",
+      description: "Obtiene clientes filtrados por estado (SIN ESTADO, SEGUIMIENTO, PENDIENTE DOC, EN TRAMITE, COMISIONABLE, LIQUIDADO, FINALIZADO, FALLIDO)",
       parameters: {
         type: "object",
         properties: {
           estado: {
             type: "string",
             description: "Estado del cliente",
-            enum: ["PENDIENTE", "SEGUIMIENTO", "EN TRAMITE", "COMISIONABLE", "LIQUIDADO", "FALLIDO"],
+            enum: ["SIN ESTADO", "SEGUIMIENTO", "PENDIENTE DOC", "EN TRAMITE", "COMISIONABLE", "LIQUIDADO", "FINALIZADO", "FALLIDO"],
           },
         },
         required: ["estado"],

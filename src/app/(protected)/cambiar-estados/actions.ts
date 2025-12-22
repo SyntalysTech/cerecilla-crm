@@ -36,17 +36,16 @@ export async function getEstadosConCantidad(): Promise<EstadoCount[]> {
 
 // Get all available estados (from schema or existing data)
 export async function getEstadosDisponibles(): Promise<string[]> {
-  // These are common estados in energy CRMs
+  // Estados del sistema
   const estadosPredefinidos = [
-    "Nuevo",
-    "Pendiente",
-    "En proceso",
-    "Validado",
-    "Rechazado",
-    "Comisionable",
-    "Liquidado",
-    "Cancelado",
-    "Baja",
+    "SIN ESTADO",
+    "SEGUIMIENTO",
+    "PENDIENTE DOC",
+    "EN TRAMITE",
+    "COMISIONABLE",
+    "LIQUIDADO",
+    "FINALIZADO",
+    "FALLIDO",
   ];
 
   const supabase = await createClient();

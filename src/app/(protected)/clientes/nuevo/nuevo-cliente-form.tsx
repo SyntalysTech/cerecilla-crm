@@ -274,6 +274,7 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
               >
                 <option value="SIN ESTADO">SIN ESTADO</option>
                 <option value="SEGUIMIENTO">SEGUIMIENTO</option>
+                <option value="PENDIENTE DOC">PENDIENTE DOC</option>
                 <option value="EN TRAMITE">EN TRAMITE</option>
                 <option value="COMISIONABLE">COMISIONABLE</option>
                 <option value="LIQUIDADO">LIQUIDADO</option>

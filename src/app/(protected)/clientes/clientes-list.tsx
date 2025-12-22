@@ -61,6 +61,7 @@ const estadoColors: Record<string, string> = {
   LIQUIDADO: "bg-gray-900 text-white",
   "SIN ESTADO": "bg-blue-500 text-white",
   SEGUIMIENTO: "bg-green-400 text-white",
+  "PENDIENTE DOC": "bg-amber-500 text-white",
   "EN TRAMITE": "bg-green-600 text-white",
   COMISIONABLE: "bg-purple-500 text-white",
   FINALIZADO: "bg-emerald-600 text-white",

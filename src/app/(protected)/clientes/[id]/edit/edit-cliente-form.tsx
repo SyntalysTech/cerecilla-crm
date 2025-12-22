@@ -80,7 +80,7 @@ interface EditClienteFormProps {
   isAdmin?: boolean;
 }
 
-const estados = ["SIN ESTADO", "SEGUIMIENTO", "EN TRAMITE", "COMISIONABLE", "LIQUIDADO", "FINALIZADO", "FALLIDO"];
+const estados = ["SIN ESTADO", "SEGUIMIENTO", "PENDIENTE DOC", "EN TRAMITE", "COMISIONABLE", "LIQUIDADO", "FINALIZADO", "FALLIDO"];
 const servicios = ["Luz", "Gas", "Telefonía", "Seguros", "Alarmas"];
 const tiposPersona = [
   { value: "particular", label: "Particular" },
