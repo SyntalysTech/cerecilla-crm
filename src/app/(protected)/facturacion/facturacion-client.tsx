@@ -101,6 +101,7 @@ export function FacturacionClient({
     cuentaSeleccionada: "1" as "1" | "2",
   });
   const [generatingPDF, setGeneratingPDF] = useState<string | null>(null);
+  const [previewingPDF, setPreviewingPDF] = useState(false);
 
   // ==================== FUNCIONES OPERARIOS ====================
   async function handleGenerarFacturas() {
@@ -194,6 +195,77 @@ export function FacturacionClient({
       cuentaSeleccionada: "1",
     });
     setShowFacturaModal(true);
+  }
+
+  async function handlePreviewFactura() {
+    if (!selectedCliente) return;
+    if (!facturaForm.importe || parseFloat(facturaForm.importe) <= 0) {
+      alert("Introduce un importe válido");
+      return;
+    }
+
+    setPreviewingPDF(true);
+    try {
+      // Obtener datos del cliente
+      const cliente = await getClienteParaFactura(selectedCliente.id);
+      if (!cliente) {
+        alert("No se pudo obtener los datos del cliente");
+        return;
+      }
+
+      // Determinar qué IBAN usar
+      const ibanUsado = facturaForm.cuentaSeleccionada === "2"
+        ? empresaConfig.cuentaBancaria2
+        : empresaConfig.cuentaBancaria;
+
+      const importe = parseFloat(facturaForm.importe);
+      const iva = parseInt(facturaForm.iva);
+
+      const facturaData: FacturaData = {
+        numero: "VISTA PREVIA",
+        fecha: new Date(facturaForm.fechaFactura).toLocaleDateString("es-ES"),
+        fechaVencimiento: new Date(
+          new Date(facturaForm.fechaFactura).getTime() + 30 * 24 * 60 * 60 * 1000
+        ).toLocaleDateString("es-ES"),
+        emisor: {
+          nombre: empresaConfig.nombre,
+          cif: empresaConfig.cif,
+          direccion: empresaConfig.direccion,
+          poblacion: empresaConfig.poblacion,
+          provincia: empresaConfig.provincia,
+          codigoPostal: empresaConfig.codigoPostal,
+          telefono: empresaConfig.telefono,
+          email: empresaConfig.email,
+        },
+        cliente: {
+          nombre: cliente.nombre,
+          nif: cliente.nif || undefined,
+          direccion: cliente.direccion || undefined,
+          poblacion: cliente.poblacion || undefined,
+          provincia: cliente.provincia || undefined,
+          codigoPostal: cliente.codigoPostal || undefined,
+          email: cliente.email || undefined,
+        },
+        lineas: [
+          {
+            descripcion: facturaForm.concepto,
+            cantidad: 1,
+            precioUnitario: importe,
+            iva: iva,
+          },
+        ],
+        metodoPago: "Transferencia bancaria",
+        cuentaBancaria: ibanUsado || empresaConfig.cuentaBancaria,
+        notas: "Gracias por confiar en nosotros.",
+      };
+
+      const { blob } = await generateFacturaPDF(facturaData);
+      openPDF(blob);
+    } catch (error) {
+      console.error("Error generating preview PDF:", error);
+      alert("Error al generar la vista previa");
+    }
+    setPreviewingPDF(false);
   }
 
   async function handleCrearFacturaCliente() {
@@ -1059,25 +1131,39 @@ export function FacturacionClient({
               )}
             </div>
 
-            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+            <div className="p-6 border-t border-gray-200 flex justify-between">
               <button
-                onClick={() => setShowFacturaModal(false)}
-                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                onClick={handlePreviewFactura}
+                disabled={previewingPDF || !facturaForm.importe}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
               >
-                Cancelar
-              </button>
-              <button
-                onClick={handleCrearFacturaCliente}
-                disabled={loading || !facturaForm.importe}
-                className="px-4 py-2 text-sm bg-[#BB292A] text-white rounded-md hover:bg-[#a02324] disabled:opacity-50 flex items-center gap-2"
-              >
-                {loading ? (
+                {previewingPDF ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Receipt className="w-4 h-4" />
+                  <Eye className="w-4 h-4" />
                 )}
-                Crear Factura
+                Vista Previa
               </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setShowFacturaModal(false)}
+                  className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleCrearFacturaCliente}
+                  disabled={loading || !facturaForm.importe}
+                  className="px-4 py-2 text-sm bg-[#BB292A] text-white rounded-md hover:bg-[#a02324] disabled:opacity-50 flex items-center gap-2"
+                >
+                  {loading ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Receipt className="w-4 h-4" />
+                  )}
+                  Crear Factura
+                </button>
+              </div>
             </div>
           </div>
         </div>
