@@ -171,6 +171,13 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
       }
     }
 
+    // Validate at least one document is uploaded
+    if (pendingDocuments.length === 0) {
+      setError("Debes añadir al menos un documento");
+      setLoading(false);
+      return;
+    }
+
     const result = await createCliente(formData);
 
     if (result.error) {
@@ -193,9 +200,8 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
         }
       }
 
-      // Redirect to edit page with all client IDs
-      const allIds = result.clientes.map((c: { id: string }) => c.id).join(",");
-      router.push(`/clientes/${result.cliente.id}/edit?nuevo=1&todos=${allIds}`);
+      // Redirect to clients list
+      router.push("/clientes");
     } else {
       router.push("/clientes");
     }
