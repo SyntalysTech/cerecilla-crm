@@ -66,6 +66,48 @@ export async function createCliente(data: ClienteFormData) {
     }
   }
 
+  // If multiple services are selected, create a separate client for each service
+  const servicios = data.servicio?.split(", ").filter(Boolean) || [];
+
+  if (servicios.length > 1) {
+    // Create multiple clients, one per service
+    // If both Luz and Gas are selected, each ficha gets both CUPS
+    const hasLuz = servicios.includes("Luz");
+    const hasGas = servicios.includes("Gas");
+
+    const clientesToCreate = servicios.map(servicio => {
+      const clienteData = {
+        ...data,
+        servicio: servicio,
+        created_by: user?.id || null,
+        created_by_email: createdByEmail || null,
+      };
+
+      // If both Luz and Gas are selected, copy CUPS to both fichas
+      if (hasLuz && hasGas) {
+        // Both fichas get both CUPS values
+        clienteData.cups_luz = data.cups_luz || "";
+        clienteData.cups_gas = data.cups_gas || "";
+      }
+
+      return clienteData;
+    });
+
+    const { data: clientes, error } = await supabase
+      .from("clientes")
+      .insert(clientesToCreate)
+      .select();
+
+    if (error) {
+      return { error: error.message };
+    }
+
+    revalidatePath("/clientes");
+    // Return the first client for redirect purposes
+    return { success: true, cliente: clientes?.[0] };
+  }
+
+  // Single service - create one client
   const { data: cliente, error } = await supabase
     .from("clientes")
     .insert({
@@ -147,18 +189,13 @@ export async function duplicateCliente(id: string) {
     return { error: "No se encontró el cliente" };
   }
 
-  // Create copy without id and with current date
+  // Create copy without id and with current date - keep original name without "(copia)"
   const { id: _, created_at: __, ...clienteData } = original;
 
   const { data: newCliente, error: insertError } = await supabase
     .from("clientes")
     .insert({
       ...clienteData,
-      nombre_apellidos: original.nombre_apellidos
-        ? `${original.nombre_apellidos} (copia)`
-        : original.razon_social
-          ? `${original.razon_social} (copia)`
-          : "Cliente (copia)",
     })
     .select()
     .single();

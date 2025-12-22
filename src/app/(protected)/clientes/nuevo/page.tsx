@@ -10,8 +10,30 @@ export default async function NuevoClientePage() {
   // Get operarios for dropdown
   const { data: operarios } = await supabase
     .from("operarios")
-    .select("id, nombre, alias")
+    .select("id, nombre, alias, email, user_id")
     .order("alias", { ascending: true });
+
+  // Get current user info and role
+  const { data: { user } } = await supabase.auth.getUser();
+  const { data: userRole } = await supabase
+    .from("user_roles")
+    .select("role")
+    .eq("user_id", user?.id)
+    .single();
+
+  const isOperario = userRole?.role === "operario";
+  const isAdmin = userRole?.role === "admin" || userRole?.role === "super_admin" || userRole?.role === "manager";
+
+  // If user is operario, get their operario alias
+  let operarioAlias = "";
+  if (isOperario && user) {
+    const { data: operarioData } = await supabase
+      .from("operarios")
+      .select("alias, nombre")
+      .eq("user_id", user.id)
+      .single();
+    operarioAlias = operarioData?.alias || operarioData?.nombre || "";
+  }
 
   return (
     <div>
@@ -30,7 +52,12 @@ export default async function NuevoClientePage() {
         description="Crear un nuevo cliente en el sistema"
       />
 
-      <NuevoClienteForm operarios={operarios || []} />
+      <NuevoClienteForm
+        operarios={operarios || []}
+        isOperario={isOperario}
+        isAdmin={isAdmin}
+        operarioAlias={operarioAlias}
+      />
     </div>
   );
 }

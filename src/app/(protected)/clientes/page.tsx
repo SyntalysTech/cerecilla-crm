@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { ClientesList } from "./clientes-list";
 import { ImportButton } from "./import-button";
 import { AddClienteButton } from "./add-cliente-button";
+import { ExportButton } from "./export-button";
 
 interface Cliente {
   id: string;
@@ -76,6 +77,7 @@ export default async function ClientesPage() {
       >
         <div className="flex gap-2">
           <AddClienteButton />
+          <ExportButton clientes={clientes || []} />
           <ImportButton type="clientes" />
         </div>
       </PageHeader>

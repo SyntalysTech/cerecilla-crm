@@ -2,6 +2,7 @@ import { PageHeader } from "@/components/page-header";
 import { createClient } from "@/lib/supabase/server";
 import { OperariosList } from "./operarios-list";
 import { ImportButton } from "../clientes/import-button";
+import { ExportOperariosButton } from "./export-button";
 
 interface Operario {
   id: string;
@@ -86,7 +87,10 @@ export default async function OperariosPage() {
         title="Operarios"
         description={`${count || 0} operarios registrados`}
       >
-        <ImportButton type="operarios" />
+        <div className="flex gap-2">
+          <ExportOperariosButton operarios={operarios || []} />
+          <ImportButton type="operarios" />
+        </div>
       </PageHeader>
       <OperariosList operarios={operarios || []} error={error?.message} />
     </div>

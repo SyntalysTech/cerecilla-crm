@@ -31,22 +31,27 @@ interface Operario {
 
 interface NuevoClienteFormProps {
   operarios: Operario[];
+  isOperario: boolean;
+  isAdmin: boolean;
+  operarioAlias: string;
 }
 
-const estados = ["SIN ESTADO", "SEGUIMIENTO", "EN TRAMITE", "COMISIONABLE", "LIQUIDADO", "FINALIZADO", "FALLIDO"];
 const servicios = ["Luz", "Gas", "Telefonía", "Seguros", "Alarmas"];
 const tiposPersona = [
   { value: "particular", label: "Particular" },
   { value: "empresa", label: "Empresa" },
 ];
+const tiposDocumento = ["DNI", "NIE", "Pasaporte"];
 
-export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
+export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias }: NuevoClienteFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tipoDocumentoNuevo, setTipoDocumentoNuevo] = useState("DNI");
+  const [tipoDocumentoAnterior, setTipoDocumentoAnterior] = useState("DNI");
 
   const [formData, setFormData] = useState<ClienteFormData>({
-    operador: "",
+    operador: isOperario ? operarioAlias : "",
     servicio: "",
     estado: "SIN ESTADO",
     tipo_persona: "particular",
@@ -94,12 +99,49 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
     setLoading(true);
     setError(null);
 
+    // Validate required fields (except escalera, piso, puerta, documento_anterior_titular)
+    const requiredFields = {
+      servicio: "Servicios",
+      tipo_persona: "Tipo de cliente",
+      telefono: "Teléfono",
+      tipo_via: "Tipo de vía",
+      nombre_via: "Nombre de vía",
+      numero: "Número",
+      codigo_postal: "Código postal",
+      poblacion: "Población",
+      provincia: "Provincia",
+      cuenta_bancaria: "Cuenta bancaria",
+    };
+
+    // Add conditional required fields based on tipo_persona
+    if (formData.tipo_persona === "particular") {
+      Object.assign(requiredFields, {
+        nombre_apellidos: "Nombre y apellidos",
+        documento_nuevo_titular: "Documento del titular",
+      });
+    } else {
+      Object.assign(requiredFields, {
+        razon_social: "Razón social",
+        cif_empresa: "CIF de la empresa",
+      });
+    }
+
+    for (const [field, label] of Object.entries(requiredFields)) {
+      const value = formData[field as keyof ClienteFormData];
+      if (!value || (typeof value === "string" && value.trim() === "")) {
+        setError(`El campo "${label}" es obligatorio`);
+        setLoading(false);
+        return;
+      }
+    }
+
     const result = await createCliente(formData);
 
     if (result.error) {
       setError(result.error);
       setLoading(false);
     } else {
+      // Redirect to client list (multiple clients may have been created if multiple services selected)
       router.push("/clientes");
     }
   }
@@ -120,43 +162,52 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
           <FileText className="w-5 h-5 text-gray-400" />
-          Estado y Servicio
+          Servicio
         </h3>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
-            <select
-              value={formData.estado}
-              onChange={(e) => handleChange("estado", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-            >
-              <option value="">Seleccionar...</option>
-              {estados.map(estado => (
-                <option key={estado} value={estado}>{estado}</option>
-              ))}
-            </select>
-          </div>
+          {/* Estado - Hidden for operarios */}
+          {!isOperario && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Estado</label>
+              <select
+                value={formData.estado}
+                onChange={(e) => handleChange("estado", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+              >
+                <option value="SIN ESTADO">SIN ESTADO</option>
+                <option value="SEGUIMIENTO">SEGUIMIENTO</option>
+                <option value="EN TRAMITE">EN TRAMITE</option>
+                <option value="COMISIONABLE">COMISIONABLE</option>
+                <option value="LIQUIDADO">LIQUIDADO</option>
+                <option value="FINALIZADO">FINALIZADO</option>
+                <option value="FALLIDO">FALLIDO</option>
+              </select>
+            </div>
+          )}
 
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Operador</label>
-            <select
-              value={formData.operador}
-              onChange={(e) => handleChange("operador", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-            >
-              <option value="">Seleccionar...</option>
-              {operarios.map(op => (
-                <option key={op.id} value={op.alias || op.nombre || ""}>
-                  {op.alias || op.nombre}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Operador - Hidden for operarios (auto-filled) */}
+          {!isOperario && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Operador</label>
+              <select
+                value={formData.operador}
+                onChange={(e) => handleChange("operador", e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+              >
+                <option value="">Seleccionar...</option>
+                {operarios.map(op => (
+                  <option key={op.id} value={op.alias || op.nombre || ""}>
+                    {op.alias || op.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* Servicios con checkboxes */}
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-2">Servicios</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Servicios *</label>
             <div className="flex flex-wrap gap-3">
               {servicios.map(servicio => {
                 const selectedServicios = formData.servicio?.split(", ").filter(Boolean) || [];
@@ -249,7 +300,7 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
 
       {/* Tipo de cliente */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Tipo de Cliente</h3>
+        <h3 className="text-lg font-medium text-gray-900 mb-4">Tipo de Cliente *</h3>
         <div className="flex gap-4">
           {tiposPersona.map(tipo => (
             <label
@@ -302,12 +353,25 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">DNI/NIE</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento *</label>
+                <select
+                  value={tipoDocumentoNuevo}
+                  onChange={(e) => setTipoDocumentoNuevo(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                >
+                  {tiposDocumento.map(tipo => (
+                    <option key={tipo} value={tipo}>{tipo}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{tipoDocumentoNuevo} *</label>
                 <input
                   type="text"
                   value={formData.documento_nuevo_titular}
                   onChange={(e) => handleChange("documento_nuevo_titular", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                  placeholder={tipoDocumentoNuevo === "DNI" ? "12345678A" : tipoDocumentoNuevo === "NIE" ? "X1234567A" : "AAA123456"}
                 />
               </div>
             </>
@@ -324,7 +388,7 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">CIF Empresa</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">CIF Empresa *</label>
                 <input
                   type="text"
                   value={formData.cif_empresa}
@@ -353,6 +417,30 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
             </>
           )}
 
+          {/* Documento del anterior titular */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo Doc. Anterior Titular</label>
+            <select
+              value={tipoDocumentoAnterior}
+              onChange={(e) => setTipoDocumentoAnterior(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            >
+              {tiposDocumento.map(tipo => (
+                <option key={tipo} value={tipo}>{tipo}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{tipoDocumentoAnterior} Anterior Titular</label>
+            <input
+              type="text"
+              value={formData.documento_anterior_titular}
+              onChange={(e) => handleChange("documento_anterior_titular", e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+              placeholder={tipoDocumentoAnterior === "DNI" ? "12345678A" : tipoDocumentoAnterior === "NIE" ? "X1234567A" : "AAA123456"}
+            />
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input
@@ -363,7 +451,7 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono *</label>
             <input
               type="tel"
               value={formData.telefono}
@@ -383,7 +471,7 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
 
         <div className="grid grid-cols-1 md:grid-cols-6 gap-4">
           <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Vía</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Vía *</label>
             <select
               value={formData.tipo_via}
               onChange={(e) => handleChange("tipo_via", e.target.value)}
@@ -397,7 +485,7 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
           </div>
 
           <div className="md:col-span-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de Vía</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Nombre de Vía *</label>
             <input
               type="text"
               value={formData.nombre_via}
@@ -407,7 +495,7 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Número</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Número *</label>
             <input
               type="text"
               value={formData.numero}
@@ -447,7 +535,7 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Código Postal *</label>
             <input
               type="text"
               value={formData.codigo_postal}
@@ -458,7 +546,7 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
           </div>
 
           <div className="md:col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Población</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Población *</label>
             <input
               type="text"
               value={formData.poblacion}
@@ -468,7 +556,7 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
           </div>
 
           <div className="md:col-span-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Provincia</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Provincia *</label>
             <select
               value={formData.provincia}
               onChange={(e) => handleChange("provincia", e.target.value)}
@@ -482,7 +570,7 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
           </div>
 
           <div className="md:col-span-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Cuenta Bancaria (IBAN)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Cuenta Bancaria (IBAN) *</label>
             <input
               type="text"
               value={formData.cuenta_bancaria}
@@ -494,86 +582,88 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
         </div>
       </div>
 
-      {/* Datos de suministro */}
-      <div className="bg-white rounded-lg border border-gray-200 p-6">
-        <h3 className="text-lg font-medium text-gray-900 mb-4">Datos de Suministro</h3>
+      {/* Datos de suministro - Hidden for operarios */}
+      {!isOperario && (
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Datos de Suministro</h3>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {/* Gas */}
-          <div className="space-y-4">
-            <h4 className="font-medium text-gray-700 flex items-center gap-2">
-              <Flame className="w-4 h-4 text-orange-500" />
-              Gas
-            </h4>
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">CUPS Gas</label>
-                <input
-                  type="text"
-                  value={formData.cups_gas}
-                  onChange={(e) => handleChange("cups_gas", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent font-mono text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Compañía Gas</label>
-                <input
-                  type="text"
-                  value={formData.compania_gas}
-                  onChange={(e) => handleChange("compania_gas", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Potencia Gas</label>
-                <input
-                  type="text"
-                  value={formData.potencia_gas}
-                  onChange={(e) => handleChange("potencia_gas", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-                />
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Gas */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-700 flex items-center gap-2">
+                <Flame className="w-4 h-4 text-orange-500" />
+                Gas
+              </h4>
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CUPS Gas</label>
+                  <input
+                    type="text"
+                    value={formData.cups_gas}
+                    onChange={(e) => handleChange("cups_gas", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Compañía Gas</label>
+                  <input
+                    type="text"
+                    value={formData.compania_gas}
+                    onChange={(e) => handleChange("compania_gas", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Potencia Gas</label>
+                  <input
+                    type="text"
+                    value={formData.potencia_gas}
+                    onChange={(e) => handleChange("potencia_gas", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Luz */}
-          <div className="space-y-4">
-            <h4 className="font-medium text-gray-700 flex items-center gap-2">
-              <Zap className="w-4 h-4 text-yellow-500" />
-              Luz
-            </h4>
-            <div className="grid grid-cols-1 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">CUPS Luz</label>
-                <input
-                  type="text"
-                  value={formData.cups_luz}
-                  onChange={(e) => handleChange("cups_luz", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent font-mono text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Compañía Luz</label>
-                <input
-                  type="text"
-                  value={formData.compania_luz}
-                  onChange={(e) => handleChange("compania_luz", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Potencia Luz</label>
-                <input
-                  type="text"
-                  value={formData.potencia_luz}
-                  onChange={(e) => handleChange("potencia_luz", e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-                />
+            {/* Luz */}
+            <div className="space-y-4">
+              <h4 className="font-medium text-gray-700 flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow-500" />
+                Luz
+              </h4>
+              <div className="grid grid-cols-1 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">CUPS Luz</label>
+                  <input
+                    type="text"
+                    value={formData.cups_luz}
+                    onChange={(e) => handleChange("cups_luz", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent font-mono text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Compañía Luz</label>
+                  <input
+                    type="text"
+                    value={formData.compania_luz}
+                    onChange={(e) => handleChange("compania_luz", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Potencia Luz</label>
+                  <input
+                    type="text"
+                    value={formData.potencia_luz}
+                    onChange={(e) => handleChange("potencia_luz", e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                  />
+                </div>
               </div>
             </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Observaciones */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
@@ -585,6 +675,11 @@ export function NuevoClienteForm({ operarios }: NuevoClienteFormProps) {
           className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
           placeholder="Notas adicionales sobre el cliente..."
         />
+      </div>
+
+      {/* Info about documents and multiple services */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
+        <strong>Nota:</strong> Si seleccionas varios servicios, se creará una ficha de cliente separada para cada servicio. Puedes subir documentos después desde la página de edición de cada cliente.
       </div>
 
       {/* Botones */}

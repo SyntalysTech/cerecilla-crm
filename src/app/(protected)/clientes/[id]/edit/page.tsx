@@ -49,6 +49,7 @@ export default async function EditClientePage({ params }: Props) {
     .single();
 
   const isAdmin = userRole?.role === "admin" || userRole?.role === "super_admin" || userRole?.role === "manager";
+  const isOperario = userRole?.role === "operario";
   const currentUserEmail = profile?.email || user?.email || "";
 
   // Get observaciones, documentos, and assigned operadores
@@ -70,12 +71,12 @@ export default async function EditClientePage({ params }: Props) {
 
       <PageHeader
         title={`Editar: ${cliente.nombre_apellidos || cliente.razon_social || "Cliente"}`}
-        description="Modifica los datos del cliente"
+        description={isOperario ? "Solo puedes añadir documentos y observaciones" : "Modifica los datos del cliente"}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          <EditClienteForm cliente={cliente} operarios={operarios || []} />
+          <EditClienteForm cliente={cliente} operarios={operarios || []} isOperario={isOperario} isAdmin={isAdmin} />
         </div>
 
         <div className="space-y-6">

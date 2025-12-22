@@ -68,6 +68,34 @@ const estadoColors: Record<string, string> = {
   CANCELADO: "bg-gray-500 text-white",
 };
 
+// Helper to calculate commission based on services
+function calculateComision(servicio: string | null): string {
+  if (!servicio) return "0€";
+
+  const servicios = servicio.split(", ").filter(Boolean);
+  let total = 0;
+
+  for (const s of servicios) {
+    if (s === "Luz" || s === "Gas") {
+      total += 25; // Luz y Gas: 25€ cada uno
+    } else if (s === "Telefonía") {
+      total += 50; // Telefonía: 50€
+    } else if (s === "Alarmas") {
+      total += 50; // Alarmas: 50€
+    }
+    // Seguros: 10% del precio de la póliza - se calcula aparte
+  }
+
+  if (servicios.includes("Seguros")) {
+    if (total > 0) {
+      return `${total}€ + 10%`;
+    }
+    return "10%";
+  }
+
+  return total > 0 ? `${total}€` : "0€";
+}
+
 function ActionMenu({ cliente, onClose, onRefresh }: { cliente: Cliente; onClose: () => void; onRefresh: () => void }) {
   const menuRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
@@ -589,16 +617,16 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
                       </button>
                     </div>
                   </td>
-                  <td className="px-2 py-2 whitespace-nowrap">
+                  <td className="px-2 py-2 min-w-[180px] max-w-[200px]">
                     <div className="flex items-center gap-2">
-                      <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold ${
+                      <div className={`w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold ${
                         cliente.estado === "LIQUIDADO" ? "bg-green-500" :
                         cliente.estado === "FALLIDO" ? "bg-red-500" :
                         cliente.estado === "PENDIENTE" ? "bg-yellow-500" : "bg-gray-400"
                       }`}>
                         {(cliente.nombre_apellidos || cliente.razon_social || "?")[0].toUpperCase()}
                       </div>
-                      <span className="font-medium text-gray-900">
+                      <span className="font-medium text-gray-900 break-words line-clamp-2">
                         {cliente.nombre_apellidos || cliente.razon_social || "—"}
                       </span>
                     </div>
@@ -621,14 +649,14 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
                   </td>
                   <td className="px-2 py-2 whitespace-nowrap">
                     <span className="px-2 py-1 bg-yellow-400 text-yellow-900 text-xs font-bold rounded">
-                      25€
+                      {calculateComision(cliente.servicio)}
                     </span>
                   </td>
                   <td className="px-2 py-2 whitespace-nowrap text-gray-600">
                     {cliente.servicio || "—"}
                   </td>
-                  <td className="px-2 py-2 max-w-[200px] truncate text-gray-600" title={cliente.direccion || ""}>
-                    {cliente.direccion || "—"}
+                  <td className="px-2 py-2 min-w-[150px] max-w-[200px] text-gray-600" title={cliente.direccion || ""}>
+                    <span className="break-words line-clamp-2">{cliente.direccion || "—"}</span>
                   </td>
                   <td className="px-2 py-2 whitespace-nowrap text-gray-600">
                     {formatDate(cliente.created_at)}

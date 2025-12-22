@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, User, Building2, Zap, Flame, FileText, MapPin, Bell } from "lucide-react";
+import { Loader2, Save, User, Building2, Zap, Flame, FileText, MapPin, Bell, Lock } from "lucide-react";
 import { updateCliente, notifyEstadoChange, type ClienteFormData } from "../../actions";
 
 const tiposVia = [
@@ -76,6 +76,8 @@ interface Operario {
 interface EditClienteFormProps {
   cliente: Cliente;
   operarios: Operario[];
+  isOperario?: boolean;
+  isAdmin?: boolean;
 }
 
 const estados = ["SIN ESTADO", "SEGUIMIENTO", "EN TRAMITE", "COMISIONABLE", "LIQUIDADO", "FINALIZADO", "FALLIDO"];
@@ -84,13 +86,16 @@ const tiposPersona = [
   { value: "particular", label: "Particular" },
   { value: "empresa", label: "Empresa" },
 ];
+const tiposDocumento = ["DNI", "NIE", "Pasaporte"];
 
-export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
+export function EditClienteForm({ cliente, operarios, isOperario = false, isAdmin = false }: EditClienteFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notifyOperador, setNotifyOperador] = useState(false);
   const [originalEstado] = useState(cliente.estado || "");
+  const [tipoDocumentoNuevo, setTipoDocumentoNuevo] = useState("DNI");
+  const [tipoDocumentoAnterior, setTipoDocumentoAnterior] = useState("DNI");
 
   const [formData, setFormData] = useState<ClienteFormData>({
     operador: cliente.operador || "",
@@ -138,6 +143,12 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+
+    // Operarios cannot edit client data
+    if (isOperario) {
+      return;
+    }
+
     setLoading(true);
     setError(null);
 
@@ -154,16 +165,168 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
       await notifyEstadoChange(cliente.id, originalEstado, formData.estado);
     }
 
-    router.push(`/clientes/${cliente.id}`);
+    // Redirect to client list instead of detail view
+    router.push("/clientes");
   }
 
   // Detectar si el estado cambió
   const estadoChanged = formData.estado !== originalEstado;
 
   function handleChange(field: keyof ClienteFormData, value: string | boolean | null) {
+    if (isOperario) return; // Operarios cannot change data
     setFormData(prev => ({ ...prev, [field]: value }));
   }
 
+  // If operario, show read-only view
+  if (isOperario) {
+    return (
+      <div className="space-y-6">
+        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 flex items-center gap-3">
+          <Lock className="w-5 h-5 text-yellow-600" />
+          <p className="text-yellow-700 text-sm">
+            Solo puedes ver los datos del cliente. Para modificar datos, contacta con un administrador.
+            Puedes añadir documentos y observaciones desde el panel lateral.
+          </p>
+        </div>
+
+        {/* Read-only Estado y Servicio */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-gray-400" />
+            Estado y Servicio
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Estado</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.estado || "—"}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Operador</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.operador || "—"}</p>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-500 mb-1">Servicios</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.servicio || "—"}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Read-only Información Personal */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+            <User className="w-5 h-5 text-gray-400" />
+            Información Personal
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Tipo de Persona</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">
+                {cliente.tipo_persona === "empresa" ? "Empresa" : "Particular"}
+              </p>
+            </div>
+            {cliente.tipo_persona === "empresa" ? (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Razón Social</label>
+                  <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.razon_social || "—"}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">CIF Empresa</label>
+                  <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.cif_empresa || "—"}</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">Nombre y Apellidos</label>
+                  <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.nombre_apellidos || "—"}</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-500 mb-1">DNI/NIE/Pasaporte</label>
+                  <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.documento_nuevo_titular || "—"}</p>
+                </div>
+              </>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Email</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.email || "—"}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Teléfono</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.telefono || "—"}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Documento Anterior Titular</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.documento_anterior_titular || "—"}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Read-only Dirección */}
+        <div className="bg-white rounded-lg border border-gray-200 p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
+            <MapPin className="w-5 h-5 text-gray-400" />
+            Dirección
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Tipo de Vía</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.tipo_via || "—"}</p>
+            </div>
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-gray-500 mb-1">Nombre de Vía</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.nombre_via || "—"}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Número</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.numero || "—"}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Escalera</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.escalera || "—"}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Piso</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.piso || "—"}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Puerta</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.puerta || "—"}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Código Postal</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.codigo_postal || "—"}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Población</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.poblacion || "—"}</p>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-500 mb-1">Provincia</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900">{cliente.provincia || "—"}</p>
+            </div>
+            <div className="md:col-span-3">
+              <label className="block text-sm font-medium text-gray-500 mb-1">Cuenta Bancaria</label>
+              <p className="px-3 py-2 bg-gray-100 rounded-md text-gray-900 font-mono">{cliente.cuenta_bancaria || "—"}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Back button for operarios */}
+        <div className="flex justify-end">
+          <button
+            type="button"
+            onClick={() => router.push("/clientes")}
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md"
+          >
+            Volver a clientes
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Admin/Manager form (editable)
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       {error && (
@@ -332,25 +495,51 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">DNI/NIE Titular</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento</label>
+                <select
+                  value={tipoDocumentoNuevo}
+                  onChange={(e) => setTipoDocumentoNuevo(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                >
+                  {tiposDocumento.map(tipo => (
+                    <option key={tipo} value={tipo}>{tipo}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{tipoDocumentoNuevo} Titular</label>
                 <input
                   type="text"
                   value={formData.documento_nuevo_titular}
                   onChange={(e) => handleChange("documento_nuevo_titular", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-                  placeholder="12345678A"
+                  placeholder={tipoDocumentoNuevo === "DNI" ? "12345678A" : tipoDocumentoNuevo === "NIE" ? "X1234567A" : "AAA123456"}
                 />
               </div>
             </>
           )}
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Documento Anterior Titular</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Tipo Doc. Anterior Titular</label>
+            <select
+              value={tipoDocumentoAnterior}
+              onChange={(e) => setTipoDocumentoAnterior(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            >
+              {tiposDocumento.map(tipo => (
+                <option key={tipo} value={tipo}>{tipo}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">{tipoDocumentoAnterior} Anterior Titular</label>
             <input
               type="text"
               value={formData.documento_anterior_titular}
               onChange={(e) => handleChange("documento_anterior_titular", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+              placeholder={tipoDocumentoAnterior === "DNI" ? "12345678A" : tipoDocumentoAnterior === "NIE" ? "X1234567A" : "AAA123456"}
             />
           </div>
 
@@ -521,7 +710,7 @@ export function EditClienteForm({ cliente, operarios }: EditClienteFormProps) {
         </div>
       </div>
 
-      {/* Servicios Energéticos */}
+      {/* Servicios Energéticos - Only for admins */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
           <Zap className="w-5 h-5 text-yellow-500" />
