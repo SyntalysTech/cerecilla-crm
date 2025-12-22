@@ -377,6 +377,10 @@ export function EditClienteForm({ cliente, operarios, isOperario = false, isAdmi
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
             >
               <option value="">Seleccionar...</option>
+              {/* Show current operador if not in the list */}
+              {formData.operador && !operarios.some(op => op.nombre === formData.operador) && (
+                <option value={formData.operador}>{formData.operador}</option>
+              )}
               {operarios.map(op => (
                 <option key={op.id} value={op.nombre}>{op.nombre}</option>
               ))}
