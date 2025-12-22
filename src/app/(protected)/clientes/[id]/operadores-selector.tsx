@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { Users, X, Plus, Loader2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Users, X, Plus, Loader2, Search } from "lucide-react";
 import { updateClienteOperadores } from "../actions";
 
 interface Operario {
@@ -25,6 +25,8 @@ export function OperadoresSelector({
   const [selected, setSelected] = useState<Operario[]>(assignedOperarios);
   const [saving, setSaving] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setSelected(assignedOperarios);
@@ -34,10 +36,21 @@ export function OperadoresSelector({
     (op) => !selected.some((s) => s.id === op.id)
   );
 
+  // Focus search input when dropdown opens
+  useEffect(() => {
+    if (showDropdown && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+    if (!showDropdown) {
+      setSearchTerm("");
+    }
+  }, [showDropdown]);
+
   async function handleAdd(operario: Operario) {
     const newSelected = [...selected, operario];
     setSelected(newSelected);
     setShowDropdown(false);
+    setSearchTerm("");
     await saveOperadores(newSelected);
   }
 
@@ -113,16 +126,44 @@ export function OperadoresSelector({
                 className="fixed inset-0 z-10"
                 onClick={() => setShowDropdown(false)}
               />
-              <div className="absolute left-0 top-full mt-1 w-56 bg-white border border-gray-200 rounded-md shadow-lg z-20 max-h-48 overflow-y-auto">
-                {availableOperarios.map((op) => (
-                  <button
-                    key={op.id}
-                    onClick={() => handleAdd(op)}
-                    className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
-                  >
-                    {op.nombre}
-                  </button>
-                ))}
+              <div className="absolute left-0 top-full mt-1 w-64 bg-white border border-gray-200 rounded-md shadow-lg z-20 overflow-hidden">
+                {/* Search input */}
+                <div className="p-2 border-b border-gray-200">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      placeholder="Buscar operador..."
+                      className="w-full pl-9 pr-3 py-2 text-sm border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                {/* Filtered list */}
+                <div className="max-h-48 overflow-y-auto">
+                  {availableOperarios
+                    .filter((op) =>
+                      op.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
+                    )
+                    .map((op) => (
+                      <button
+                        key={op.id}
+                        onClick={() => handleAdd(op)}
+                        className="w-full px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-100"
+                      >
+                        {op.nombre}
+                      </button>
+                    ))}
+                  {availableOperarios.filter((op) =>
+                    op.nombre?.toLowerCase().includes(searchTerm.toLowerCase())
+                  ).length === 0 && (
+                    <p className="px-3 py-2 text-sm text-gray-500 italic">
+                      No se encontraron operadores
+                    </p>
+                  )}
+                </div>
               </div>
             </>
           )}
