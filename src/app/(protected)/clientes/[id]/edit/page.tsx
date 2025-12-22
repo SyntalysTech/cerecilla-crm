@@ -2,7 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import Link from "next/link";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle } from "lucide-react";
 import { EditClienteForm } from "./edit-cliente-form";
 import { ObservacionesChat } from "../observaciones-chat";
 import { getObservaciones } from "../observaciones-actions";
@@ -13,10 +13,15 @@ import { getClienteOperadores } from "../../actions";
 
 interface Props {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ nuevo?: string; todos?: string }>;
 }
 
-export default async function EditClientePage({ params }: Props) {
+export default async function EditClientePage({ params, searchParams }: Props) {
   const { id } = await params;
+  const { nuevo, todos } = await searchParams;
+  const isNuevoCliente = nuevo === "1";
+  // If multiple clients were created, get all their IDs
+  const allClienteIds = todos ? todos.split(",").filter(Boolean) : [id];
   const supabase = await createClient();
 
   const { data: cliente, error } = await supabase
@@ -59,6 +64,24 @@ export default async function EditClientePage({ params }: Props) {
 
   return (
     <div>
+      {isNuevoCliente && (
+        <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg flex items-start gap-3">
+          <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-green-800 font-medium">
+              {allClienteIds.length > 1
+                ? `${allClienteIds.length} fichas de cliente creadas correctamente`
+                : "Cliente creado correctamente"}
+            </p>
+            <p className="text-green-700 text-sm">
+              {allClienteIds.length > 1
+                ? "Los documentos que subas se añadirán automáticamente a todas las fichas creadas."
+                : "Ahora puedes subir los documentos del cliente desde el panel de la derecha."}
+            </p>
+          </div>
+        </div>
+      )}
+
       <div className="mb-4">
         <Link
           href={`/clientes/${id}`}
@@ -70,8 +93,8 @@ export default async function EditClientePage({ params }: Props) {
       </div>
 
       <PageHeader
-        title={`Editar: ${cliente.nombre_apellidos || cliente.razon_social || "Cliente"}`}
-        description={isOperario ? "Solo puedes añadir documentos y observaciones" : "Modifica los datos del cliente"}
+        title={isNuevoCliente ? `Nuevo: ${cliente.nombre_apellidos || cliente.razon_social || "Cliente"}` : `Editar: ${cliente.nombre_apellidos || cliente.razon_social || "Cliente"}`}
+        description={isNuevoCliente ? "Sube los documentos del cliente" : (isOperario ? "Solo puedes añadir documentos y observaciones" : "Modifica los datos del cliente")}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -92,6 +115,7 @@ export default async function EditClientePage({ params }: Props) {
             documentos={documentos}
             isAdmin={isAdmin}
             currentUserEmail={currentUserEmail}
+            allClienteIds={allClienteIds}
           />
 
           <ObservacionesChat

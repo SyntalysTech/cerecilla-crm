@@ -23,6 +23,7 @@ interface ClienteDocumentosProps {
   documentos: ClienteDocumento[];
   isAdmin: boolean;
   currentUserEmail: string;
+  allClienteIds?: string[]; // For uploading to multiple clients at once
 }
 
 function getFileIcon(type: string | null) {
@@ -47,7 +48,10 @@ export function ClienteDocumentos({
   documentos,
   isAdmin,
   currentUserEmail,
+  allClienteIds,
 }: ClienteDocumentosProps) {
+  // Use all client IDs if provided, otherwise just the current one
+  const targetClienteIds = allClienteIds && allClienteIds.length > 1 ? allClienteIds : [clienteId];
   const [localDocumentos, setLocalDocumentos] = useState(documentos);
   const [uploading, setUploading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -75,22 +79,40 @@ export function ClienteDocumentos({
     if (!selectedFile || !nombre.trim()) return;
 
     setUploading(true);
-    const formData = new FormData();
-    formData.append("file", selectedFile);
-    formData.append("nombre", nombre.trim());
-    formData.append("descripcion", descripcion.trim());
 
-    const result = await uploadClienteDocumento(clienteId, formData);
+    // Upload to all target clients
+    const uploadPromises = targetClienteIds.map(async (targetId) => {
+      const formData = new FormData();
+      formData.append("file", selectedFile);
+      formData.append("nombre", nombre.trim());
+      formData.append("descripcion", descripcion.trim());
+      return uploadClienteDocumento(targetId, formData);
+    });
 
-    if (result.success && result.documento) {
-      setLocalDocumentos((prev) => [result.documento as ClienteDocumento, ...prev]);
+    const results = await Promise.all(uploadPromises);
+
+    // Check if the upload to current client succeeded
+    const currentResult = results[0];
+    const allSucceeded = results.every(r => r.success);
+    const someSucceeded = results.some(r => r.success);
+
+    if (currentResult.success && currentResult.documento) {
+      setLocalDocumentos((prev) => [currentResult.documento as ClienteDocumento, ...prev]);
       setShowModal(false);
       setNombre("");
       setDescripcion("");
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
+
+      if (targetClienteIds.length > 1) {
+        if (allSucceeded) {
+          // All uploads succeeded - no alert needed, it's the expected behavior
+        } else if (someSucceeded) {
+          alert(`Documento subido a ${results.filter(r => r.success).length} de ${targetClienteIds.length} fichas. Algunas subidas fallaron.`);
+        }
+      }
     } else {
-      alert(result.error || "Error al subir documento");
+      alert(currentResult.error || "Error al subir documento");
     }
     setUploading(false);
   }
@@ -124,10 +146,17 @@ export function ClienteDocumentos({
       <div className="bg-white rounded-lg border border-gray-200">
         {/* Header */}
         <div className="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
-          <h3 className="font-medium text-gray-900 flex items-center gap-2">
-            <FileText className="w-5 h-5 text-gray-400" />
-            Documentos
-          </h3>
+          <div>
+            <h3 className="font-medium text-gray-900 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-gray-400" />
+              Documentos
+            </h3>
+            {targetClienteIds.length > 1 && (
+              <p className="text-xs text-blue-600 mt-0.5">
+                Se subirán a las {targetClienteIds.length} fichas creadas
+              </p>
+            )}
+          </div>
           <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 bg-[#BB292A] text-white text-sm font-medium rounded-md hover:bg-[#a02324] transition-colors">
             <Upload className="w-4 h-4" />
             Subir

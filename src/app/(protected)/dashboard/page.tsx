@@ -3,9 +3,22 @@ import { LayoutDashboard, Mail, FileText, CheckCircle, XCircle, Clock, Users, Ha
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { DashboardCharts } from "./dashboard-charts";
+import { getUserWithProfile } from "@/lib/auth/actions";
+
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour >= 6 && hour < 14) {
+    return "Buenos días";
+  } else if (hour >= 14 && hour < 21) {
+    return "Buenas tardes";
+  } else {
+    return "Buenas noches";
+  }
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  const user = await getUserWithProfile();
 
   // Get email stats
   const { count: totalEmails } = await supabase
@@ -133,10 +146,13 @@ export default async function DashboardPage() {
     queued: { label: "En cola", icon: Clock, color: "bg-gray-100 text-gray-800" },
   };
 
+  const greeting = getGreeting();
+  const userName = user?.full_name?.split(" ")[0] || user?.email?.split("@")[0] || "";
+
   return (
     <div>
       <PageHeader
-        title="Dashboard"
+        title={userName ? `${greeting}, ${userName}` : greeting}
         description="Vista general de tu CRM"
       />
 

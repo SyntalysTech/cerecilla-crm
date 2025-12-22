@@ -140,8 +140,11 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
     if (result.error) {
       setError(result.error);
       setLoading(false);
+    } else if (result.cliente && result.clientes) {
+      // Redirect to edit page with all client IDs so documents can be uploaded to all
+      const allIds = result.clientes.map((c: { id: string }) => c.id).join(",");
+      router.push(`/clientes/${result.cliente.id}/edit?nuevo=1&todos=${allIds}`);
     } else {
-      // Redirect to client list (multiple clients may have been created if multiple services selected)
       router.push("/clientes");
     }
   }
@@ -677,10 +680,12 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
         />
       </div>
 
-      {/* Info about documents and multiple services */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
-        <strong>Nota:</strong> Si seleccionas varios servicios, se creará una ficha de cliente separada para cada servicio. Puedes subir documentos después desde la página de edición de cada cliente.
-      </div>
+      {/* Info about multiple services */}
+      {formData.servicio && formData.servicio.includes(",") && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
+          <strong>Nota:</strong> Se creará una ficha de cliente separada para cada servicio seleccionado.
+        </div>
+      )}
 
       {/* Botones */}
       <div className="flex justify-end gap-3">

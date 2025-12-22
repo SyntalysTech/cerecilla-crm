@@ -37,6 +37,26 @@ DROP POLICY IF EXISTS "Admins can delete observations" ON public.cliente_observa
 -- Políticas en storage.objects
 DROP POLICY IF EXISTS "Users can delete their own document files or admins" ON storage.objects;
 
+-- Políticas en operarios (pueden existir de intentos anteriores)
+DROP POLICY IF EXISTS "Operarios view policy" ON public.operarios;
+DROP POLICY IF EXISTS "Operarios insert policy" ON public.operarios;
+DROP POLICY IF EXISTS "Operarios update policy" ON public.operarios;
+DROP POLICY IF EXISTS "Operarios delete policy" ON public.operarios;
+DROP POLICY IF EXISTS "Authenticated users can view operarios" ON public.operarios;
+DROP POLICY IF EXISTS "Authenticated users can insert operarios" ON public.operarios;
+DROP POLICY IF EXISTS "Authenticated users can update operarios" ON public.operarios;
+DROP POLICY IF EXISTS "Authenticated users can delete operarios" ON public.operarios;
+
+-- Políticas en clientes (pueden existir de intentos anteriores)
+DROP POLICY IF EXISTS "Clientes view policy" ON public.clientes;
+DROP POLICY IF EXISTS "Clientes insert policy" ON public.clientes;
+DROP POLICY IF EXISTS "Clientes update policy" ON public.clientes;
+DROP POLICY IF EXISTS "Clientes delete policy" ON public.clientes;
+DROP POLICY IF EXISTS "Authenticated users can view clientes" ON public.clientes;
+DROP POLICY IF EXISTS "Authenticated users can insert clientes" ON public.clientes;
+DROP POLICY IF EXISTS "Authenticated users can update clientes" ON public.clientes;
+DROP POLICY IF EXISTS "Authenticated users can delete clientes" ON public.clientes;
+
 -- Quitamos el default de la columna
 ALTER TABLE public.user_roles ALTER COLUMN role DROP DEFAULT;
 
@@ -122,12 +142,6 @@ CREATE POLICY "Admins can update any profile"
 -- PASO 4: Políticas RLS para operarios según rol
 -- ============================================
 
--- Eliminar políticas antiguas
-DROP POLICY IF EXISTS "Authenticated users can view operarios" ON public.operarios;
-DROP POLICY IF EXISTS "Authenticated users can insert operarios" ON public.operarios;
-DROP POLICY IF EXISTS "Authenticated users can update operarios" ON public.operarios;
-DROP POLICY IF EXISTS "Authenticated users can delete operarios" ON public.operarios;
-
 -- Nuevas políticas: admins ven todo, operarios solo se ven a sí mismos
 CREATE POLICY "Operarios view policy"
     ON public.operarios FOR SELECT
@@ -180,12 +194,6 @@ CREATE POLICY "Operarios delete policy"
 -- ============================================
 -- PASO 5: Políticas RLS para clientes según rol operario
 -- ============================================
-
--- Eliminar políticas antiguas de clientes
-DROP POLICY IF EXISTS "Authenticated users can view clientes" ON public.clientes;
-DROP POLICY IF EXISTS "Authenticated users can insert clientes" ON public.clientes;
-DROP POLICY IF EXISTS "Authenticated users can update clientes" ON public.clientes;
-DROP POLICY IF EXISTS "Authenticated users can delete clientes" ON public.clientes;
 
 -- Nuevas políticas: admins ven todo, operarios solo ven sus clientes
 CREATE POLICY "Clientes view policy"

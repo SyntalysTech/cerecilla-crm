@@ -103,8 +103,8 @@ export async function createCliente(data: ClienteFormData) {
     }
 
     revalidatePath("/clientes");
-    // Return the first client for redirect purposes
-    return { success: true, cliente: clientes?.[0] };
+    // Return all created clients for document upload purposes
+    return { success: true, cliente: clientes?.[0], clientes: clientes || [] };
   }
 
   // Single service - create one client
@@ -123,7 +123,7 @@ export async function createCliente(data: ClienteFormData) {
   }
 
   revalidatePath("/clientes");
-  return { success: true, cliente };
+  return { success: true, cliente, clientes: [cliente] };
 }
 
 export async function updateCliente(id: string, data: ClienteFormData) {
