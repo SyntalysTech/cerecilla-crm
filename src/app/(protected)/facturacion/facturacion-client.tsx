@@ -74,7 +74,7 @@ export function FacturacionClient({
   facturasClientes: initialFacturasClientes,
   empresaConfig,
 }: FacturacionClientProps) {
-  const [activeTab, setActiveTab] = useState<Tab>("clientes");
+  const [activeTab, setActiveTab] = useState<Tab>("operarios");
   const [fechaFactura, setFechaFactura] = useState(
     new Date().toISOString().split("T")[0]
   );
@@ -315,8 +315,8 @@ export function FacturacionClient({
 
   // ==================== TABS ====================
   const tabs = [
-    { id: "clientes" as Tab, label: "Facturas a Clientes", icon: Users },
-    { id: "operarios" as Tab, label: "Facturas a Operarios", icon: Building2 },
+    { id: "operarios" as Tab, label: "Comisiones a Operarios", icon: Building2 },
+    { id: "clientes" as Tab, label: "Facturas a Clientes (opcional)", icon: Users },
   ];
 
   return (
@@ -564,7 +564,7 @@ export function FacturacionClient({
                 ) : (
                   <>
                     <p className="text-sm text-gray-600 mb-4">
-                      Se encontraron {operariosComisionables.length} operarios con clientes listos para facturar.
+                      Se encontraron {operariosComisionables.length} operarios con clientes listos para pagar comisión.
                     </p>
 
                     <div className="overflow-x-auto">
@@ -630,14 +630,14 @@ export function FacturacionClient({
                   <div className="flex items-center gap-3 mb-4">
                     <Calendar className="w-6 h-6 text-[#BB292A]" />
                     <h2 className="text-lg font-semibold text-gray-900">
-                      Seleccionar Fecha de Factura
+                      Generar Comisiones
                     </h2>
                   </div>
 
                   <div className="flex flex-col sm:flex-row items-start sm:items-end gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Fecha de la factura
+                        Fecha de la comisión
                       </label>
                       <input
                         type="date"
@@ -657,23 +657,23 @@ export function FacturacionClient({
                       ) : (
                         <Receipt className="w-4 h-4" />
                       )}
-                      Emitir Facturas
+                      Generar Comisiones
                     </button>
                   </div>
 
                   <p className="mt-4 text-xs text-gray-500">
-                    Se generará una factura para cada operario con clientes en estado "Comisionable".
+                    Se generará una comisión a pagar para cada operario con clientes en estado "Comisionable".
                   </p>
                 </div>
               )}
 
-              {/* Show existing invoices button */}
+              {/* Show existing commissions button */}
               {initialFacturas.length > 0 && (
                 <button
                   onClick={() => setStep("emitidas")}
                   className="text-[#BB292A] hover:underline text-sm"
                 >
-                  Ver facturas emitidas ({initialFacturas.length})
+                  Ver comisiones emitidas ({initialFacturas.length})
                 </button>
               )}
             </div>
@@ -686,7 +686,7 @@ export function FacturacionClient({
                 <div className="flex items-center gap-3">
                   <FileText className="w-6 h-6 text-[#BB292A]" />
                   <h2 className="text-lg font-semibold text-gray-900">
-                    Facturas Emitidas ({facturas.filter(f => f.estado === "emitida").length})
+                    Comisiones Emitidas ({facturas.filter(f => f.estado === "emitida").length})
                   </h2>
                 </div>
 
@@ -695,7 +695,7 @@ export function FacturacionClient({
                     onClick={() => setStep("select-date")}
                     className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
                   >
-                    Nueva Facturación
+                    Nueva Comisión
                   </button>
                   {facturas.some(f => f.estado === "emitida") && (
                     <button

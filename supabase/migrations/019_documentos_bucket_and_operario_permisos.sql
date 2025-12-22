@@ -73,8 +73,13 @@ CREATE TABLE IF NOT EXISTS public.documentos (
   archivo_url TEXT NOT NULL,
   archivo_nombre TEXT NOT NULL,
   created_by UUID REFERENCES auth.users(id),
-  created_at TIMESTAMPTZ DEFAULT NOW()
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  -- Campo de visibilidad: 'todos', 'solo_admins', 'operarios'
+  visibilidad TEXT NOT NULL DEFAULT 'todos'
 );
+
+-- Añadir columna si la tabla ya existe
+ALTER TABLE public.documentos ADD COLUMN IF NOT EXISTS visibilidad TEXT NOT NULL DEFAULT 'todos';
 
 -- Indexes
 CREATE INDEX IF NOT EXISTS idx_documentos_created_at ON public.documentos(created_at);

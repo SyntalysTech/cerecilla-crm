@@ -19,7 +19,7 @@ export default async function FacturacionPage() {
     <div>
       <PageHeader
         title="Facturación"
-        description="Genera y gestiona facturas para operarios y clientes"
+        description="Genera comisiones para operarios por clientes comisionables"
       />
 
       <FacturacionClient

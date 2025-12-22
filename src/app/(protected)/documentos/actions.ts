@@ -11,6 +11,7 @@ export interface Documento {
   archivo_url: string;
   archivo_nombre: string;
   created_at: string;
+  visibilidad: string;
 }
 
 export async function getDocumentos() {
@@ -36,6 +37,7 @@ export async function uploadDocumento(formData: FormData) {
   const nombre = formData.get("nombre") as string;
   const descripcion = formData.get("descripcion") as string;
   const tipo = formData.get("tipo") as string;
+  const visibilidad = formData.get("visibilidad") as string;
 
   if (!file || !nombre) {
     return { error: "Archivo y nombre son requeridos" };
@@ -78,6 +80,7 @@ export async function uploadDocumento(formData: FormData) {
       archivo_url: urlData.publicUrl,
       archivo_nombre: file.name,
       created_by: user.id,
+      visibilidad: visibilidad || "todos",
     })
     .select()
     .single();

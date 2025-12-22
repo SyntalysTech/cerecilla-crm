@@ -14,6 +14,9 @@ import {
   Loader2,
   X,
   File,
+  Users,
+  Lock,
+  Globe,
 } from "lucide-react";
 import { uploadDocumento, deleteDocumento } from "./actions";
 
@@ -26,7 +29,14 @@ interface Documento {
   archivo_nombre: string;
   created_at: string;
   isDefault?: boolean;
+  visibilidad?: string;
 }
+
+const visibilidadLabels: Record<string, { label: string; icon: typeof Globe; color: string }> = {
+  todos: { label: "Todos", icon: Globe, color: "text-green-600 bg-green-50" },
+  operarios: { label: "Operarios", icon: Users, color: "text-blue-600 bg-blue-50" },
+  solo_admins: { label: "Solo Admins", icon: Lock, color: "text-red-600 bg-red-50" },
+};
 
 interface DocumentosListProps {
   documentos: Documento[];
@@ -54,6 +64,7 @@ export function DocumentosList({ documentos }: DocumentosListProps) {
     nombre: "",
     descripcion: "",
     tipo: "otro",
+    visibilidad: "todos",
   });
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -67,6 +78,7 @@ export function DocumentosList({ documentos }: DocumentosListProps) {
     formData.append("nombre", uploadForm.nombre);
     formData.append("descripcion", uploadForm.descripcion);
     formData.append("tipo", uploadForm.tipo);
+    formData.append("visibilidad", uploadForm.visibilidad);
 
     const result = await uploadDocumento(formData);
 
@@ -74,7 +86,7 @@ export function DocumentosList({ documentos }: DocumentosListProps) {
       alert(result.error);
     } else {
       setShowUploadModal(false);
-      setUploadForm({ nombre: "", descripcion: "", tipo: "otro" });
+      setUploadForm({ nombre: "", descripcion: "", tipo: "otro", visibilidad: "todos" });
       setSelectedFile(null);
       window.location.reload();
     }
@@ -111,6 +123,8 @@ export function DocumentosList({ documentos }: DocumentosListProps) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {documentos.map((doc) => {
           const IconComponent = tipoIcons[doc.tipo] || File;
+          const visInfo = visibilidadLabels[doc.visibilidad || "todos"] || visibilidadLabels.todos;
+          const VisIcon = visInfo.icon;
           return (
             <div
               key={doc.id}
@@ -121,7 +135,7 @@ export function DocumentosList({ documentos }: DocumentosListProps) {
                   <IconComponent className="w-6 h-6 text-[#BB292A]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
+                  <div className="flex items-center gap-2 mb-1 flex-wrap">
                     <h3 className="font-medium text-gray-900 truncate">
                       {doc.nombre}
                     </h3>
@@ -132,6 +146,12 @@ export function DocumentosList({ documentos }: DocumentosListProps) {
                     >
                       {doc.tipo}
                     </span>
+                    {!doc.isDefault && (
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium rounded ${visInfo.color}`}>
+                        <VisIcon className="w-3 h-3" />
+                        {visInfo.label}
+                      </span>
+                    )}
                   </div>
                   {doc.descripcion && (
                     <p className="text-sm text-gray-500 line-clamp-2 mb-4">
@@ -284,6 +304,26 @@ export function DocumentosList({ documentos }: DocumentosListProps) {
                   <option value="contrato">Contrato</option>
                   <option value="otro">Otro</option>
                 </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Visibilidad
+                </label>
+                <select
+                  value={uploadForm.visibilidad}
+                  onChange={(e) =>
+                    setUploadForm((prev) => ({ ...prev, visibilidad: e.target.value }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                >
+                  <option value="todos">Todos (visible para todos)</option>
+                  <option value="operarios">Operarios (solo usuarios internos y operarios)</option>
+                  <option value="solo_admins">Solo Admins (solo administradores)</option>
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Define quién puede ver este documento
+                </p>
               </div>
             </div>
 
