@@ -130,6 +130,20 @@ function parseClienteRow(row: Record<string, unknown>) {
                    row["fecha_alta"] ?? row["created_at"] ?? row["fecha registro"] ?? row["Fecha Registro"];
   const fecha = parseDate(fechaRaw);
 
+  // Get separate address fields if provided
+  const tipoVia = getValue(row, "tipo_via", "tipo via", "Tipo Via", "Tipo Vía");
+  const nombreVia = getValue(row, "nombre_via", "nombre via", "Nombre Via", "Nombre Vía");
+  const numero = getValue(row, "numero", "Numero", "Número");
+  const escalera = getValue(row, "escalera", "Escalera");
+  const piso = getValue(row, "piso", "Piso");
+  const puerta = getValue(row, "puerta", "Puerta");
+  const codigoPostal = getValue(row, "codigo_postal", "codigo postal", "Codigo Postal", "Código Postal", "cp", "CP");
+  const poblacion = getValue(row, "poblacion", "Poblacion", "Población", "localidad", "Localidad", "ciudad", "Ciudad");
+  const provincia = getValue(row, "provincia", "Provincia");
+
+  // Get direccion completa (fallback)
+  const direccionCompleta = getValue(row, "direccion", "Direccion", "dirección", "Dirección");
+
   // Build the result object
   const result: Record<string, unknown> = {
     operador,
@@ -145,7 +159,6 @@ function parseClienteRow(row: Record<string, unknown>) {
     email: getValue(row, "email", "Email", "correo", "Correo"),
     telefono: getValue(row, "telefono", "Telefono", "teléfono", "Teléfono"),
     cuenta_bancaria: getValue(row, "cuenta bancaria", "Cuenta Bancaria"),
-    direccion: getValue(row, "direccion", "Direccion", "dirección", "Dirección"),
     observaciones: getValue(row, "observaciones", "Observaciones", "notas", "Notas", "comentarios", "Comentarios"),
     observaciones_admin: getValue(row, "observaciones_admin", "Observaciones Admin", "observaciones admin", "notas admin"),
     cups_gas: getValue(row, "cups gas", "CUPS Gas", "cups_gas"),
@@ -162,6 +175,36 @@ function parseClienteRow(row: Record<string, unknown>) {
     precio_kw_gas: getValue(row, "precio kw gas", "Precio kW Gas"),
     precio_kw_luz: getValue(row, "precio kw luz", "Precio kW Luz"),
   };
+
+  // Handle address: prefer separate fields if available, otherwise use direccion completa
+  if (tipoVia || nombreVia || numero || codigoPostal || poblacion || provincia) {
+    // Use separate address fields
+    result.tipo_via = tipoVia;
+    result.nombre_via = nombreVia;
+    result.numero = numero;
+    result.escalera = escalera;
+    result.piso = piso;
+    result.puerta = puerta;
+    result.codigo_postal = codigoPostal;
+    result.poblacion = poblacion;
+    result.provincia = provincia;
+
+    // Also compose direccion from parts for backward compatibility
+    const parts = [
+      tipoVia,
+      nombreVia,
+      numero,
+      escalera ? `Esc. ${escalera}` : null,
+      piso ? `${piso}º` : null,
+      puerta ? puerta : null,
+    ].filter(Boolean);
+    const addressLine = parts.join(" ");
+    const locationLine = [codigoPostal, poblacion, provincia].filter(Boolean).join(", ");
+    result.direccion = [addressLine, locationLine].filter(Boolean).join(", ");
+  } else if (direccionCompleta) {
+    // Use direccion completa as-is
+    result.direccion = direccionCompleta;
+  }
 
   // Only add created_at if we have a valid date
   if (fecha) {

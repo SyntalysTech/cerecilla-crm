@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Search,
   ChevronLeft,
@@ -268,9 +268,12 @@ const filterFields = [
 ];
 
 export function ClientesList({ clientes, error }: ClientesListProps) {
+  const searchParams = useSearchParams();
+  const initialEstado = searchParams.get("estado");
+
   const [searchTerm, setSearchTerm] = useState("");
-  const [activeFilter, setActiveFilter] = useState(""); // Campo activo para filtrar (vacío = todos)
-  const [subFilterValue, setSubFilterValue] = useState(""); // Valor del subfiltro (orden, tipo doc, etc.)
+  const [activeFilter, setActiveFilter] = useState(initialEstado ? "estado" : ""); // Campo activo para filtrar (vacío = todos)
+  const [subFilterValue, setSubFilterValue] = useState(initialEstado || ""); // Valor del subfiltro (orden, tipo doc, etc.)
   const [showFieldDropdown, setShowFieldDropdown] = useState(false);
   const [showSubDropdown, setShowSubDropdown] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);

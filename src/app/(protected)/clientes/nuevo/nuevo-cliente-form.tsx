@@ -1,9 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, User, Building2, Zap, Flame, FileText, MapPin } from "lucide-react";
+import { Loader2, Save, User, Building2, Zap, Flame, FileText, MapPin, Upload, X, File } from "lucide-react";
 import { createCliente, type ClienteFormData } from "../actions";
+import { uploadClienteDocumento } from "../[id]/documentos-actions";
+
+interface PendingDocument {
+  file: File;
+  nombre: string;
+  descripcion: string;
+}
 
 const tiposVia = [
   "Calle", "Avenida", "Plaza", "Paseo", "Urbanización", "Polígono",
@@ -43,6 +50,12 @@ const tiposPersona = [
 ];
 const tiposDocumento = ["DNI", "NIE", "Pasaporte"];
 
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return bytes + " B";
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + " KB";
+  return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+}
+
 export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias }: NuevoClienteFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -50,6 +63,14 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
   const [tipoDocumentoNuevo, setTipoDocumentoNuevo] = useState("DNI");
   const [tipoDocumentoAnterior, setTipoDocumentoAnterior] = useState("DNI");
   const [tipoDocumentoAdmin, setTipoDocumentoAdmin] = useState("DNI");
+
+  // Document upload states
+  const [pendingDocuments, setPendingDocuments] = useState<PendingDocument[]>([]);
+  const [showDocModal, setShowDocModal] = useState(false);
+  const [docNombre, setDocNombre] = useState("");
+  const [docDescripcion, setDocDescripcion] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<ClienteFormData>({
     operador: isOperario ? operarioAlias : "",
@@ -157,12 +178,62 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
       setError(result.error);
       setLoading(false);
     } else if (result.cliente && result.clientes) {
-      // Redirect to edit page with all client IDs so documents can be uploaded to all
+      // Upload pending documents to all created clients
+      if (pendingDocuments.length > 0) {
+        const allIds = result.clientes.map((c: { id: string }) => c.id);
+
+        for (const doc of pendingDocuments) {
+          // Upload to each client ID
+          for (const clienteId of allIds) {
+            const formData = new FormData();
+            formData.append("file", doc.file);
+            formData.append("nombre", doc.nombre);
+            formData.append("descripcion", doc.descripcion);
+            await uploadClienteDocumento(clienteId, formData);
+          }
+        }
+      }
+
+      // Redirect to edit page with all client IDs
       const allIds = result.clientes.map((c: { id: string }) => c.id).join(",");
       router.push(`/clientes/${result.cliente.id}/edit?nuevo=1&todos=${allIds}`);
     } else {
       router.push("/clientes");
     }
+  }
+
+  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      if (!docNombre) {
+        setDocNombre(file.name.replace(/\.[^/.]+$/, ""));
+      }
+      setShowDocModal(true);
+    }
+  }
+
+  function handleAddDocument() {
+    if (!selectedFile || !docNombre.trim()) return;
+
+    setPendingDocuments((prev) => [
+      ...prev,
+      {
+        file: selectedFile,
+        nombre: docNombre.trim(),
+        descripcion: docDescripcion.trim(),
+      },
+    ]);
+
+    setShowDocModal(false);
+    setDocNombre("");
+    setDocDescripcion("");
+    setSelectedFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  function handleRemoveDocument(index: number) {
+    setPendingDocuments((prev) => prev.filter((_, i) => i !== index));
   }
 
   function handleChange(field: keyof ClienteFormData, value: string | boolean | null) {
@@ -263,7 +334,7 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
 
           {/* Tiene suministro */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">¿Tiene suministro?</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">¿Tiene suministro? *</label>
             <div className="flex gap-4">
               <label className="inline-flex items-center gap-2 cursor-pointer">
                 <input
@@ -290,7 +361,7 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
 
           {/* Es cambio de titularidad */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">¿Es cambio de titularidad?</label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">¿Es cambio de titularidad? *</label>
             <div className="flex gap-4">
               <label className="inline-flex items-center gap-2 cursor-pointer">
                 <input
@@ -425,7 +496,7 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo Doc. Administrador *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo Documento Administrador *</label>
                 <select
                   value={tipoDocumentoAdmin}
                   onChange={(e) => setTipoDocumentoAdmin(e.target.value)}
@@ -437,7 +508,7 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">{tipoDocumentoAdmin} del Administrador *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Documento del Administrador *</label>
                 <input
                   type="text"
                   value={formData.dni_admin}
@@ -474,12 +545,13 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
             <input
               type="email"
               value={formData.email}
               onChange={(e) => handleChange("email", e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+              required
             />
           </div>
           <div>
@@ -697,6 +769,61 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
         </div>
       )}
 
+      {/* Documentos */}
+      <div className="bg-white rounded-lg border border-gray-200 p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-medium text-gray-900 flex items-center gap-2">
+            <FileText className="w-5 h-5 text-gray-400" />
+            Documentos
+          </h3>
+          <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 bg-[#BB292A] text-white text-sm font-medium rounded-md hover:bg-[#a02324] transition-colors">
+            <Upload className="w-4 h-4" />
+            Añadir documento
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={handleFileSelect}
+              accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp"
+            />
+          </label>
+        </div>
+
+        {pendingDocuments.length === 0 ? (
+          <p className="text-gray-400 text-sm text-center py-4">
+            No hay documentos añadidos. Los documentos se subirán junto con el cliente.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {pendingDocuments.map((doc, index) => (
+              <div
+                key={index}
+                className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg"
+              >
+                <div className="w-10 h-10 rounded-lg bg-gray-200 flex items-center justify-center flex-shrink-0">
+                  <File className="w-5 h-5 text-gray-500" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {doc.nombre}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {doc.file.name} · {formatFileSize(doc.file.size)}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleRemoveDocument(index)}
+                  className="p-2 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
       {/* Observaciones */}
       <div className="bg-white rounded-lg border border-gray-200 p-6">
         <h3 className="text-lg font-medium text-gray-900 mb-4">Observaciones</h3>
@@ -727,6 +854,97 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
           {loading ? "Guardando..." : "Guardar Cliente"}
         </button>
       </div>
+
+      {/* Document Upload Modal */}
+      {showDocModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-medium text-gray-900">Añadir documento</h3>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDocModal(false);
+                  setDocNombre("");
+                  setDocDescripcion("");
+                  setSelectedFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                className="p-1 text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {selectedFile && (
+              <div className="mb-4 p-3 bg-gray-50 rounded-md flex items-center gap-3">
+                <File className="w-8 h-8 text-gray-400" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">
+                    {selectedFile.name}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {formatFileSize(selectedFile.size)}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nombre del documento *
+                </label>
+                <input
+                  type="text"
+                  value={docNombre}
+                  onChange={(e) => setDocNombre(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                  placeholder="Ej: Contrato de luz"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Descripción (opcional)
+                </label>
+                <textarea
+                  value={docDescripcion}
+                  onChange={(e) => setDocDescripcion(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                  placeholder="Añade una descripción..."
+                />
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 mt-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowDocModal(false);
+                  setDocNombre("");
+                  setDocDescripcion("");
+                  setSelectedFile(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleAddDocument}
+                disabled={!docNombre.trim()}
+                className="px-4 py-2 bg-[#BB292A] text-white text-sm font-medium rounded-md hover:bg-[#a02324] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                <Upload className="w-4 h-4" />
+                Añadir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </form>
   );
 }
