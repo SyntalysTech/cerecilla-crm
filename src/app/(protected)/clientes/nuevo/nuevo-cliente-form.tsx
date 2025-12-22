@@ -49,6 +49,7 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
   const [error, setError] = useState<string | null>(null);
   const [tipoDocumentoNuevo, setTipoDocumentoNuevo] = useState("DNI");
   const [tipoDocumentoAnterior, setTipoDocumentoAnterior] = useState("DNI");
+  const [tipoDocumentoAdmin, setTipoDocumentoAdmin] = useState("DNI");
 
   const [formData, setFormData] = useState<ClienteFormData>({
     operador: isOperario ? operarioAlias : "",
@@ -103,6 +104,7 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
     const requiredFields = {
       servicio: "Servicios",
       tipo_persona: "Tipo de cliente",
+      email: "Email",
       telefono: "Teléfono",
       tipo_via: "Tipo de vía",
       nombre_via: "Nombre de vía",
@@ -112,6 +114,18 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
       provincia: "Provincia",
       cuenta_bancaria: "Cuenta bancaria",
     };
+
+    // Validate boolean required fields
+    if (formData.tiene_suministro === null) {
+      setError('El campo "¿Tiene suministro?" es obligatorio');
+      setLoading(false);
+      return;
+    }
+    if (formData.es_cambio_titular === null) {
+      setError('El campo "¿Es cambio de titularidad?" es obligatorio');
+      setLoading(false);
+      return;
+    }
 
     // Add conditional required fields based on tipo_persona
     if (formData.tipo_persona === "particular") {
@@ -123,6 +137,8 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
       Object.assign(requiredFields, {
         razon_social: "Razón social",
         cif_empresa: "CIF de la empresa",
+        nombre_admin: "Nombre del Administrador",
+        dni_admin: "Documento del Administrador",
       });
     }
 
@@ -400,7 +416,7 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Administrador</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Administrador *</label>
                 <input
                   type="text"
                   value={formData.nombre_admin}
@@ -409,12 +425,25 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">DNI del Administrador</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Tipo Doc. Administrador *</label>
+                <select
+                  value={tipoDocumentoAdmin}
+                  onChange={(e) => setTipoDocumentoAdmin(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                >
+                  {tiposDocumento.map(tipo => (
+                    <option key={tipo} value={tipo}>{tipo}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">{tipoDocumentoAdmin} del Administrador *</label>
                 <input
                   type="text"
                   value={formData.dni_admin}
                   onChange={(e) => handleChange("dni_admin", e.target.value)}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                  placeholder={tipoDocumentoAdmin === "DNI" ? "12345678A" : tipoDocumentoAdmin === "NIE" ? "X1234567A" : "AAA123456"}
                 />
               </div>
             </>
@@ -679,13 +708,6 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
           placeholder="Notas adicionales sobre el cliente..."
         />
       </div>
-
-      {/* Info about multiple services */}
-      {formData.servicio && formData.servicio.includes(",") && (
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-700">
-          <strong>Nota:</strong> Se creará una ficha de cliente separada para cada servicio seleccionado.
-        </div>
-      )}
 
       {/* Botones */}
       <div className="flex justify-end gap-3">

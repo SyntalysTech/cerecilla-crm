@@ -189,13 +189,15 @@ export async function duplicateCliente(id: string) {
     return { error: "No se encontró el cliente" };
   }
 
-  // Create copy without id and with current date - keep original name without "(copia)"
-  const { id: _, created_at: __, ...clienteData } = original;
+  // Create copy without id, created_at, and observaciones - keep original name without "(copia)"
+  const { id: _, created_at: __, observaciones: _obs, observaciones_admin: _obsAdmin, ...clienteData } = original;
 
   const { data: newCliente, error: insertError } = await supabase
     .from("clientes")
     .insert({
       ...clienteData,
+      observaciones: null,
+      observaciones_admin: null,
     })
     .select()
     .single();
