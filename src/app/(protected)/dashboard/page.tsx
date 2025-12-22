@@ -1,5 +1,5 @@
 import { PageHeader } from "@/components/page-header";
-import { LayoutDashboard, Mail, FileText, CheckCircle, XCircle, Clock, Users, HardHat } from "lucide-react";
+import { LayoutDashboard, Mail, FileText, CheckCircle, XCircle, Clock, Users, HardHat, TrendingUp, Megaphone } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { DashboardCharts } from "./dashboard-charts";
@@ -58,6 +58,52 @@ export default async function DashboardPage() {
   const { count: operariosCount } = await supabase
     .from("operarios")
     .select("*", { count: "exact", head: true });
+
+  // Get comisionables count
+  const { count: comisionablesCount } = await supabase
+    .from("clientes")
+    .select("*", { count: "exact", head: true })
+    .eq("estado", "COMISIONABLE");
+
+  // Get campaigns count
+  const { count: campaignsCount } = await supabase
+    .from("campaigns")
+    .select("*", { count: "exact", head: true });
+
+  // Get clientes with servicio for chart (comisionables by service)
+  const { data: clientesPorServicio } = await supabase
+    .from("clientes")
+    .select("servicio, provincia")
+    .eq("estado", "COMISIONABLE");
+
+  // Process servicios distribution
+  const serviciosCount: Record<string, number> = { Luz: 0, Gas: 0, Telefonía: 0, Seguros: 0, Alarmas: 0 };
+  const provinciasCount: Record<string, number> = {};
+
+  clientesPorServicio?.forEach((cliente) => {
+    // Count services
+    if (cliente.servicio) {
+      const servicios = cliente.servicio.split(", ");
+      servicios.forEach((s: string) => {
+        if (serviciosCount[s] !== undefined) {
+          serviciosCount[s]++;
+        }
+      });
+    }
+    // Count provinces
+    if (cliente.provincia) {
+      provinciasCount[cliente.provincia] = (provinciasCount[cliente.provincia] || 0) + 1;
+    }
+  });
+
+  const serviciosData = Object.entries(serviciosCount)
+    .filter(([, count]) => count > 0)
+    .map(([name, value]) => ({ name, value }));
+
+  const provinciasData = Object.entries(provinciasCount)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 10)
+    .map(([name, value]) => ({ name, value }));
 
   // Get emails from last 7 days for chart
   const sevenDaysAgo = new Date();
@@ -119,6 +165,7 @@ export default async function DashboardPage() {
       description: `${totalEmails || 0} total`,
       color: "bg-[#87CEEB]/20",
       iconColor: "text-[#87CEEB]",
+      href: "/emails",
     },
     {
       name: "Plantillas",
@@ -127,6 +174,7 @@ export default async function DashboardPage() {
       description: "Plantillas activas",
       color: "bg-[#BB292A]/10",
       iconColor: "text-[#BB292A]",
+      href: "/email-templates",
     },
     {
       name: "Fallidos",
@@ -135,6 +183,25 @@ export default async function DashboardPage() {
       description: "Requieren atención",
       color: failedEmails && failedEmails > 0 ? "bg-red-100" : "bg-gray-100",
       iconColor: failedEmails && failedEmails > 0 ? "text-red-500" : "text-gray-400",
+      href: "/emails?status=failed",
+    },
+    {
+      name: "Comisionables",
+      value: comisionablesCount || 0,
+      icon: TrendingUp,
+      description: "Clientes comisionables",
+      color: "bg-green-100",
+      iconColor: "text-green-600",
+      href: "/clientes?estado=COMISIONABLE",
+    },
+    {
+      name: "Campañas",
+      value: campaignsCount || 0,
+      icon: Megaphone,
+      description: "Campañas de email",
+      color: "bg-purple-100",
+      iconColor: "text-purple-600",
+      href: "/campaigns",
     },
   ];
 
@@ -157,43 +224,44 @@ export default async function DashboardPage() {
       />
 
       {/* Stats grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-6 mb-6 sm:mb-8">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-4 sm:gap-4 mb-6 sm:mb-8">
         {stats.map((stat) => (
-          <div
+          <Link
             key={stat.name}
-            className="bg-white rounded-lg border border-gray-200 p-6"
+            href={stat.href}
+            className="bg-white rounded-lg border border-gray-200 p-4 hover:border-[#BB292A]/50 transition-colors cursor-pointer block"
           >
-            <div className="flex items-center gap-3 mb-3">
-              <div className={`w-10 h-10 rounded-lg ${stat.color} flex items-center justify-center`}>
-                <stat.icon className={`w-5 h-5 ${stat.iconColor}`} />
+            <div className="flex items-center gap-2 mb-2">
+              <div className={`w-8 h-8 rounded-lg ${stat.color} flex items-center justify-center`}>
+                <stat.icon className={`w-4 h-4 ${stat.iconColor}`} />
               </div>
-              <h3 className="font-medium text-gray-900">{stat.name}</h3>
+              <h3 className="font-medium text-gray-900 text-sm">{stat.name}</h3>
             </div>
-            <p className="text-3xl font-semibold text-gray-900">{stat.value}</p>
-            <p className="text-sm text-gray-500 mt-1">{stat.description}</p>
-          </div>
+            <p className="text-2xl font-semibold text-gray-900">{stat.value}</p>
+            <p className="text-xs text-gray-500 mt-1">{stat.description}</p>
+          </Link>
         ))}
         {/* Clientes card */}
-        <Link href="/clientes" className="bg-white rounded-lg border border-gray-200 p-6 hover:border-[#BB292A]/50 transition-colors cursor-pointer block">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-lg bg-[#BB292A]/10 flex items-center justify-center">
-              <Users className="w-5 h-5 text-[#BB292A]" />
+        <Link href="/clientes" className="bg-white rounded-lg border border-gray-200 p-4 hover:border-[#BB292A]/50 transition-colors cursor-pointer block">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-[#BB292A]/10 flex items-center justify-center">
+              <Users className="w-4 h-4 text-[#BB292A]" />
             </div>
-            <h3 className="font-medium text-gray-900">Clientes</h3>
+            <h3 className="font-medium text-gray-900 text-sm">Clientes</h3>
           </div>
-          <p className="text-3xl font-semibold text-gray-900">{clientesCount || 0}</p>
-          <p className="text-sm text-gray-500 mt-1">Registrados</p>
+          <p className="text-2xl font-semibold text-gray-900">{clientesCount || 0}</p>
+          <p className="text-xs text-gray-500 mt-1">Registrados</p>
         </Link>
         {/* Operarios card */}
-        <Link href="/operarios" className="bg-white rounded-lg border border-gray-200 p-6 hover:border-[#0ea5e9]/50 transition-colors cursor-pointer block">
-          <div className="flex items-center gap-3 mb-3">
-            <div className="w-10 h-10 rounded-lg bg-[#87CEEB]/20 flex items-center justify-center">
-              <HardHat className="w-5 h-5 text-[#0ea5e9]" />
+        <Link href="/operarios" className="bg-white rounded-lg border border-gray-200 p-4 hover:border-[#0ea5e9]/50 transition-colors cursor-pointer block">
+          <div className="flex items-center gap-2 mb-2">
+            <div className="w-8 h-8 rounded-lg bg-[#87CEEB]/20 flex items-center justify-center">
+              <HardHat className="w-4 h-4 text-[#0ea5e9]" />
             </div>
-            <h3 className="font-medium text-gray-900">Operarios</h3>
+            <h3 className="font-medium text-gray-900 text-sm">Operarios</h3>
           </div>
-          <p className="text-3xl font-semibold text-gray-900">{operariosCount || 0}</p>
-          <p className="text-sm text-gray-500 mt-1">Registrados</p>
+          <p className="text-2xl font-semibold text-gray-900">{operariosCount || 0}</p>
+          <p className="text-xs text-gray-500 mt-1">Registrados</p>
         </Link>
       </div>
 
@@ -203,6 +271,8 @@ export default async function DashboardPage() {
         emailStatus={emailStatus}
         clientesCount={clientesCount || 0}
         operariosCount={operariosCount || 0}
+        serviciosData={serviciosData}
+        provinciasData={provinciasData}
       />
 
       {/* Recent emails */}
