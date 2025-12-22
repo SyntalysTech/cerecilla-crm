@@ -273,6 +273,7 @@ export default async function DashboardPage() {
         operariosCount={operariosCount || 0}
         serviciosData={serviciosData}
         provinciasData={provinciasData}
+        provinciasMapData={provinciasCount}
       />
 
       {/* Recent emails */}
