@@ -34,8 +34,20 @@ DROP POLICY IF EXISTS "Authenticated users can view non-admin observations" ON p
 DROP POLICY IF EXISTS "Users can update their own observations" ON public.cliente_observaciones;
 DROP POLICY IF EXISTS "Admins can delete observations" ON public.cliente_observaciones;
 
--- Políticas en storage.objects
+-- Políticas en storage.objects (incluyendo las de documentos bucket de migración 019)
 DROP POLICY IF EXISTS "Users can delete their own document files or admins" ON storage.objects;
+DROP POLICY IF EXISTS "Admins can delete documentos" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can view documentos" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can upload documentos" ON storage.objects;
+
+-- Políticas en documentos table (de migración 019, si existen)
+DROP POLICY IF EXISTS "Authenticated users can view documentos table" ON public.documentos;
+DROP POLICY IF EXISTS "Authenticated users can insert documentos table" ON public.documentos;
+DROP POLICY IF EXISTS "Admins can delete documentos table" ON public.documentos;
+
+-- Políticas en operario_permisos (de migración 019, si existen)
+DROP POLICY IF EXISTS "operario_permisos_view" ON public.operario_permisos;
+DROP POLICY IF EXISTS "operario_permisos_manage" ON public.operario_permisos;
 
 -- Políticas en operarios (pueden existir de intentos anteriores)
 DROP POLICY IF EXISTS "Operarios view policy" ON public.operarios;
