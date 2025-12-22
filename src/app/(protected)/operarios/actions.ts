@@ -346,3 +346,135 @@ export async function resetOperarioPassword(operarioId: string, newPassword: str
 
   return { success: true };
 }
+
+// ==========================================
+// Funciones para gestión de permisos de operarios
+// ==========================================
+
+export interface OperarioPermisos {
+  id?: string;
+  operario_id: string;
+  puede_ver_clientes: boolean;
+  puede_ver_solo_sus_clientes: boolean;
+  puede_ver_estadisticas: boolean;
+  puede_ver_facturacion: boolean;
+  puede_ver_documentos: boolean;
+  puede_crear_clientes: boolean;
+  puede_editar_clientes: boolean;
+  puede_editar_solo_sus_clientes: boolean;
+  puede_eliminar_clientes: boolean;
+  puede_subir_documentos: boolean;
+  puede_eliminar_documentos: boolean;
+  puede_cambiar_estado: boolean;
+  estados_permitidos: string[];
+  puede_ver_comisiones: boolean;
+  puede_ver_observaciones_admin: boolean;
+  puede_exportar_datos: boolean;
+}
+
+const DEFAULT_PERMISOS: Omit<OperarioPermisos, "id" | "operario_id"> = {
+  puede_ver_clientes: true,
+  puede_ver_solo_sus_clientes: true,
+  puede_ver_estadisticas: false,
+  puede_ver_facturacion: false,
+  puede_ver_documentos: true,
+  puede_crear_clientes: true,
+  puede_editar_clientes: true,
+  puede_editar_solo_sus_clientes: true,
+  puede_eliminar_clientes: false,
+  puede_subir_documentos: true,
+  puede_eliminar_documentos: false,
+  puede_cambiar_estado: false,
+  estados_permitidos: ["Seguimiento", "En Tramite"],
+  puede_ver_comisiones: true,
+  puede_ver_observaciones_admin: false,
+  puede_exportar_datos: false,
+};
+
+export async function getOperarioPermisos(operarioId: string): Promise<OperarioPermisos> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("operario_permisos")
+    .select("*")
+    .eq("operario_id", operarioId)
+    .single();
+
+  if (error || !data) {
+    // Return defaults if no custom permissions exist
+    return {
+      operario_id: operarioId,
+      ...DEFAULT_PERMISOS,
+    };
+  }
+
+  return {
+    id: data.id,
+    operario_id: data.operario_id,
+    puede_ver_clientes: data.puede_ver_clientes ?? true,
+    puede_ver_solo_sus_clientes: data.puede_ver_solo_sus_clientes ?? true,
+    puede_ver_estadisticas: data.puede_ver_estadisticas ?? false,
+    puede_ver_facturacion: data.puede_ver_facturacion ?? false,
+    puede_ver_documentos: data.puede_ver_documentos ?? true,
+    puede_crear_clientes: data.puede_crear_clientes ?? true,
+    puede_editar_clientes: data.puede_editar_clientes ?? true,
+    puede_editar_solo_sus_clientes: data.puede_editar_solo_sus_clientes ?? true,
+    puede_eliminar_clientes: data.puede_eliminar_clientes ?? false,
+    puede_subir_documentos: data.puede_subir_documentos ?? true,
+    puede_eliminar_documentos: data.puede_eliminar_documentos ?? false,
+    puede_cambiar_estado: data.puede_cambiar_estado ?? false,
+    estados_permitidos: data.estados_permitidos ?? ["Seguimiento", "En Tramite"],
+    puede_ver_comisiones: data.puede_ver_comisiones ?? true,
+    puede_ver_observaciones_admin: data.puede_ver_observaciones_admin ?? false,
+    puede_exportar_datos: data.puede_exportar_datos ?? false,
+  };
+}
+
+export async function updateOperarioPermisos(
+  operarioId: string,
+  permisos: Partial<Omit<OperarioPermisos, "id" | "operario_id">>
+) {
+  const isAdminUser = await isAdmin();
+
+  if (!isAdminUser) {
+    return { error: "No tienes permisos para realizar esta acción" };
+  }
+
+  const supabase = await createClient();
+
+  // Check if record exists
+  const { data: existing } = await supabase
+    .from("operario_permisos")
+    .select("id")
+    .eq("operario_id", operarioId)
+    .single();
+
+  if (existing) {
+    // Update existing
+    const { error } = await supabase
+      .from("operario_permisos")
+      .update({
+        ...permisos,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("operario_id", operarioId);
+
+    if (error) {
+      return { error: error.message };
+    }
+  } else {
+    // Insert new
+    const { error } = await supabase.from("operario_permisos").insert({
+      operario_id: operarioId,
+      ...DEFAULT_PERMISOS,
+      ...permisos,
+    });
+
+    if (error) {
+      return { error: error.message };
+    }
+  }
+
+  revalidatePath("/operarios");
+  return { success: true };
+}

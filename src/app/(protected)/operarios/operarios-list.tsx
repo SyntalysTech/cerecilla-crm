@@ -25,6 +25,7 @@ import {
   UserCheck,
   Eye,
   EyeOff,
+  Shield,
 } from "lucide-react";
 import {
   updateOperario,
@@ -34,6 +35,9 @@ import {
   getOperarioUserStatus,
   createOperarioAccount,
   resetOperarioPassword,
+  getOperarioPermisos,
+  updateOperarioPermisos,
+  type OperarioPermisos,
 } from "./actions";
 
 interface Operario {
@@ -162,6 +166,9 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [creatingAccount, setCreatingAccount] = useState(false);
   const [resettingPassword, setResettingPassword] = useState(false);
+  const [permisos, setPermisos] = useState<OperarioPermisos | null>(null);
+  const [loadingPermisos, setLoadingPermisos] = useState(false);
+  const [savingPermisos, setSavingPermisos] = useState(false);
   const itemsPerPage = 20;
 
   const servicios = ["Luz", "Gas", "Telefonía", "Seguros", "Alarmas"];
@@ -264,6 +271,25 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
     const accountStatus = await getOperarioUserStatus(operario.id);
     setUserAccountStatus(accountStatus as UserAccountStatus);
     setLoadingAccountStatus(false);
+
+    // Load permisos
+    setLoadingPermisos(true);
+    const opPermisos = await getOperarioPermisos(operario.id);
+    setPermisos(opPermisos);
+    setLoadingPermisos(false);
+  }
+
+  async function handleSavePermisos() {
+    if (!editingId || !permisos) return;
+
+    setSavingPermisos(true);
+    const result = await updateOperarioPermisos(editingId, permisos);
+    if (result.error) {
+      alert(`Error: ${result.error}`);
+    } else {
+      alert("Permisos guardados correctamente");
+    }
+    setSavingPermisos(false);
   }
 
   async function handleCreateAccount(operarioId: string) {
@@ -1212,6 +1238,189 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
                   </div>
                 )}
               </div>
+
+              {/* Permisos del Operario */}
+              {userAccountStatus?.hasAccount && (
+                <div className="bg-purple-50 p-4 rounded-lg">
+                  <h4 className="text-sm font-medium text-purple-900 mb-3 flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    Permisos del Operario
+                  </h4>
+                  <p className="text-xs text-purple-700 mb-3">
+                    Configura qué puede hacer este operario en el CRM.
+                  </p>
+
+                  {loadingPermisos ? (
+                    <div className="flex items-center gap-2 text-sm text-gray-500">
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                      Cargando permisos...
+                    </div>
+                  ) : permisos ? (
+                    <div className="space-y-4">
+                      {/* Permisos de visualización */}
+                      <div>
+                        <h5 className="text-xs font-semibold text-gray-700 mb-2 uppercase">Visualización</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_ver_clientes}
+                              onChange={(e) => setPermisos({ ...permisos, puede_ver_clientes: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Ver clientes</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_ver_solo_sus_clientes}
+                              onChange={(e) => setPermisos({ ...permisos, puede_ver_solo_sus_clientes: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Solo sus clientes</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_ver_estadisticas}
+                              onChange={(e) => setPermisos({ ...permisos, puede_ver_estadisticas: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Ver estadísticas</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_ver_facturacion}
+                              onChange={(e) => setPermisos({ ...permisos, puede_ver_facturacion: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Ver facturación</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_ver_documentos}
+                              onChange={(e) => setPermisos({ ...permisos, puede_ver_documentos: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Ver documentos</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_ver_comisiones}
+                              onChange={(e) => setPermisos({ ...permisos, puede_ver_comisiones: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Ver comisiones</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_ver_observaciones_admin}
+                              onChange={(e) => setPermisos({ ...permisos, puede_ver_observaciones_admin: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Ver obs. admin</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Permisos de edición */}
+                      <div>
+                        <h5 className="text-xs font-semibold text-gray-700 mb-2 uppercase">Edición</h5>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_crear_clientes}
+                              onChange={(e) => setPermisos({ ...permisos, puede_crear_clientes: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Crear clientes</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_editar_clientes}
+                              onChange={(e) => setPermisos({ ...permisos, puede_editar_clientes: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Editar clientes</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_editar_solo_sus_clientes}
+                              onChange={(e) => setPermisos({ ...permisos, puede_editar_solo_sus_clientes: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Solo editar los suyos</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_eliminar_clientes}
+                              onChange={(e) => setPermisos({ ...permisos, puede_eliminar_clientes: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Eliminar clientes</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_subir_documentos}
+                              onChange={(e) => setPermisos({ ...permisos, puede_subir_documentos: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Subir documentos</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_eliminar_documentos}
+                              onChange={(e) => setPermisos({ ...permisos, puede_eliminar_documentos: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Eliminar documentos</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_cambiar_estado}
+                              onChange={(e) => setPermisos({ ...permisos, puede_cambiar_estado: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Cambiar estado</span>
+                          </label>
+                          <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={permisos.puede_exportar_datos}
+                              onChange={(e) => setPermisos({ ...permisos, puede_exportar_datos: e.target.checked })}
+                              className="w-4 h-4 text-purple-600 border-gray-300 rounded focus:ring-purple-500"
+                            />
+                            <span className="text-sm text-gray-700">Exportar datos</span>
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Botón guardar permisos */}
+                      <div className="pt-2">
+                        <button
+                          onClick={handleSavePermisos}
+                          disabled={savingPermisos}
+                          className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:opacity-50 flex items-center gap-1"
+                        >
+                          {savingPermisos ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                          {savingPermisos ? "Guardando..." : "Guardar Permisos"}
+                        </button>
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
             </div>
 
             <div className="flex justify-end gap-3 mt-6 pt-4 border-t">
