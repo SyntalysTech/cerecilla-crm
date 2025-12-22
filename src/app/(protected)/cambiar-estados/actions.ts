@@ -74,33 +74,58 @@ export async function cambiarEstadosMasivo(
   const supabase = await createClient();
 
   // Handle "Sin estado" as null
-  const origenCondition = estadoOrigen === "Sin estado" ? null : estadoOrigen;
+  const isNullEstado = estadoOrigen === "Sin estado" || estadoOrigen === "SIN ESTADO";
 
-  // Get count first for reporting
-  const { count, error: countError } = await supabase
-    .from("clientes")
-    .select("id", { count: "exact", head: true })
-    .eq("estado", origenCondition);
+  let countResult;
+  let updateResult;
 
-  if (countError) {
-    return { error: countError.message };
+  if (isNullEstado) {
+    // Handle null estado
+    countResult = await supabase
+      .from("clientes")
+      .select("id", { count: "exact", head: true })
+      .is("estado", null);
+
+    if (countResult.error) {
+      return { error: countResult.error.message };
+    }
+
+    if (!countResult.count || countResult.count === 0) {
+      return { error: `No hay clientes con estado "${estadoOrigen}"` };
+    }
+
+    // Perform the update
+    updateResult = await supabase
+      .from("clientes")
+      .update({ estado: estadoDestino })
+      .is("estado", null);
+  } else {
+    // Use ilike for case-insensitive matching
+    countResult = await supabase
+      .from("clientes")
+      .select("id", { count: "exact", head: true })
+      .ilike("estado", estadoOrigen);
+
+    if (countResult.error) {
+      return { error: countResult.error.message };
+    }
+
+    if (!countResult.count || countResult.count === 0) {
+      return { error: `No hay clientes con estado "${estadoOrigen}"` };
+    }
+
+    // Perform the update using ilike for case-insensitive match
+    updateResult = await supabase
+      .from("clientes")
+      .update({ estado: estadoDestino })
+      .ilike("estado", estadoOrigen);
   }
 
-  if (!count || count === 0) {
-    return { error: `No hay clientes con estado "${estadoOrigen}"` };
-  }
-
-  // Perform the update
-  const { error } = await supabase
-    .from("clientes")
-    .update({ estado: estadoDestino })
-    .eq("estado", origenCondition);
-
-  if (error) {
-    return { error: error.message };
+  if (updateResult.error) {
+    return { error: updateResult.error.message };
   }
 
   revalidatePath("/clientes");
   revalidatePath("/cambiar-estados");
-  return { success: true, count };
+  return { success: true, count: countResult.count };
 }

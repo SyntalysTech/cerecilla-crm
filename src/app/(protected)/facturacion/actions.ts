@@ -70,11 +70,11 @@ export async function getOperariosComisionables() {
     return [];
   }
 
-  // Get clients in "comisionable" state with their services
+  // Get clients in "comisionable" state with their services (case insensitive)
   const { data: clientes, error: clError } = await supabase
     .from("clientes")
     .select("id, operador, servicio")
-    .eq("estado", "Comisionable");
+    .ilike("estado", "COMISIONABLE");
 
   if (clError) {
     console.error("Error fetching clientes:", clError);
@@ -259,12 +259,12 @@ export async function generarFacturas(fechaFactura: string) {
     }
 
     // Link clients to invoice with individual commission calculation
-    // Search by alias OR nombre
+    // Search by alias OR nombre (case insensitive)
     const { data: clientes } = await supabase
       .from("clientes")
       .select("id, servicio")
       .or(`operador.eq.${op.alias},operador.eq.${op.nombre}`)
-      .eq("estado", "Comisionable");
+      .ilike("estado", "COMISIONABLE");
 
     // Get custom commissions for this operario
     const comisionesPersonalizadas = comisionesPorOperario[op.id] || {};
@@ -639,10 +639,11 @@ export async function updateEmpresaConfig(config: {
 export async function getClientesFacturables() {
   const supabase = await createClient();
 
+  // Use or with ilike for case-insensitive estado matching
   const { data, error } = await supabase
     .from("clientes")
     .select("*")
-    .in("estado", ["COMISIONABLE", "FINALIZADO"])
+    .or("estado.ilike.COMISIONABLE,estado.ilike.FINALIZADO")
     .or("facturado.is.null,facturado.eq.false")
     .order("created_at", { ascending: false });
 

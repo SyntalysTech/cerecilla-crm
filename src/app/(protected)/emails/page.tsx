@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { EmptyState } from "@/components/empty-state";
-import { Mail, Plus, CheckCircle, XCircle, Clock, Send } from "lucide-react";
+import { Mail, Plus, CheckCircle, XCircle, Clock, Send, Eye } from "lucide-react";
 import { getEmails } from "./actions";
 
 const statusConfig = {
@@ -59,9 +59,10 @@ export default async function EmailsPage() {
               const StatusIcon = status.icon;
 
               return (
-                <div
+                <Link
                   key={email.id}
-                  className="bg-white rounded-lg border border-gray-200 p-4"
+                  href={`/emails/${email.id}`}
+                  className="block bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow"
                 >
                   <div className="flex items-start gap-3">
                     <div className="w-10 h-10 rounded-lg bg-[#87CEEB]/20 flex items-center justify-center flex-shrink-0">
@@ -86,7 +87,7 @@ export default async function EmailsPage() {
                         : new Date(email.created_at).toLocaleString("es-ES")}
                     </span>
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>
@@ -110,6 +111,9 @@ export default async function EmailsPage() {
                   </th>
                   <th className="text-left text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
                     ID Mensaje
+                  </th>
+                  <th className="text-center text-xs font-medium text-gray-500 uppercase tracking-wider px-6 py-3">
+                    Acciones
                   </th>
                 </tr>
               </thead>
@@ -147,6 +151,15 @@ export default async function EmailsPage() {
                         {email.provider_message_id
                           ? email.provider_message_id.substring(0, 20) + "..."
                           : "—"}
+                      </td>
+                      <td className="px-6 py-4 text-center">
+                        <Link
+                          href={`/emails/${email.id}`}
+                          className="inline-flex items-center gap-1 px-3 py-1.5 text-sm text-[#BB292A] bg-[#BB292A]/10 rounded-md hover:bg-[#BB292A]/20 transition-colors"
+                        >
+                          <Eye className="w-4 h-4" />
+                          Ver
+                        </Link>
                       </td>
                     </tr>
                   );
