@@ -67,9 +67,8 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
   // Document upload states
   const [pendingDocuments, setPendingDocuments] = useState<PendingDocument[]>([]);
   const [showDocModal, setShowDocModal] = useState(false);
-  const [docNombre, setDocNombre] = useState("");
-  const [docDescripcion, setDocDescripcion] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [fileNames, setFileNames] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [formData, setFormData] = useState<ClienteFormData>({
@@ -203,32 +202,34 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      if (!docNombre) {
-        setDocNombre(file.name.replace(/\.[^/.]+$/, ""));
-      }
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const filesArray = Array.from(files);
+      setSelectedFiles(filesArray);
+      // Initialize names with file names (without extension)
+      const initialNames: Record<number, string> = {};
+      filesArray.forEach((file, index) => {
+        initialNames[index] = file.name.replace(/\.[^/.]+$/, "");
+      });
+      setFileNames(initialNames);
       setShowDocModal(true);
     }
   }
 
-  function handleAddDocument() {
-    if (!selectedFile || !docNombre.trim()) return;
+  function handleAddDocuments() {
+    if (selectedFiles.length === 0) return;
 
-    setPendingDocuments((prev) => [
-      ...prev,
-      {
-        file: selectedFile,
-        nombre: docNombre.trim(),
-        descripcion: docDescripcion.trim(),
-      },
-    ]);
+    const newDocs = selectedFiles.map((file, index) => ({
+      file,
+      nombre: fileNames[index]?.trim() || file.name.replace(/\.[^/.]+$/, ""),
+      descripcion: "",
+    }));
+
+    setPendingDocuments((prev) => [...prev, ...newDocs]);
 
     setShowDocModal(false);
-    setDocNombre("");
-    setDocDescripcion("");
-    setSelectedFile(null);
+    setSelectedFiles([]);
+    setFileNames({});
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -778,10 +779,11 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
           </h3>
           <label className="cursor-pointer inline-flex items-center gap-2 px-3 py-1.5 bg-[#BB292A] text-white text-sm font-medium rounded-md hover:bg-[#a02324] transition-colors">
             <Upload className="w-4 h-4" />
-            Añadir documento
+            Añadir documentos
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               className="hidden"
               onChange={handleFileSelect}
               accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp"
@@ -858,16 +860,17 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
       {/* Document Upload Modal */}
       {showDocModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 mx-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 mx-4 max-h-[80vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Añadir documento</h3>
+              <h3 className="text-lg font-medium text-gray-900">
+                Añadir {selectedFiles.length} documento{selectedFiles.length > 1 ? "s" : ""}
+              </h3>
               <button
                 type="button"
                 onClick={() => {
                   setShowDocModal(false);
-                  setDocNombre("");
-                  setDocDescripcion("");
-                  setSelectedFile(null);
+                  setSelectedFiles([]);
+                  setFileNames({});
                   if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
                 className="p-1 text-gray-400 hover:text-gray-600"
@@ -876,46 +879,26 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
               </button>
             </div>
 
-            {selectedFile && (
-              <div className="mb-4 p-3 bg-gray-50 rounded-md flex items-center gap-3">
-                <File className="w-8 h-8 text-gray-400" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {selectedFile.name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {formatFileSize(selectedFile.size)}
-                  </p>
+            <div className="space-y-3">
+              {selectedFiles.map((file, index) => (
+                <div key={index} className="p-3 bg-gray-50 rounded-lg">
+                  <div className="flex items-center gap-3 mb-2">
+                    <File className="w-6 h-6 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-500 truncate">
+                        {file.name} · {formatFileSize(file.size)}
+                      </p>
+                    </div>
+                  </div>
+                  <input
+                    type="text"
+                    value={fileNames[index] || ""}
+                    onChange={(e) => setFileNames(prev => ({ ...prev, [index]: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                    placeholder="Nombre del documento"
+                  />
                 </div>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre del documento *
-                </label>
-                <input
-                  type="text"
-                  value={docNombre}
-                  onChange={(e) => setDocNombre(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-                  placeholder="Ej: Contrato de luz"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descripción (opcional)
-                </label>
-                <textarea
-                  value={docDescripcion}
-                  onChange={(e) => setDocDescripcion(e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-                  placeholder="Añade una descripción..."
-                />
-              </div>
+              ))}
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
@@ -923,9 +906,8 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
                 type="button"
                 onClick={() => {
                   setShowDocModal(false);
-                  setDocNombre("");
-                  setDocDescripcion("");
-                  setSelectedFile(null);
+                  setSelectedFiles([]);
+                  setFileNames({});
                   if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
@@ -934,12 +916,12 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
               </button>
               <button
                 type="button"
-                onClick={handleAddDocument}
-                disabled={!docNombre.trim()}
+                onClick={handleAddDocuments}
+                disabled={selectedFiles.length === 0}
                 className="px-4 py-2 bg-[#BB292A] text-white text-sm font-medium rounded-md hover:bg-[#a02324] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 <Upload className="w-4 h-4" />
-                Añadir
+                Añadir {selectedFiles.length > 1 ? `${selectedFiles.length} documentos` : "documento"}
               </button>
             </div>
           </div>
