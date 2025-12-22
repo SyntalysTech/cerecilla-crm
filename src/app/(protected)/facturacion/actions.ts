@@ -35,6 +35,26 @@ export interface FacturaLinea {
   documentos_faltantes: string | null;
 }
 
+// Helper function to calculate commission for a single client
+function calculateClienteComision(
+  servicio: string | null,
+  comisionesPersonalizadas: Record<string, number>,
+  comisionesDefecto: Record<string, number>
+): number {
+  if (!servicio) return 0;
+
+  const servicios = servicio.split(", ").filter(Boolean);
+  let total = 0;
+
+  for (const s of servicios) {
+    // Use custom commission if available, otherwise use default
+    const comision = comisionesPersonalizadas[s] ?? comisionesDefecto[s] ?? 0;
+    total += comision;
+  }
+
+  return total;
+}
+
 // Get operarios with comisionable clients
 export async function getOperariosComisionables() {
   const supabase = await createClient();
@@ -50,10 +70,10 @@ export async function getOperariosComisionables() {
     return [];
   }
 
-  // Get clients in "comisionable" state grouped by operador
+  // Get clients in "comisionable" state with their services
   const { data: clientes, error: clError } = await supabase
     .from("clientes")
-    .select("id, operador")
+    .select("id, operador, servicio")
     .eq("estado", "Comisionable");
 
   if (clError) {
@@ -61,19 +81,63 @@ export async function getOperariosComisionables() {
     return [];
   }
 
-  // Group clients by operador (alias)
-  const clientesPorOperador: Record<string, number> = {};
+  // Get all custom commissions
+  const { data: todasComisiones } = await supabase
+    .from("operario_comisiones")
+    .select("operario_id, servicio, comision");
+
+  // Get default commissions
+  const { data: comisionesDefectoData } = await supabase
+    .from("configuracion_comisiones")
+    .select("servicio, comision_defecto");
+
+  // Build default commissions map
+  const comisionesDefecto: Record<string, number> = {
+    Luz: 25,
+    Gas: 25,
+    Telefonía: 50,
+    Seguros: 25,
+    Alarmas: 50,
+  };
+  for (const row of comisionesDefectoData || []) {
+    comisionesDefecto[row.servicio] = row.comision_defecto;
+  }
+
+  // Build custom commissions map per operario
+  const comisionesPorOperario: Record<string, Record<string, number>> = {};
+  for (const c of todasComisiones || []) {
+    if (!comisionesPorOperario[c.operario_id]) {
+      comisionesPorOperario[c.operario_id] = {};
+    }
+    comisionesPorOperario[c.operario_id][c.servicio] = c.comision;
+  }
+
+  // Group clients by operador (alias) and calculate commissions
+  const clientesPorOperador: Record<string, { count: number; clientes: { servicio: string | null }[] }> = {};
   for (const cliente of clientes || []) {
     if (cliente.operador) {
-      clientesPorOperador[cliente.operador] = (clientesPorOperador[cliente.operador] || 0) + 1;
+      if (!clientesPorOperador[cliente.operador]) {
+        clientesPorOperador[cliente.operador] = { count: 0, clientes: [] };
+      }
+      clientesPorOperador[cliente.operador].count++;
+      clientesPorOperador[cliente.operador].clientes.push({ servicio: cliente.servicio });
     }
   }
 
   // Build result with document validation
   const result: OperarioFacturable[] = [];
   for (const op of operarios || []) {
-    const count = clientesPorOperador[op.alias || ""] || 0;
-    if (count === 0) continue;
+    const operadorData = clientesPorOperador[op.alias || ""] || clientesPorOperador[op.nombre || ""];
+    if (!operadorData || operadorData.count === 0) continue;
+
+    // Get custom commissions for this operario
+    const comisionesPersonalizadas = comisionesPorOperario[op.id] || {};
+
+    // Calculate total commission for all clients
+    let totalComision = 0;
+    for (const cliente of operadorData.clientes) {
+      totalComision += calculateClienteComision(cliente.servicio, comisionesPersonalizadas, comisionesDefecto);
+    }
 
     // Check required documents based on type
     const docsFaltantes: string[] = [];
@@ -100,8 +164,8 @@ export async function getOperariosComisionables() {
       tiene_doc_cif: op.tiene_doc_cif || false,
       tiene_doc_contrato: op.tiene_doc_contrato || false,
       tiene_cuenta_bancaria: op.tiene_cuenta_bancaria || false,
-      clientes_comisionables: count,
-      total_comision: 0, // TODO: Calculate based on commission rules
+      clientes_comisionables: operadorData.count,
+      total_comision: totalComision,
       documentos_completos: docsFaltantes.length === 0,
       documentos_faltantes: docsFaltantes,
     });
@@ -119,6 +183,37 @@ export async function generarFacturas(fechaFactura: string) {
 
   if (operarios.length === 0) {
     return { error: "No hay operarios con clientes comisionables" };
+  }
+
+  // Get all custom commissions
+  const { data: todasComisiones } = await supabase
+    .from("operario_comisiones")
+    .select("operario_id, servicio, comision");
+
+  // Get default commissions
+  const { data: comisionesDefectoData } = await supabase
+    .from("configuracion_comisiones")
+    .select("servicio, comision_defecto");
+
+  // Build default commissions map
+  const comisionesDefecto: Record<string, number> = {
+    Luz: 25,
+    Gas: 25,
+    Telefonía: 50,
+    Seguros: 25,
+    Alarmas: 50,
+  };
+  for (const row of comisionesDefectoData || []) {
+    comisionesDefecto[row.servicio] = row.comision_defecto;
+  }
+
+  // Build custom commissions map per operario
+  const comisionesPorOperario: Record<string, Record<string, number>> = {};
+  for (const c of todasComisiones || []) {
+    if (!comisionesPorOperario[c.operario_id]) {
+      comisionesPorOperario[c.operario_id] = {};
+    }
+    comisionesPorOperario[c.operario_id][c.servicio] = c.comision;
   }
 
   // Get last invoice number
@@ -163,19 +258,23 @@ export async function generarFacturas(fechaFactura: string) {
       continue;
     }
 
-    // Link clients to invoice
+    // Link clients to invoice with individual commission calculation
+    // Search by alias OR nombre
     const { data: clientes } = await supabase
       .from("clientes")
-      .select("id")
-      .eq("operador", op.alias)
+      .select("id, servicio")
+      .or(`operador.eq.${op.alias},operador.eq.${op.nombre}`)
       .eq("estado", "Comisionable");
+
+    // Get custom commissions for this operario
+    const comisionesPersonalizadas = comisionesPorOperario[op.id] || {};
 
     if (clientes && clientes.length > 0) {
       await supabase.from("factura_clientes").insert(
         clientes.map((c) => ({
           factura_id: factura.id,
           cliente_id: c.id,
-          comision: 0,
+          comision: calculateClienteComision(c.servicio, comisionesPersonalizadas, comisionesDefecto),
         }))
       );
     }

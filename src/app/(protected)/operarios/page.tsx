@@ -75,10 +75,10 @@ export default async function OperariosPage() {
     }
   }
 
-  // Add ultima_carga to each operario
+  // Add ultima_carga to each operario (check both nombre and alias since operador can be either)
   const operarios = allOperarios.map(op => ({
     ...op,
-    ultima_carga: op.nombre ? ultimaCargaMap[op.nombre] || null : null,
+    ultima_carga: ultimaCargaMap[op.nombre || ""] || ultimaCargaMap[op.alias || ""] || null,
   }));
 
   return (

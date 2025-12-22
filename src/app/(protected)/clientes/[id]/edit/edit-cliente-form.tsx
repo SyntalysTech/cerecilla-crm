@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, User, Building2, Zap, Flame, FileText, MapPin, Bell, Lock } from "lucide-react";
+import { Loader2, Save, User, Building2, Zap, Flame, FileText, MapPin, Bell, Lock, Search, ChevronDown, X } from "lucide-react";
 import { updateCliente, notifyEstadoChange, type ClienteFormData } from "../../actions";
 
 const tiposVia = [
@@ -96,6 +96,22 @@ export function EditClienteForm({ cliente, operarios, isOperario = false, isAdmi
   const [originalEstado] = useState(cliente.estado || "");
   const [tipoDocumentoNuevo, setTipoDocumentoNuevo] = useState("DNI");
   const [tipoDocumentoAnterior, setTipoDocumentoAnterior] = useState("DNI");
+
+  // Operador search state
+  const [operadorSearch, setOperadorSearch] = useState("");
+  const [showOperadorDropdown, setShowOperadorDropdown] = useState(false);
+  const operadorDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (operadorDropdownRef.current && !operadorDropdownRef.current.contains(event.target as Node)) {
+        setShowOperadorDropdown(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const [formData, setFormData] = useState<ClienteFormData>({
     operador: cliente.operador || "",
@@ -369,22 +385,73 @@ export function EditClienteForm({ cliente, operarios, isOperario = false, isAdmi
             )}
           </div>
 
-          <div>
+          <div ref={operadorDropdownRef} className="relative">
             <label className="block text-sm font-medium text-gray-700 mb-1">Operador</label>
-            <select
-              value={formData.operador}
-              onChange={(e) => handleChange("operador", e.target.value)}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+            <button
+              type="button"
+              onClick={() => setShowOperadorDropdown(!showOperadorDropdown)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 bg-white focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent flex items-center justify-between"
             >
-              <option value="">Seleccionar...</option>
-              {/* Show current operador if not in the list */}
-              {formData.operador && !operarios.some(op => op.nombre === formData.operador) && (
-                <option value={formData.operador}>{formData.operador}</option>
-              )}
-              {operarios.map(op => (
-                <option key={op.id} value={op.nombre}>{op.nombre}</option>
-              ))}
-            </select>
+              <span className={formData.operador ? "text-gray-900" : "text-gray-400"}>
+                {formData.operador || "Seleccionar..."}
+              </span>
+              <ChevronDown className="w-4 h-4 text-gray-400" />
+            </button>
+
+            {showOperadorDropdown && (
+              <div className="absolute z-50 mt-1 w-full bg-white border border-gray-300 rounded-md shadow-lg max-h-60 overflow-hidden">
+                <div className="p-2 border-b border-gray-200">
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                    <input
+                      type="text"
+                      value={operadorSearch}
+                      onChange={(e) => setOperadorSearch(e.target.value)}
+                      placeholder="Buscar operador..."
+                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                      autoFocus
+                    />
+                  </div>
+                </div>
+                <div className="max-h-48 overflow-y-auto">
+                  {formData.operador && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        handleChange("operador", "");
+                        setShowOperadorDropdown(false);
+                        setOperadorSearch("");
+                      }}
+                      className="w-full px-3 py-2 text-left text-sm text-gray-500 hover:bg-gray-100 flex items-center gap-2"
+                    >
+                      <X className="w-3 h-3" />
+                      Quitar selección
+                    </button>
+                  )}
+                  {operarios
+                    .filter(op => op.nombre?.toLowerCase().includes(operadorSearch.toLowerCase()))
+                    .map(op => (
+                      <button
+                        key={op.id}
+                        type="button"
+                        onClick={() => {
+                          handleChange("operador", op.nombre);
+                          setShowOperadorDropdown(false);
+                          setOperadorSearch("");
+                        }}
+                        className={`w-full px-3 py-2 text-left text-sm hover:bg-gray-100 ${
+                          formData.operador === op.nombre ? "bg-[#BB292A]/10 text-[#BB292A]" : "text-gray-900"
+                        }`}
+                      >
+                        {op.nombre}
+                      </button>
+                    ))}
+                  {operarios.filter(op => op.nombre?.toLowerCase().includes(operadorSearch.toLowerCase())).length === 0 && (
+                    <p className="px-3 py-2 text-sm text-gray-500">No se encontraron operadores</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           <div className="md:col-span-2">
