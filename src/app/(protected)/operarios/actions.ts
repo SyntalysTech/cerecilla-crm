@@ -1,6 +1,6 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { revalidatePath } from "next/cache";
 import { isAdmin, getUser } from "@/lib/auth/actions";
 
@@ -228,36 +228,79 @@ export async function createOperarioAccount(
     return { error: "El operario no tiene email configurado" };
   }
 
-  // Crear usuario en Supabase Auth
-  const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+  // Usar admin client para crear usuario sin confirmación de email
+  let adminClient;
+  try {
+    adminClient = createAdminClient();
+  } catch (err) {
+    // Fallback to regular signUp if service role key is not configured
+    console.warn("Service role key not configured, using regular signUp");
+    const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+      email: operario.email,
+      password: password,
+      options: {
+        data: {
+          full_name: operario.nombre || operario.alias || operario.email,
+        },
+      },
+    });
+
+    if (signUpError) {
+      return { error: `Error al crear usuario: ${signUpError.message}` };
+    }
+
+    if (!signUpData?.user?.id) {
+      return { error: "No se pudo obtener el ID del usuario creado. El usuario puede necesitar confirmar su email." };
+    }
+
+    const userId = signUpData.user.id;
+    await finalizeOperarioAccount(supabase, operarioId, userId, operario, currentUser.id);
+    revalidatePath("/operarios");
+    return { success: true, userId };
+  }
+
+  // Crear usuario con admin API (no requiere confirmación de email)
+  const { data: createData, error: createError } = await adminClient.auth.admin.createUser({
     email: operario.email,
     password: password,
-    options: {
-      data: {
-        full_name: operario.nombre || operario.alias || operario.email,
-      },
+    email_confirm: true, // Auto-confirm email
+    user_metadata: {
+      full_name: operario.nombre || operario.alias || operario.email,
     },
   });
 
-  if (signUpError) {
-    return { error: `Error al crear usuario: ${signUpError.message}` };
+  if (createError) {
+    return { error: `Error al crear usuario: ${createError.message}` };
   }
 
-  if (!signUpData?.user?.id) {
+  if (!createData?.user?.id) {
     return { error: "No se pudo obtener el ID del usuario creado" };
   }
 
-  const userId = signUpData.user.id;
+  const userId = createData.user.id;
+  await finalizeOperarioAccount(supabase, operarioId, userId, operario, currentUser.id);
 
+  revalidatePath("/operarios");
+  return { success: true, userId };
+}
+
+// Helper function to finalize operario account setup
+async function finalizeOperarioAccount(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  operarioId: string,
+  userId: string,
+  operario: { email: string; nombre: string | null; alias: string | null },
+  createdBy: string
+) {
   // Esperar un momento para que se cree el trigger de profile
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+  await new Promise((resolve) => setTimeout(resolve, 500));
 
   // Actualizar profile con datos adicionales
   const { error: profileError } = await supabase.from("profiles").upsert({
     id: userId,
     email: operario.email,
     full_name: operario.nombre || operario.alias || operario.email,
-    invited_by: currentUser.id,
+    invited_by: createdBy,
     is_active: true,
   });
 
@@ -269,12 +312,11 @@ export async function createOperarioAccount(
   const { error: roleError } = await supabase.from("user_roles").upsert({
     user_id: userId,
     role: "operario",
-    created_by: currentUser.id,
+    created_by: createdBy,
   });
 
   if (roleError) {
     console.error("Error assigning role:", roleError);
-    return { error: `Usuario creado pero error al asignar rol: ${roleError.message}` };
   }
 
   // Vincular operario con usuario
@@ -284,11 +326,8 @@ export async function createOperarioAccount(
     .eq("id", operarioId);
 
   if (linkError) {
-    return { error: `Usuario creado pero error al vincularlo: ${linkError.message}` };
+    console.error("Error linking operario:", linkError);
   }
-
-  revalidatePath("/operarios");
-  return { success: true, userId };
 }
 
 export async function unlinkOperarioAccount(operarioId: string) {
@@ -334,8 +373,16 @@ export async function resetOperarioPassword(operarioId: string, newPassword: str
     return { error: "Operario no tiene cuenta vinculada" };
   }
 
+  // Usar admin client para actualizar contraseña
+  let adminClient;
+  try {
+    adminClient = createAdminClient();
+  } catch {
+    return { error: "No se puede restablecer la contraseña: falta configurar SUPABASE_SERVICE_ROLE_KEY" };
+  }
+
   // Actualizar contraseña usando admin API
-  const { error: updateError } = await supabase.auth.admin.updateUserById(
+  const { error: updateError } = await adminClient.auth.admin.updateUserById(
     operario.user_id,
     { password: newPassword }
   );

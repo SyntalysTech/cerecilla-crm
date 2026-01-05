@@ -185,19 +185,18 @@ export function WhatsAppClient({
 
   return (
     <div className="space-y-6">
-      {/* Warning - Pending phone number validation */}
+      {/* Nota de Syntalys para Laia */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
         <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
         <div>
-          <h3 className="font-medium text-blue-800">Pendiente de validacion por Meta</h3>
+          <h3 className="font-medium text-blue-800">Hola Laia! 👋</h3>
           <p className="text-sm text-blue-700 mt-1">
-            El numero de telefono <strong>+34 643 87 91 49</strong> esta pendiente de que Meta apruebe el certificado.
-            Una vez aprobado, podras obtener el <strong>Phone Number ID</strong> correcto desde WhatsApp Manager &gt; Phone Numbers &gt; (clic en el numero).
+            El modulo de WhatsApp ya esta preparado, pero estamos pendientes de que Meta apruebe el numero de telefono <strong>+34 643 87 91 49</strong>.
           </p>
           <p className="text-sm text-blue-700 mt-2">
-            El ID actual (<code className="bg-blue-100 px-1 rounded">1403905514461565</code>) es el WhatsApp Business Account ID (WABA),
-            no el Phone Number ID del numero especifico. Cuando Meta apruebe el numero, actualiza el Phone Number ID en la configuracion.
+            En cuanto lo aprueben, te avisamos y lo activamos para que puedas empezar a enviar mensajes a tus clientes. No tienes que hacer nada, nosotros nos encargamos!
           </p>
+          <p className="text-xs text-blue-500 mt-3 italic">— Syntalys</p>
         </div>
       </div>
 
