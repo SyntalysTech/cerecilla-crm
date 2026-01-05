@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { Mail, Database, Bell, Shield, Building2 } from "lucide-react";
 import { getEmpresaConfig } from "../../facturacion/actions";
 import { EmpresaConfigForm } from "./empresa-config-form";
+import { DangerZone } from "./danger-zone";
 
 export default async function AdminSettingsPage() {
   const isAdminUser = await isAdmin();
@@ -145,6 +146,9 @@ export default async function AdminSettingsPage() {
             </div>
           </div>
         ))}
+
+        {/* Danger Zone */}
+        <DangerZone />
       </div>
     </div>
   );
