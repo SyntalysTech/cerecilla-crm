@@ -130,19 +130,44 @@ function parseClienteRow(row: Record<string, unknown>) {
                    row["fecha_alta"] ?? row["created_at"] ?? row["fecha registro"] ?? row["Fecha Registro"];
   const fecha = parseDate(fechaRaw);
 
-  // Get separate address fields if provided
-  const tipoVia = getValue(row, "tipo_via", "tipo via", "Tipo Via", "Tipo Vía");
-  const nombreVia = getValue(row, "nombre_via", "nombre via", "Nombre Via", "Nombre Vía");
-  const numero = getValue(row, "numero", "Numero", "Número");
-  const escalera = getValue(row, "escalera", "Escalera");
-  const piso = getValue(row, "piso", "Piso");
-  const puerta = getValue(row, "puerta", "Puerta");
-  const codigoPostal = getValue(row, "codigo_postal", "codigo postal", "Codigo Postal", "Código Postal", "cp", "CP");
-  const poblacion = getValue(row, "poblacion", "Poblacion", "Población", "localidad", "Localidad", "ciudad", "Ciudad");
-  const provincia = getValue(row, "provincia", "Provincia");
+  // Get separate address fields if provided (including __EMPTY columns from Excel)
+  const tipoVia = getValue(row, "tipo_via", "tipo via", "Tipo Via", "Tipo Vía", "tipo calle", "Tipo Calle");
 
-  // Get direccion completa (fallback)
-  const direccionCompleta = getValue(row, "direccion", "Direccion", "dirección", "Dirección");
+  // nombre_via can be in "direccion" column when followed by __EMPTY columns for number/piso/etc
+  const direccionRaw = getValue(row, "direccion", "Direccion", "dirección", "Dirección");
+  const hasEmptyColumns = row["__EMPTY"] !== undefined;
+
+  // If we have __EMPTY columns, the "direccion" column is actually the street name
+  const nombreVia = hasEmptyColumns
+    ? direccionRaw
+    : getValue(row, "nombre_via", "nombre via", "Nombre Via", "Nombre Vía", "calle", "Calle");
+
+  // Get number, piso, puerta from __EMPTY columns or named columns
+  const numero = getValue(row, "__EMPTY", "numero", "Numero", "Número");
+  const piso = getValue(row, "__EMPTY_2", "piso", "Piso", "planta", "Planta");
+  const puerta = getValue(row, "__EMPTY_3", "puerta", "Puerta");
+  const codigoPostal = getValue(row, "__EMPTY_4", "codigo_postal", "codigo postal", "Codigo Postal", "Código Postal", "cp", "CP");
+  const poblacion = getValue(row, "__EMPTY_5", "poblacion", "Poblacion", "Población", "localidad", "Localidad", "ciudad", "Ciudad");
+  const provincia = getValue(row, "__EMPTY_6", "provincia", "Provincia");
+
+  // Escalera might be in a separate column
+  const escalera = getValue(row, "escalera", "Escalera");
+
+  // Get observaciones - check if content starts with "ADMIN:" to determine which field
+  const observacionesRaw = getValue(row, "observaciones", "Observaciones", "notas", "Notas", "comentarios", "Comentarios");
+  const observacionesAdminRaw = getValue(row, "observaciones_admin", "Observaciones Admin", "observaciones admin", "notas admin");
+
+  // If observaciones starts with "ADMIN:" or "- ADMIN:", it should go to observaciones_admin
+  let observaciones = observacionesRaw;
+  let observacionesAdmin = observacionesAdminRaw;
+
+  if (observacionesRaw && !observacionesAdminRaw) {
+    // Check if content is admin observations
+    if (observacionesRaw.startsWith("ADMIN:") || observacionesRaw.includes(" - ADMIN:")) {
+      observacionesAdmin = observacionesRaw;
+      observaciones = null;
+    }
+  }
 
   // Build the result object
   const result: Record<string, unknown> = {
@@ -159,8 +184,8 @@ function parseClienteRow(row: Record<string, unknown>) {
     email: getValue(row, "email", "Email", "correo", "Correo"),
     telefono: getValue(row, "telefono", "Telefono", "teléfono", "Teléfono"),
     cuenta_bancaria: getValue(row, "cuenta bancaria", "Cuenta Bancaria"),
-    observaciones: getValue(row, "observaciones", "Observaciones", "notas", "Notas", "comentarios", "Comentarios"),
-    observaciones_admin: getValue(row, "observaciones_admin", "Observaciones Admin", "observaciones admin", "notas admin"),
+    observaciones: observaciones,
+    observaciones_admin: observacionesAdmin,
     cups_gas: getValue(row, "cups gas", "CUPS Gas", "cups_gas"),
     cups_luz: getValue(row, "cups luz", "CUPS Luz", "cups_luz"),
     compania_gas: getValue(row, "compañia gas", "compania gas", "Compañia Gas", "Compania Gas"),
@@ -176,11 +201,30 @@ function parseClienteRow(row: Record<string, unknown>) {
     precio_kw_luz: getValue(row, "precio kw luz", "Precio kW Luz"),
   };
 
-  // Handle address: prefer separate fields if available, otherwise use direccion completa
-  if (tipoVia || nombreVia || numero || codigoPostal || poblacion || provincia) {
-    // Use separate address fields
-    result.tipo_via = tipoVia;
-    result.nombre_via = nombreVia;
+  // Handle address: use separate fields
+  if (nombreVia || numero || codigoPostal || poblacion || provincia) {
+    // Use separate address fields - detect tipo_via from nombreVia if not provided
+    let detectedTipoVia = tipoVia;
+    let cleanNombreVia = nombreVia;
+
+    if (!tipoVia && nombreVia) {
+      // Try to detect tipo_via from the start of nombreVia
+      const tiposVia = ["Calle", "Avenida", "Plaza", "Paseo", "Urbanización", "Polígono", "Carretera", "Camino"];
+      for (const tipo of tiposVia) {
+        if (nombreVia.toLowerCase().startsWith(tipo.toLowerCase() + " ")) {
+          detectedTipoVia = tipo;
+          cleanNombreVia = nombreVia.substring(tipo.length + 1).trim();
+          break;
+        }
+      }
+      // Default to "Calle" if no tipo detected
+      if (!detectedTipoVia) {
+        detectedTipoVia = "Calle";
+      }
+    }
+
+    result.tipo_via = detectedTipoVia;
+    result.nombre_via = cleanNombreVia;
     result.numero = numero;
     result.escalera = escalera;
     result.piso = piso;
@@ -191,8 +235,8 @@ function parseClienteRow(row: Record<string, unknown>) {
 
     // Also compose direccion from parts for backward compatibility
     const parts = [
-      tipoVia,
-      nombreVia,
+      detectedTipoVia,
+      cleanNombreVia,
       numero,
       escalera ? `Esc. ${escalera}` : null,
       piso ? `${piso}º` : null,
@@ -201,9 +245,9 @@ function parseClienteRow(row: Record<string, unknown>) {
     const addressLine = parts.join(" ");
     const locationLine = [codigoPostal, poblacion, provincia].filter(Boolean).join(", ");
     result.direccion = [addressLine, locationLine].filter(Boolean).join(", ");
-  } else if (direccionCompleta) {
-    // Use direccion completa as-is
-    result.direccion = direccionCompleta;
+  } else if (direccionRaw && !hasEmptyColumns) {
+    // Use direccion completa as-is (no separate columns)
+    result.direccion = direccionRaw;
   }
 
   // Only add created_at if we have a valid date
