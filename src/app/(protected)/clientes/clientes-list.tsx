@@ -207,22 +207,48 @@ function ObservacionesModal({ cliente, onClose }: { cliente: Cliente; onClose: (
     }
   };
 
-  // Get the observation text (prefer observaciones, fallback to observaciones_admin)
-  const observacionTexto = cliente.observaciones || cliente.observaciones_admin || "Sin observaciones";
+  // Get both observation texts
+  const hasObservaciones = cliente.observaciones && cliente.observaciones.trim() !== "";
+  const hasObservacionesAdmin = cliente.observaciones_admin && cliente.observaciones_admin.trim() !== "";
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" onClick={onClose}>
-      <div className="bg-[#2c3e50] rounded-lg shadow-2xl w-80 text-white" onClick={(e) => e.stopPropagation()}>
-        <div className="p-4 space-y-3">
-          <div>
-            <p className="text-gray-400 text-sm">Las observaciones del cliente</p>
-            <p className="text-gray-400 text-sm">han cambiado a: <span className="text-white font-medium uppercase">{observacionTexto}</span></p>
-          </div>
+      <div className="bg-[#2c3e50] rounded-lg shadow-2xl w-full max-w-lg text-white" onClick={(e) => e.stopPropagation()}>
+        {/* Header */}
+        <div className="p-4 border-b border-gray-600 flex items-center justify-between">
+          <h3 className="font-medium">Observaciones</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
 
-          <div className="border-t border-gray-600 pt-3">
-            <p className="text-gray-400 text-sm">Ultima Actualizacion:</p>
-            <p className="text-white text-sm font-medium">{formatDate(cliente.created_at)}</p>
-          </div>
+        {/* Content with scroll */}
+        <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
+          {/* Observaciones normales */}
+          {hasObservaciones && (
+            <div>
+              <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Observaciones</p>
+              <p className="text-white text-sm whitespace-pre-wrap">{cliente.observaciones}</p>
+            </div>
+          )}
+
+          {/* Observaciones admin */}
+          {hasObservacionesAdmin && (
+            <div>
+              <p className="text-yellow-400 text-xs uppercase tracking-wide mb-1">Observaciones Admin</p>
+              <p className="text-white text-sm whitespace-pre-wrap">{cliente.observaciones_admin}</p>
+            </div>
+          )}
+
+          {/* No observaciones */}
+          {!hasObservaciones && !hasObservacionesAdmin && (
+            <p className="text-gray-400 text-sm">Sin observaciones</p>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div className="p-4 border-t border-gray-600">
+          <p className="text-gray-400 text-xs">Última actualización: <span className="text-white">{formatDate(cliente.created_at)}</span></p>
         </div>
       </div>
     </div>
