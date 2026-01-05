@@ -2,9 +2,12 @@ import { createClient } from "@/lib/supabase/server";
 import { notFound } from "next/navigation";
 import { PageHeader } from "@/components/page-header";
 import Link from "next/link";
-import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { ClienteDetails } from "./cliente-details";
 import { DeleteClienteButton } from "./delete-cliente-button";
+import { ObservacionesChat } from "./observaciones-chat";
+import { getObservaciones } from "./observaciones-actions";
+import { isAdmin, getUser } from "@/lib/auth/actions";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -23,6 +26,11 @@ export default async function ClientePage({ params }: Props) {
   if (error || !cliente) {
     notFound();
   }
+
+  // Get observaciones and user info
+  const isAdminUser = await isAdmin();
+  const currentUser = await getUser();
+  const observaciones = await getObservaciones(id, isAdminUser);
 
   return (
     <div>
@@ -53,6 +61,26 @@ export default async function ClientePage({ params }: Props) {
       />
 
       <ClienteDetails cliente={cliente} />
+
+      {/* Observaciones Chat - Two columns like old CRM */}
+      <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <ObservacionesChat
+          clienteId={id}
+          observaciones={observaciones}
+          isAdmin={isAdminUser}
+          currentUserEmail={currentUser?.email || ""}
+          variant="normal"
+        />
+        {isAdminUser && (
+          <ObservacionesChat
+            clienteId={id}
+            observaciones={observaciones}
+            isAdmin={isAdminUser}
+            currentUserEmail={currentUser?.email || ""}
+            variant="admin"
+          />
+        )}
+      </div>
     </div>
   );
 }
