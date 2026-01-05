@@ -153,7 +153,7 @@ function parseClienteRow(row: Record<string, unknown>) {
   // Escalera might be in a separate column
   const escalera = getValue(row, "escalera", "Escalera");
 
-  // Get observaciones - check if content starts with "ADMIN:" to determine which field
+  // Get observaciones - these will be stored in cliente_observaciones table, not in cliente
   const observacionesRaw = getValue(row, "observaciones", "Observaciones", "notas", "Notas", "comentarios", "Comentarios");
   const observacionesAdminRaw = getValue(row, "observaciones_admin", "Observaciones Admin", "observaciones admin", "notas admin");
 
@@ -169,7 +169,7 @@ function parseClienteRow(row: Record<string, unknown>) {
     }
   }
 
-  // Build the result object
+  // Build the result object (observaciones will be added to cliente_observaciones table separately)
   const result: Record<string, unknown> = {
     operador,
     servicio: normalizeServicio(getValue(row, "servicio")),
@@ -184,8 +184,9 @@ function parseClienteRow(row: Record<string, unknown>) {
     email: getValue(row, "email", "Email", "correo", "Correo"),
     telefono: getValue(row, "telefono", "Telefono", "teléfono", "Teléfono"),
     cuenta_bancaria: getValue(row, "cuenta bancaria", "Cuenta Bancaria"),
-    observaciones: observaciones,
-    observaciones_admin: observacionesAdmin,
+    // Store observaciones temporarily for later insertion into cliente_observaciones
+    _observaciones: observaciones,
+    _observaciones_admin: observacionesAdmin,
     cups_gas: getValue(row, "cups gas", "CUPS Gas", "cups_gas"),
     cups_luz: getValue(row, "cups luz", "CUPS Luz", "cups_luz"),
     compania_gas: getValue(row, "compañia gas", "compania gas", "Compañia Gas", "Compania Gas"),
@@ -331,31 +332,93 @@ export async function POST(request: NextRequest) {
         });
 
         // Process in batches
-        const validRows: object[] = [];
+        const validRows: Array<{ data: Record<string, unknown>; observaciones: string | null; observaciones_admin: string | null }> = [];
+
+        // Helper to insert a batch and create observaciones
+        async function insertBatch(rows: typeof validRows) {
+          // Prepare rows for insertion (remove temporary observaciones fields)
+          const rowsToInsert = rows.map(r => {
+            const { _observaciones, _observaciones_admin, ...clienteData } = r.data as Record<string, unknown>;
+            return clienteData;
+          });
+
+          const { error, data: insertedData } = await supabase
+            .from(tableName)
+            .insert(rowsToInsert)
+            .select("id");
+
+          if (error) {
+            console.error("Batch insert error:", error.message);
+            lastError = error.message;
+            errors += rows.length;
+            return;
+          }
+
+          imported += insertedData?.length || rows.length;
+
+          // For clientes, create observaciones entries
+          if (type === "clientes" && insertedData) {
+            const observacionesToInsert: Array<{
+              cliente_id: string;
+              mensaje: string;
+              es_admin: boolean;
+              user_email: string;
+              user_name: string;
+            }> = [];
+
+            for (let i = 0; i < insertedData.length; i++) {
+              const clienteId = insertedData[i].id;
+              const obs = rows[i].data._observaciones as string | null;
+              const obsAdmin = rows[i].data._observaciones_admin as string | null;
+
+              if (obs) {
+                observacionesToInsert.push({
+                  cliente_id: clienteId,
+                  mensaje: obs,
+                  es_admin: false,
+                  user_email: "importacion@cerecilla.com",
+                  user_name: "Importación Excel",
+                });
+              }
+
+              if (obsAdmin) {
+                observacionesToInsert.push({
+                  cliente_id: clienteId,
+                  mensaje: obsAdmin,
+                  es_admin: true,
+                  user_email: "importacion@cerecilla.com",
+                  user_name: "Importación Excel",
+                });
+              }
+            }
+
+            if (observacionesToInsert.length > 0) {
+              const { error: obsError } = await supabase
+                .from("cliente_observaciones")
+                .insert(observacionesToInsert);
+
+              if (obsError) {
+                console.error("Error inserting observaciones:", obsError.message);
+              }
+            }
+          }
+        }
 
         for (const row of data) {
           current++;
           const parsed = parseRow(row);
 
           if (parsed) {
-            validRows.push(parsed);
+            validRows.push({
+              data: parsed,
+              observaciones: (parsed as Record<string, unknown>)._observaciones as string | null,
+              observaciones_admin: (parsed as Record<string, unknown>)._observaciones_admin as string | null,
+            });
           }
 
           // When batch is full, insert
           if (validRows.length >= BATCH_SIZE) {
-            const { error, data: insertedData } = await supabase
-              .from(tableName)
-              .insert(validRows)
-              .select("id");
-
-            if (error) {
-              console.error("Batch insert error:", error.message);
-              lastError = error.message;
-              errors += validRows.length;
-            } else {
-              imported += insertedData?.length || validRows.length;
-            }
-
+            await insertBatch(validRows);
             validRows.length = 0; // Clear batch
 
             // Send progress update
@@ -372,18 +435,7 @@ export async function POST(request: NextRequest) {
 
         // Insert remaining rows
         if (validRows.length > 0) {
-          const { error, data: insertedData } = await supabase
-            .from(tableName)
-            .insert(validRows)
-            .select("id");
-
-          if (error) {
-            console.error("Final batch insert error:", error.message);
-            lastError = error.message;
-            errors += validRows.length;
-          } else {
-            imported += insertedData?.length || validRows.length;
-          }
+          await insertBatch(validRows);
         }
 
         console.log(`Import finished: ${imported} imported, ${errors} errors`);

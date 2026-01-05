@@ -1,6 +1,6 @@
 "use client";
 
-import { User, Building2, Mail, Phone, MapPin, CreditCard, Zap, Flame, FileText, Calendar, CheckCircle, XCircle, MessageSquare } from "lucide-react";
+import { User, Building2, Mail, Phone, MapPin, CreditCard, Zap, Flame, FileText, Calendar, CheckCircle, XCircle } from "lucide-react";
 
 interface Cliente {
   id: string;
@@ -243,33 +243,6 @@ export function ClienteDetails({ cliente }: { cliente: Cliente }) {
           </div>
         </div>
 
-        {/* Observaciones Importadas (from Excel) */}
-        {(cliente.observaciones || cliente.observaciones_admin) && (
-          <div className="bg-white rounded-lg border border-gray-200 p-6">
-            <h3 className="text-lg font-medium text-gray-900 mb-4 flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-gray-400" />
-              Historial de Observaciones
-            </h3>
-
-            {cliente.observaciones && (
-              <div className="mb-4">
-                <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Observaciones</h4>
-                <div className="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-3 rounded-md max-h-48 overflow-y-auto">
-                  {cliente.observaciones}
-                </div>
-              </div>
-            )}
-
-            {cliente.observaciones_admin && (
-              <div>
-                <h4 className="text-xs font-medium text-yellow-600 uppercase tracking-wider mb-2">Observaciones Admin</h4>
-                <div className="text-sm text-gray-700 whitespace-pre-wrap bg-yellow-50 p-3 rounded-md border border-yellow-200 max-h-48 overflow-y-auto">
-                  {cliente.observaciones_admin}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Sidebar */}
