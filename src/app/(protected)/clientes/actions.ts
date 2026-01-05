@@ -263,6 +263,39 @@ export async function updateClienteOperadores(clienteId: string, operarioIds: st
   return { success: true };
 }
 
+// Get observaciones for a cliente from cliente_observaciones table
+export async function getClienteObservaciones(clienteId: string) {
+  const supabase = await createClient();
+
+  // Check if user is admin to determine if they can see admin observations
+  const { data: { user } } = await supabase.auth.getUser();
+  let isAdmin = false;
+
+  if (user) {
+    const { data: userRole } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .single();
+
+    isAdmin = userRole?.role === "admin" || userRole?.role === "super_admin" || userRole?.role === "manager";
+  }
+
+  // Fetch all observaciones - RLS will handle visibility
+  const { data, error } = await supabase
+    .from("cliente_observaciones")
+    .select("*")
+    .eq("cliente_id", clienteId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching observaciones:", error);
+    return { observaciones: [], isAdmin };
+  }
+
+  return { observaciones: data || [], isAdmin };
+}
+
 // Notificar cambio de estado al operador
 export async function notifyEstadoChange(
   clienteId: string,

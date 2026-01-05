@@ -18,7 +18,7 @@ import {
   Loader2,
   Copy,
 } from "lucide-react";
-import { deleteCliente, duplicateCliente } from "./actions";
+import { deleteCliente, duplicateCliente, getClienteObservaciones } from "./actions";
 
 interface Cliente {
   id: string;
@@ -47,8 +47,6 @@ interface Cliente {
   factura_cobros: string | null;
   precio_kw_gas: string | null;
   precio_kw_luz: string | null;
-  observaciones: string | null;
-  observaciones_admin: string | null;
   created_at: string;
 }
 
@@ -189,7 +187,31 @@ function ActionMenu({ cliente, onClose, onRefresh }: { cliente: Cliente; onClose
   );
 }
 
-function ObservacionesModal({ cliente, onClose }: { cliente: Cliente; onClose: () => void }) {
+interface Observacion {
+  id: string;
+  mensaje: string;
+  es_admin: boolean;
+  user_name: string | null;
+  user_email: string | null;
+  created_at: string;
+}
+
+function ObservacionesModal({ clienteId, clienteName, onClose }: { clienteId: string; clienteName: string; onClose: () => void }) {
+  const [observaciones, setObservaciones] = useState<Observacion[]>([]);
+  const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function fetchObservaciones() {
+      setLoading(true);
+      const result = await getClienteObservaciones(clienteId);
+      setObservaciones(result.observaciones);
+      setIsAdmin(result.isAdmin);
+      setLoading(false);
+    }
+    fetchObservaciones();
+  }, [clienteId]);
+
   const formatDate = (dateStr: string) => {
     try {
       const date = new Date(dateStr);
@@ -200,55 +222,84 @@ function ObservacionesModal({ cliente, onClose }: { cliente: Cliente; onClose: (
       }) + " " + date.toLocaleTimeString("es-ES", {
         hour: "2-digit",
         minute: "2-digit",
-        second: "2-digit",
       });
     } catch {
       return "—";
     }
   };
 
-  // Get both observation texts
-  const hasObservaciones = cliente.observaciones && cliente.observaciones.trim() !== "";
-  const hasObservacionesAdmin = cliente.observaciones_admin && cliente.observaciones_admin.trim() !== "";
+  // Separate normal and admin observations
+  const normalObs = observaciones.filter(o => !o.es_admin);
+  const adminObs = observaciones.filter(o => o.es_admin);
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100] p-4" onClick={onClose}>
-      <div className="bg-[#2c3e50] rounded-lg shadow-2xl w-full max-w-lg text-white" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-[#2c3e50] rounded-lg shadow-2xl w-full max-w-2xl text-white" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
         <div className="p-4 border-b border-gray-600 flex items-center justify-between">
-          <h3 className="font-medium">Observaciones</h3>
+          <h3 className="font-medium">Observaciones - {clienteName}</h3>
           <button onClick={onClose} className="text-gray-400 hover:text-white">
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content with scroll */}
-        <div className="p-4 space-y-4 max-h-[60vh] overflow-y-auto">
-          {/* Observaciones normales */}
-          {hasObservaciones && (
-            <div>
-              <p className="text-gray-400 text-xs uppercase tracking-wide mb-1">Observaciones</p>
-              <p className="text-white text-sm whitespace-pre-wrap">{cliente.observaciones}</p>
+        <div className="p-4 max-h-[60vh] overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+            </div>
+          ) : observaciones.length === 0 ? (
+            <p className="text-gray-400 text-sm text-center py-4">Sin observaciones</p>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Normal observations column */}
+              <div>
+                <h4 className="text-sm font-semibold text-blue-400 uppercase tracking-wider mb-3">
+                  Observaciones con Operador
+                </h4>
+                <div className="space-y-3 max-h-[40vh] overflow-y-auto">
+                  {normalObs.length === 0 ? (
+                    <p className="text-gray-500 text-xs italic">Sin observaciones</p>
+                  ) : (
+                    normalObs.map((obs) => (
+                      <div key={obs.id} className="bg-[#34495e] rounded p-3">
+                        <p className="text-white text-sm whitespace-pre-wrap">{obs.mensaje}</p>
+                        <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
+                          <span>{obs.user_name || obs.user_email || "Sistema"}</span>
+                          <span>{formatDate(obs.created_at)}</span>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
+              {/* Admin observations column - only show if user is admin */}
+              {isAdmin && (
+                <div>
+                  <h4 className="text-sm font-semibold text-yellow-400 uppercase tracking-wider mb-3">
+                    Observaciones de Administración
+                  </h4>
+                  <div className="space-y-3 max-h-[40vh] overflow-y-auto">
+                    {adminObs.length === 0 ? (
+                      <p className="text-gray-500 text-xs italic">Sin observaciones admin</p>
+                    ) : (
+                      adminObs.map((obs) => (
+                        <div key={obs.id} className="bg-[#5d4e37] rounded p-3 border-l-2 border-yellow-500">
+                          <p className="text-white text-sm whitespace-pre-wrap">{obs.mensaje}</p>
+                          <div className="mt-2 flex items-center justify-between text-xs text-gray-400">
+                            <span>{obs.user_name || obs.user_email || "Admin"}</span>
+                            <span>{formatDate(obs.created_at)}</span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
           )}
-
-          {/* Observaciones admin */}
-          {hasObservacionesAdmin && (
-            <div>
-              <p className="text-yellow-400 text-xs uppercase tracking-wide mb-1">Observaciones Admin</p>
-              <p className="text-white text-sm whitespace-pre-wrap">{cliente.observaciones_admin}</p>
-            </div>
-          )}
-
-          {/* No observaciones */}
-          {!hasObservaciones && !hasObservacionesAdmin && (
-            <p className="text-gray-400 text-sm">Sin observaciones</p>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-600">
-          <p className="text-gray-400 text-xs">Última actualización: <span className="text-white">{formatDate(cliente.created_at)}</span></p>
         </div>
       </div>
     </div>
@@ -306,7 +357,7 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
   const [currentPage, setCurrentPage] = useState(1);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [menuPosition, setMenuPosition] = useState<{ top: number; left: number } | null>(null);
-  const [observacionesCliente, setObservacionesCliente] = useState<Cliente | null>(null);
+  const [observacionesModal, setObservacionesModal] = useState<{ clienteId: string; clienteName: string } | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const subDropdownRef = useRef<HTMLDivElement>(null);
   const itemsPerPage = 20;
@@ -629,12 +680,11 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
                   <td className="px-2 py-2 whitespace-nowrap">
                     <div className="flex items-center gap-1">
                       <button
-                        onClick={() => setObservacionesCliente(cliente)}
-                        className={`p-1 rounded ${
-                          cliente.observaciones || cliente.observaciones_admin
-                            ? "text-yellow-600 hover:bg-yellow-100"
-                            : "text-gray-300 hover:bg-gray-100"
-                        }`}
+                        onClick={() => setObservacionesModal({
+                          clienteId: cliente.id,
+                          clienteName: cliente.nombre_apellidos || cliente.razon_social || "Cliente"
+                        })}
+                        className="p-1 rounded text-yellow-600 hover:bg-yellow-100"
                         title="Ver observaciones"
                       >
                         <Bell className="w-4 h-4" />
@@ -809,10 +859,11 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
       )}
 
       {/* Modal de observaciones */}
-      {observacionesCliente && (
+      {observacionesModal && (
         <ObservacionesModal
-          cliente={observacionesCliente}
-          onClose={() => setObservacionesCliente(null)}
+          clienteId={observacionesModal.clienteId}
+          clienteName={observacionesModal.clienteName}
+          onClose={() => setObservacionesModal(null)}
         />
       )}
     </div>
