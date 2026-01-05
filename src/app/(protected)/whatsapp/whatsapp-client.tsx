@@ -185,6 +185,22 @@ export function WhatsAppClient({
 
   return (
     <div className="space-y-6">
+      {/* Warning - Pending phone number validation */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
+        <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
+        <div>
+          <h3 className="font-medium text-blue-800">Pendiente de validacion por Meta</h3>
+          <p className="text-sm text-blue-700 mt-1">
+            El numero de telefono <strong>+34 643 87 91 49</strong> esta pendiente de que Meta apruebe el certificado.
+            Una vez aprobado, podras obtener el <strong>Phone Number ID</strong> correcto desde WhatsApp Manager &gt; Phone Numbers &gt; (clic en el numero).
+          </p>
+          <p className="text-sm text-blue-700 mt-2">
+            El ID actual (<code className="bg-blue-100 px-1 rounded">1403905514461565</code>) es el WhatsApp Business Account ID (WABA),
+            no el Phone Number ID del numero especifico. Cuando Meta apruebe el numero, actualiza el Phone Number ID en la configuracion.
+          </p>
+        </div>
+      </div>
+
       {/* Warning if not configured */}
       {!isConfigured && (
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
@@ -192,7 +208,7 @@ export function WhatsAppClient({
           <div>
             <h3 className="font-medium text-amber-800">WhatsApp no configurado</h3>
             <p className="text-sm text-amber-700 mt-1">
-              Configura las credenciales de WhatsApp Business API en la pestaña de Configuración para poder enviar mensajes.
+              Configura las credenciales de WhatsApp Business API en la pestana de Configuracion para poder enviar mensajes.
             </p>
           </div>
         </div>
