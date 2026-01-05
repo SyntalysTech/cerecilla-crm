@@ -26,6 +26,7 @@ import {
   Receipt,
   RefreshCw,
   UserPlus,
+  MessageCircle,
 } from "lucide-react";
 import { logout, type UserRole } from "@/lib/auth/actions";
 import { useSidebar } from "./sidebar-provider";
@@ -59,6 +60,7 @@ const fullNavigation = [
   {
     category: "Comunicación",
     items: [
+      { name: "WhatsApp", href: "/whatsapp", icon: MessageCircle },
       { name: "Emails", href: "/emails", icon: Mail },
       { name: "Campañas", href: "/campaigns", icon: BarChart3 },
       { name: "Email Templates", href: "/email-templates", icon: FileText },
