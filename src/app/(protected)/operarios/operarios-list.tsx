@@ -378,10 +378,10 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
       // Autónomo: necesita cuenta_bancaria, doc_autonomo, contrato
       // Empresa: necesita cuenta_bancaria, doc_cif, doc_escritura, contrato
       let matchesDocs = true;
-      const isDocumentacionCompleta = operario.tipo === "Autonomo"
-        ? (operario.tiene_cuenta_bancaria && operario.tiene_doc_autonomo && operario.tiene_doc_contrato)
+      const isDocumentacionCompleta: boolean = operario.tipo === "Autonomo"
+        ? Boolean(operario.tiene_cuenta_bancaria && operario.tiene_doc_autonomo && operario.tiene_doc_contrato)
         : operario.tipo === "Empresa"
-          ? (operario.tiene_cuenta_bancaria && operario.tiene_doc_cif && operario.tiene_doc_escritura && operario.tiene_doc_contrato)
+          ? Boolean(operario.tiene_cuenta_bancaria && operario.tiene_doc_cif && operario.tiene_doc_escritura && operario.tiene_doc_contrato)
           : false; // Sin tipo = incompleto
 
       if (docsFilter === "completa") {
