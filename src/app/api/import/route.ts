@@ -371,13 +371,15 @@ export async function POST(request: NextRequest) {
               const obs = rows[i].data._observaciones as string | null;
               const obsAdmin = rows[i].data._observaciones_admin as string | null;
 
+              // Both observaciones and observaciones_admin from Excel are part of the
+              // operator-admin chat (not private admin notes), so both use es_admin: false
               if (obs) {
                 observacionesToInsert.push({
                   cliente_id: clienteId,
                   mensaje: obs,
                   es_admin: false,
                   user_email: "importacion@cerecilla.com",
-                  user_name: "Importación Excel",
+                  user_name: "Importación Excel (Operador)",
                 });
               }
 
@@ -385,9 +387,9 @@ export async function POST(request: NextRequest) {
                 observacionesToInsert.push({
                   cliente_id: clienteId,
                   mensaje: obsAdmin,
-                  es_admin: true,
+                  es_admin: false, // This is admin talking TO operator, not private admin notes
                   user_email: "importacion@cerecilla.com",
-                  user_name: "Importación Excel",
+                  user_name: "Importación Excel (Admin)",
                 });
               }
             }
