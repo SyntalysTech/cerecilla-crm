@@ -167,6 +167,9 @@ export function ClienteDocumentos({
               <FileText className="w-5 h-5 text-gray-400" />
               Documentos
             </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              Usa Ctrl+Click para seleccionar varios archivos
+            </p>
             {targetClienteIds.length > 1 && (
               <p className="text-xs text-blue-600 mt-0.5">
                 Se subirán a las {targetClienteIds.length} fichas creadas
