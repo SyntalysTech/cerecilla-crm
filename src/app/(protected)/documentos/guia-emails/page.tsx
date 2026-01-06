@@ -11,7 +11,7 @@ export default function GuiaEmailsPage() {
   return (
     <div className="max-w-4xl mx-auto">
       {/* Back link */}
-      <div className="flex items-center justify-between mb-6 print:hidden">
+      <div className="flex items-center justify-between mb-6" data-print-hidden="true">
         <Link
           href="/documentos"
           className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"

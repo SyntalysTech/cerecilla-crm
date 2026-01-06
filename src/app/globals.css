@@ -79,7 +79,7 @@ body {
   aside,
   header,
   .sidebar,
-  .print\\:hidden {
+  [data-print-hidden="true"] {
     display: none !important;
   }
 
@@ -105,14 +105,8 @@ body {
   }
 
   /* Avoid page breaks inside elements */
-  section,
-  .bg-white {
+  section {
     break-inside: avoid;
     page-break-inside: avoid;
-  }
-
-  /* Reset gradients to solid colors for print */
-  .bg-gradient-to-r {
-    background: #BB292A !important;
   }
 }
