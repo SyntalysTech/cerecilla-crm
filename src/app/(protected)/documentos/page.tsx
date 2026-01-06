@@ -24,6 +24,16 @@ const defaultDocumentos = [
     created_at: "",
     isDefault: true,
   },
+  {
+    id: "guia-calentamiento-emails",
+    nombre: "Guía de Calentamiento de Emails",
+    descripcion: "Cómo evitar que los emails lleguen a spam. Plan de 4 semanas para calentar el dominio y ganar reputación.",
+    tipo: "guia",
+    archivo_url: "/documentos/guia-emails",
+    archivo_nombre: "",
+    created_at: "",
+    isDefault: true,
+  },
 ];
 
 export default async function DocumentosPage() {
