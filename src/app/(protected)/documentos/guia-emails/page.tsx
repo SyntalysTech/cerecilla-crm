@@ -1,22 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowLeft, Mail, CheckCircle2, AlertTriangle, Clock, Users, Shield, Thermometer } from "lucide-react";
+import { ArrowLeft, Mail, CheckCircle2, AlertTriangle, Clock, Users, Shield, Thermometer, Download } from "lucide-react";
 
 export default function GuiaEmailsPage() {
+  const handleDownloadPDF = () => {
+    window.print();
+  };
+
   return (
     <div className="max-w-4xl mx-auto">
       {/* Back link */}
-      <Link
-        href="/documentos"
-        className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900 mb-6"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Volver a Documentos
-      </Link>
+      <div className="flex items-center justify-between mb-6 print:hidden">
+        <Link
+          href="/documentos"
+          className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Volver a Documentos
+        </Link>
+        <button
+          onClick={handleDownloadPDF}
+          className="inline-flex items-center gap-2 px-4 py-2 bg-[#BB292A] text-white text-sm font-medium rounded-md hover:bg-[#a02324] transition-colors"
+        >
+          <Download className="w-4 h-4" />
+          Descargar PDF
+        </button>
+      </div>
 
       {/* Header */}
-      <div className="bg-gradient-to-r from-[#BB292A] to-[#8B1E1F] rounded-lg p-6 text-white mb-8">
+      <div className="bg-gradient-to-r from-[#BB292A] to-[#8B1E1F] rounded-lg p-6 text-white mb-8 print:bg-[#BB292A] print:rounded-none">
         <div className="flex items-center gap-3 mb-2">
           <Thermometer className="w-8 h-8" />
           <h1 className="text-2xl font-bold">Guía de Calentamiento de Emails</h1>
