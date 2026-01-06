@@ -55,9 +55,9 @@ export function ClienteDocumentos({
   const [localDocumentos, setLocalDocumentos] = useState(documentos);
   const [uploading, setUploading] = useState(false);
   const [showModal, setShowModal] = useState(false);
-  const [nombre, setNombre] = useState("");
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [fileNames, setFileNames] = useState<string[]>([]);
   const [descripcion, setDescripcion] = useState("");
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -65,55 +65,71 @@ export function ClienteDocumentos({
   }, [documentos]);
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
-      if (!nombre) {
-        setNombre(file.name.replace(/\.[^/.]+$/, ""));
-      }
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const filesArray = Array.from(files);
+      setSelectedFiles(filesArray);
+      // Initialize file names with original names (without extension)
+      setFileNames(filesArray.map(f => f.name.replace(/\.[^/.]+$/, "")));
       setShowModal(true);
     }
   }
 
   async function handleUpload() {
-    if (!selectedFile || !nombre.trim()) return;
+    // Validate that we have files and all have names
+    if (selectedFiles.length === 0) return;
+    const hasEmptyName = fileNames.some(name => !name.trim());
+    if (hasEmptyName) {
+      alert("Por favor, introduce un nombre para todos los documentos");
+      return;
+    }
 
     setUploading(true);
 
-    // Upload to all target clients
-    const uploadPromises = targetClienteIds.map(async (targetId) => {
-      const formData = new FormData();
-      formData.append("file", selectedFile);
-      formData.append("nombre", nombre.trim());
-      formData.append("descripcion", descripcion.trim());
-      return uploadClienteDocumento(targetId, formData);
-    });
+    const uploadedDocs: ClienteDocumento[] = [];
+    let errorCount = 0;
 
-    const results = await Promise.all(uploadPromises);
+    // Upload each file to all target clients
+    for (let i = 0; i < selectedFiles.length; i++) {
+      const file = selectedFiles[i];
+      const nombre = fileNames[i];
 
-    // Check if the upload to current client succeeded
-    const currentResult = results[0];
-    const allSucceeded = results.every(r => r.success);
-    const someSucceeded = results.some(r => r.success);
+      // Upload to all target clients
+      const uploadPromises = targetClienteIds.map(async (targetId) => {
+        const formData = new FormData();
+        formData.append("file", file);
+        formData.append("nombre", nombre.trim());
+        formData.append("descripcion", descripcion.trim());
+        return uploadClienteDocumento(targetId, formData);
+      });
 
-    if (currentResult.success && currentResult.documento) {
-      setLocalDocumentos((prev) => [currentResult.documento as ClienteDocumento, ...prev]);
-      setShowModal(false);
-      setNombre("");
-      setDescripcion("");
-      setSelectedFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = "";
+      const results = await Promise.all(uploadPromises);
+      const currentResult = results[0]; // Result for the current client
 
-      if (targetClienteIds.length > 1) {
-        if (allSucceeded) {
-          // All uploads succeeded - no alert needed, it's the expected behavior
-        } else if (someSucceeded) {
-          alert(`Documento subido a ${results.filter(r => r.success).length} de ${targetClienteIds.length} fichas. Algunas subidas fallaron.`);
-        }
+      if (currentResult.success && currentResult.documento) {
+        uploadedDocs.push(currentResult.documento as ClienteDocumento);
+      } else {
+        errorCount++;
       }
-    } else {
-      alert(currentResult.error || "Error al subir documento");
     }
+
+    // Update local state with all uploaded docs
+    if (uploadedDocs.length > 0) {
+      setLocalDocumentos((prev) => [...uploadedDocs, ...prev]);
+    }
+
+    // Reset form
+    setShowModal(false);
+    setSelectedFiles([]);
+    setFileNames([]);
+    setDescripcion("");
+    if (fileInputRef.current) fileInputRef.current.value = "";
+
+    // Show result message
+    if (errorCount > 0) {
+      alert(`Se subieron ${uploadedDocs.length} documentos. ${errorCount} fallaron.`);
+    }
+
     setUploading(false);
   }
 
@@ -163,6 +179,7 @@ export function ClienteDocumentos({
             <input
               ref={fileInputRef}
               type="file"
+              multiple
               className="hidden"
               onChange={handleFileSelect}
               accept=".pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.jpg,.jpeg,.png,.gif,.webp"
@@ -231,15 +248,17 @@ export function ClienteDocumentos({
       {/* Upload Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-md p-6 mx-4">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-lg p-6 mx-4 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-medium text-gray-900">Subir documento</h3>
+              <h3 className="text-lg font-medium text-gray-900">
+                Subir {selectedFiles.length > 1 ? `${selectedFiles.length} documentos` : "documento"}
+              </h3>
               <button
                 onClick={() => {
                   setShowModal(false);
-                  setNombre("");
+                  setSelectedFiles([]);
+                  setFileNames([]);
                   setDescripcion("");
-                  setSelectedFile(null);
                   if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
                 className="p-1 text-gray-400 hover:text-gray-600"
@@ -248,55 +267,69 @@ export function ClienteDocumentos({
               </button>
             </div>
 
-            {selectedFile && (
-              <div className="mb-4 p-3 bg-gray-50 rounded-md flex items-center gap-3">
-                <File className="w-8 h-8 text-gray-400" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {selectedFile.name}
-                  </p>
-                  <p className="text-xs text-gray-500">
-                    {formatFileSize(selectedFile.size)}
-                  </p>
+            {/* Files list with individual name inputs */}
+            <div className="space-y-3 mb-4">
+              {selectedFiles.map((file, index) => (
+                <div key={index} className="p-3 bg-gray-50 rounded-md">
+                  <div className="flex items-center gap-3 mb-2">
+                    <File className="w-6 h-6 text-gray-400 flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-gray-600 truncate">
+                        {file.name} · {formatFileSize(file.size)}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        const newFiles = selectedFiles.filter((_, i) => i !== index);
+                        const newNames = fileNames.filter((_, i) => i !== index);
+                        if (newFiles.length === 0) {
+                          setShowModal(false);
+                          if (fileInputRef.current) fileInputRef.current.value = "";
+                        }
+                        setSelectedFiles(newFiles);
+                        setFileNames(newNames);
+                      }}
+                      className="p-1 text-gray-400 hover:text-red-500"
+                      title="Quitar archivo"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    value={fileNames[index] || ""}
+                    onChange={(e) => {
+                      const newNames = [...fileNames];
+                      newNames[index] = e.target.value;
+                      setFileNames(newNames);
+                    }}
+                    className="w-full px-3 py-1.5 border border-gray-300 rounded text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                    placeholder="Nombre del documento *"
+                  />
                 </div>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Nombre del documento *
-                </label>
-                <input
-                  type="text"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-                  placeholder="Ej: Contrato de luz"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Descripción (opcional)
-                </label>
-                <textarea
-                  value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value)}
-                  rows={2}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
-                  placeholder="Añade una descripción..."
-                />
-              </div>
+              ))}
             </div>
 
-            <div className="flex justify-end gap-3 mt-6">
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Descripción general (opcional)
+              </label>
+              <textarea
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                rows={2}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md text-gray-900 focus:outline-none focus:ring-2 focus:ring-[#BB292A] focus:border-transparent"
+                placeholder="Añade una descripción para todos los documentos..."
+              />
+            </div>
+
+            <div className="flex justify-end gap-3">
               <button
                 onClick={() => {
                   setShowModal(false);
-                  setNombre("");
+                  setSelectedFiles([]);
+                  setFileNames([]);
                   setDescripcion("");
-                  setSelectedFile(null);
                   if (fileInputRef.current) fileInputRef.current.value = "";
                 }}
                 className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900"
@@ -305,18 +338,18 @@ export function ClienteDocumentos({
               </button>
               <button
                 onClick={handleUpload}
-                disabled={uploading || !nombre.trim()}
+                disabled={uploading || selectedFiles.length === 0 || fileNames.some(n => !n.trim())}
                 className="px-4 py-2 bg-[#BB292A] text-white text-sm font-medium rounded-md hover:bg-[#a02324] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >
                 {uploading ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin" />
-                    Subiendo...
+                    Subiendo {selectedFiles.length > 1 ? `${selectedFiles.length} archivos...` : "..."}
                   </>
                 ) : (
                   <>
                     <Upload className="w-4 h-4" />
-                    Subir
+                    Subir {selectedFiles.length > 1 ? `${selectedFiles.length} archivos` : ""}
                   </>
                 )}
               </button>
