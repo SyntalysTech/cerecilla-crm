@@ -262,19 +262,20 @@ export async function getWhatsAppMessages(
   const supabase = await createClient();
 
   // Get total count
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from("whatsapp_messages")
     .select("*", { count: "exact", head: true });
 
-  // Get messages with cliente info
+  console.log("getWhatsAppMessages - count:", count, "countError:", countError);
+
+  // Get messages - fetch without join first to debug
   const { data, error } = await supabase
     .from("whatsapp_messages")
-    .select(`
-      *,
-      cliente:clientes(nombre, email)
-    `)
+    .select("*")
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
+
+  console.log("getWhatsAppMessages - data:", data?.length, "error:", error, "first:", data?.[0]);
 
   if (error) {
     console.error("Error fetching messages:", error);
@@ -301,7 +302,10 @@ export async function getWhatsAppMessages(
     campaignId: m.campaign_id,
     sentBy: m.sent_by,
     createdAt: m.created_at,
-    cliente: m.cliente,
+    cliente: null, // Will be fetched separately if needed
+    direction: m.direction || "outgoing",
+    senderName: m.sender_name,
+    receivedAt: m.received_at,
   }));
 
   return { messages, total: count || 0 };
@@ -843,22 +847,13 @@ export interface WhatsAppConversation {
 export async function getWhatsAppConversations(): Promise<WhatsAppConversation[]> {
   const supabase = await createClient();
 
-  // Get distinct phone numbers with their last message
+  // Get distinct phone numbers with their last message - simplified query
   const { data, error } = await supabase
     .from("whatsapp_messages")
-    .select(`
-      phone_number,
-      cliente_id,
-      content,
-      direction,
-      sender_name,
-      created_at,
-      is_read,
-      cliente:clientes(nombre)
-    `)
+    .select("*")
     .order("created_at", { ascending: false });
 
-  console.log("getWhatsAppConversations - data:", data?.length, "error:", error);
+  console.log("getWhatsAppConversations - data:", data?.length, "error:", error, "first:", data?.[0]);
 
   if (error) {
     console.error("Error fetching conversations:", error);
@@ -870,14 +865,12 @@ export async function getWhatsAppConversations(): Promise<WhatsAppConversation[]
 
   for (const msg of data || []) {
     const phone = msg.phone_number;
-    const cliente = msg.cliente as { nombre: string } | { nombre: string }[] | null;
-    const clienteNombre = Array.isArray(cliente) ? cliente[0]?.nombre : cliente?.nombre;
 
     if (!conversationsMap.has(phone)) {
       conversationsMap.set(phone, {
         phoneNumber: phone,
         clienteId: msg.cliente_id,
-        clienteNombre: clienteNombre || null,
+        clienteNombre: null, // Not fetched in simplified query
         senderName: msg.sender_name,
         lastMessage: msg.content || "",
         lastMessageAt: msg.created_at,
@@ -904,12 +897,11 @@ export async function getConversationMessages(phoneNumber: string): Promise<What
 
   const { data, error } = await supabase
     .from("whatsapp_messages")
-    .select(`
-      *,
-      cliente:clientes(nombre, email)
-    `)
+    .select("*")
     .eq("phone_number", phoneNumber)
     .order("created_at", { ascending: true });
+
+  console.log("getConversationMessages - phone:", phoneNumber, "data:", data?.length, "error:", error);
 
   if (error) {
     console.error("Error fetching conversation messages:", error);
@@ -936,7 +928,7 @@ export async function getConversationMessages(phoneNumber: string): Promise<What
     campaignId: m.campaign_id,
     sentBy: m.sent_by,
     createdAt: m.created_at,
-    cliente: m.cliente,
+    cliente: null, // Simplified query
     direction: m.direction || "outgoing",
     senderName: m.sender_name,
     receivedAt: m.received_at,

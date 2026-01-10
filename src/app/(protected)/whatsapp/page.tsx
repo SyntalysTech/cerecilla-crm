@@ -25,6 +25,9 @@ export default async function WhatsAppPage() {
     getWhatsAppStats(),
   ]);
 
+  console.log("WhatsApp Page - messagesData:", messagesData.messages.length, "total:", messagesData.total);
+  console.log("WhatsApp Page - stats:", stats);
+
   return (
     <div>
       <PageHeader
