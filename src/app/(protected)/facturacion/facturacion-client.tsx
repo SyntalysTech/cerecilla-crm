@@ -261,9 +261,13 @@ export function FacturacionClient({
       const { blob } = await generateFacturaPDF(facturaData);
 
       // Nombre personalizado: NumeroFactura_Operador_Fecha.pdf
-      const operadorNombre = (operario.alias || operario.nombre || "Operario").replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, "_");
+      const numeroLimpio = factura.numero_factura.replace(/-/g, "_");
+      const operadorNombre = (operario.alias || operario.nombre || "Operario")
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quitar acentos
+        .replace(/[^a-zA-Z0-9]/g, "_")
+        .replace(/_+/g, "_");
       const fechaFormateada = factura.fecha_factura.replace(/-/g, "");
-      const customFilename = `${factura.numero_factura}_${operadorNombre}_${fechaFormateada}.pdf`.replace(/\s+/g, "_");
+      const customFilename = `${numeroLimpio}_${operadorNombre}_${fechaFormateada}.pdf`;
 
       if (download) {
         downloadPDF(blob, customFilename);
@@ -374,9 +378,13 @@ export function FacturacionClient({
         const { blob } = await generateFacturaPDF(facturaData);
 
         // Nombre personalizado: NumeroFactura_Operador_Fecha.pdf
-        const operadorNombre = (operario.alias || operario.nombre || "Operario").replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, "_");
+        const numeroLimpio = factura.numero_factura.replace(/-/g, "_");
+        const operadorNombre = (operario.alias || operario.nombre || "Operario")
+          .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Quitar acentos
+          .replace(/[^a-zA-Z0-9]/g, "_")
+          .replace(/_+/g, "_");
         const fechaFormateada = factura.fecha_factura.replace(/-/g, "");
-        const customFilename = `${factura.numero_factura}_${operadorNombre}_${fechaFormateada}.pdf`.replace(/\s+/g, "_");
+        const customFilename = `${numeroLimpio}_${operadorNombre}_${fechaFormateada}.pdf`;
 
         zip.file(customFilename, blob);
       }
