@@ -925,6 +925,7 @@ export async function getOperarioParaFactura(operarioId: string) {
 export async function getClientesDeFacturaOperario(facturaId: string) {
   const supabase = await createClient();
 
+  // Primero intentamos obtener de la tabla factura_clientes
   const { data, error } = await supabase
     .from("factura_clientes")
     .select(`
@@ -939,12 +940,67 @@ export async function getClientesDeFacturaOperario(facturaId: string) {
     return [];
   }
 
-  return (data || []).map((fc) => ({
-    clienteId: fc.cliente_id,
-    comision: fc.comision || 0,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    nombreCliente: (fc.clientes as any)?.nombre_apellidos || (fc.clientes as any)?.razon_social || "Sin nombre",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    servicio: (fc.clientes as any)?.servicio || "-",
-  }));
+  // Si hay datos en factura_clientes, los devolvemos
+  if (data && data.length > 0) {
+    return data.map((fc) => ({
+      clienteId: fc.cliente_id,
+      comision: fc.comision || 0,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      nombreCliente: (fc.clientes as any)?.nombre_apellidos || (fc.clientes as any)?.razon_social || "Sin nombre",
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      servicio: (fc.clientes as any)?.servicio || "-",
+    }));
+  }
+
+  // Si no hay datos, buscamos los clientes Liquidados del operario asociado a esta factura
+  // Esto es para facturas antiguas que no tienen la relación
+  const { data: factura } = await supabase
+    .from("facturas_operarios")
+    .select("operario_id, numero_factura")
+    .eq("id", facturaId)
+    .single();
+
+  if (!factura) return [];
+
+  // Obtener el alias del operario
+  const { data: operario } = await supabase
+    .from("operarios")
+    .select("alias, nombre")
+    .eq("id", factura.operario_id)
+    .single();
+
+  if (!operario) return [];
+
+  // Buscar clientes liquidados con esta factura
+  const { data: clientes } = await supabase
+    .from("clientes")
+    .select("id, nombre_apellidos, razon_social, servicio")
+    .eq("factura_pagos", factura.numero_factura);
+
+  if (!clientes || clientes.length === 0) return [];
+
+  // Calcular comisiones (necesitamos los valores por defecto)
+  const { data: comisionesDefectoData } = await supabase
+    .from("configuracion_comisiones")
+    .select("servicio, comision_defecto");
+
+  const comisionesDefecto: Record<string, number> = {
+    Luz: 25, Gas: 25, Telefonía: 50, Seguros: 25, Alarmas: 50,
+  };
+  for (const row of comisionesDefectoData || []) {
+    comisionesDefecto[row.servicio] = row.comision_defecto;
+  }
+
+  return clientes.map((c) => {
+    // Calcular comisión basada en servicios
+    const servicios = (c.servicio || "").split(", ").filter(Boolean);
+    const comision = servicios.reduce((sum: number, s: string) => sum + (comisionesDefecto[s] || 0), 0);
+
+    return {
+      clienteId: c.id,
+      comision,
+      nombreCliente: c.nombre_apellidos || c.razon_social || "Sin nombre",
+      servicio: c.servicio || "-",
+    };
+  });
 }

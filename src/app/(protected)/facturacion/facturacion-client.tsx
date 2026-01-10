@@ -43,6 +43,7 @@ import {
   openPDF,
   type FacturaData,
 } from "@/lib/pdf/factura-generator";
+import JSZip from "jszip";
 
 interface EmpresaConfig {
   nombre: string;
@@ -105,6 +106,7 @@ export function FacturacionClient({
   const [generatingPDF, setGeneratingPDF] = useState<string | null>(null);
   const [previewingPDF, setPreviewingPDF] = useState(false);
   const [generatingOperarioPDF, setGeneratingOperarioPDF] = useState<string | null>(null);
+  const [downloadingAll, setDownloadingAll] = useState(false);
 
   // ==================== FUNCIONES OPERARIOS ====================
   async function handleGenerarFacturas() {
@@ -259,6 +261,96 @@ export function FacturacionClient({
       alert("Error al generar el PDF");
     }
     setGeneratingOperarioPDF(null);
+  }
+
+  async function handleDownloadAllOperarioFacturas() {
+    const facturasToDownload = facturas.filter(f => f.estado === "emitida" || f.estado === "enviada");
+    if (facturasToDownload.length === 0) {
+      alert("No hay facturas para descargar");
+      return;
+    }
+
+    setDownloadingAll(true);
+    try {
+      const zip = new JSZip();
+
+      for (const factura of facturasToDownload) {
+        // Obtener datos del operario
+        const operario = await getOperarioParaFactura(factura.operario_id);
+        if (!operario) continue;
+
+        // Obtener clientes de la factura para el detalle
+        const clientesFactura = await getClientesDeFacturaOperario(factura.id);
+
+        // Crear líneas de factura con cada cliente
+        const lineas = clientesFactura.length > 0
+          ? clientesFactura.map((cf) => ({
+              descripcion: `Comisión ${cf.servicio} - ${cf.nombreCliente}`,
+              cantidad: 1,
+              precioUnitario: cf.comision,
+              iva: 0,
+            }))
+          : [{
+              descripcion: "Comisión por gestión de clientes",
+              cantidad: 1,
+              precioUnitario: factura.total_comision,
+              iva: 0,
+            }];
+
+        const facturaData: FacturaData = {
+          numero: factura.numero_factura,
+          fecha: new Date(factura.fecha_factura).toLocaleDateString("es-ES"),
+          fechaVencimiento: new Date(
+            new Date(factura.fecha_factura).getTime() + 30 * 24 * 60 * 60 * 1000
+          ).toLocaleDateString("es-ES"),
+          emisor: {
+            nombre: empresaConfig.nombre,
+            cif: empresaConfig.cif,
+            direccion: empresaConfig.direccion,
+            poblacion: empresaConfig.poblacion,
+            provincia: empresaConfig.provincia,
+            codigoPostal: empresaConfig.codigoPostal,
+            telefono: empresaConfig.telefono,
+            email: empresaConfig.email,
+          },
+          cliente: {
+            nombre: operario.empresa || operario.nombre || operario.alias || "Sin nombre",
+            nif: operario.nif || undefined,
+            direccion: operario.direccion || undefined,
+            poblacion: operario.poblacion || undefined,
+            provincia: operario.provincia || undefined,
+            codigoPostal: operario.codigoPostal || undefined,
+            email: operario.email || undefined,
+          },
+          lineas,
+          metodoPago: "Transferencia bancaria",
+          cuentaBancaria: operario.cuentaBancaria || empresaConfig.cuentaBancaria,
+          notas: "Documento de liquidación de comisiones.",
+        };
+
+        const { blob, filename } = await generateFacturaPDF(facturaData);
+        zip.file(filename, blob);
+      }
+
+      // Generar y descargar el ZIP
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      const fecha = facturasToDownload[0]?.fecha_factura
+        ? new Date(facturasToDownload[0].fecha_factura).toISOString().split("T")[0]
+        : new Date().toISOString().split("T")[0];
+
+      const url = URL.createObjectURL(zipBlob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Facturas_Operarios_${fecha}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      console.error("Error downloading all PDFs:", error);
+      alert("Error al descargar las facturas");
+    }
+    setDownloadingAll(false);
   }
 
   // ==================== FUNCIONES CLIENTES ====================
@@ -846,6 +938,20 @@ export function FacturacionClient({
                   >
                     Nueva Comisión
                   </button>
+                  {facturas.length > 0 && (
+                    <button
+                      onClick={handleDownloadAllOperarioFacturas}
+                      disabled={downloadingAll}
+                      className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {downloadingAll ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Download className="w-4 h-4" />
+                      )}
+                      Descargar Todas
+                    </button>
+                  )}
                   {facturas.some(f => f.estado === "emitida") && (
                     <button
                       onClick={handleEnviarTodas}
