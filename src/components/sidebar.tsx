@@ -83,7 +83,7 @@ const operarioNavigation = [
 const adminNavigation = {
   category: "Administración",
   items: [
-    // Usuarios se gestiona ahora desde Operarios
+    { name: "WhatsApp Setup", href: "/admin/whatsapp-setup", icon: MessageCircle },
     { name: "Configuración", href: "/admin/settings", icon: Settings },
   ],
 };
