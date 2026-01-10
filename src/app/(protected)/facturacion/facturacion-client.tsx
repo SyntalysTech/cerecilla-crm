@@ -258,10 +258,15 @@ export function FacturacionClient({
         notas: "Documento de liquidación de comisiones.",
       };
 
-      const { blob, filename } = await generateFacturaPDF(facturaData);
+      const { blob } = await generateFacturaPDF(facturaData);
+
+      // Nombre personalizado: NumeroFactura_Operador_Fecha.pdf
+      const operadorNombre = (operario.alias || operario.nombre || "Operario").replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, "_");
+      const fechaFormateada = factura.fecha_factura.replace(/-/g, "");
+      const customFilename = `${factura.numero_factura}_${operadorNombre}_${fechaFormateada}.pdf`.replace(/\s+/g, "_");
 
       if (download) {
-        downloadPDF(blob, filename);
+        downloadPDF(blob, customFilename);
       } else {
         openPDF(blob);
       }
@@ -366,8 +371,14 @@ export function FacturacionClient({
           notas: "Documento de liquidación de comisiones.",
         };
 
-        const { blob, filename } = await generateFacturaPDF(facturaData);
-        zip.file(filename, blob);
+        const { blob } = await generateFacturaPDF(facturaData);
+
+        // Nombre personalizado: NumeroFactura_Operador_Fecha.pdf
+        const operadorNombre = (operario.alias || operario.nombre || "Operario").replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ]/g, "_");
+        const fechaFormateada = factura.fecha_factura.replace(/-/g, "");
+        const customFilename = `${factura.numero_factura}_${operadorNombre}_${fechaFormateada}.pdf`.replace(/\s+/g, "_");
+
+        zip.file(customFilename, blob);
       }
 
       // Generar y descargar el ZIP
