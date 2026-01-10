@@ -3,7 +3,8 @@ import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
 // Use service role for webhook (no user auth context)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+// Support both variable names for compatibility
+const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY!;
 
 const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || "cerecilla_webhook_2024";
 
