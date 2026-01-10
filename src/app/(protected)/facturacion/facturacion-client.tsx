@@ -30,6 +30,8 @@ import {
   deleteFacturaCliente,
   marcarFacturaCobrada,
   getClienteParaFactura,
+  getOperarioParaFactura,
+  getClientesDeFacturaOperario,
   type OperarioFacturable,
   type FacturaLinea,
   type ClienteFacturable,
@@ -102,6 +104,7 @@ export function FacturacionClient({
   });
   const [generatingPDF, setGeneratingPDF] = useState<string | null>(null);
   const [previewingPDF, setPreviewingPDF] = useState(false);
+  const [generatingOperarioPDF, setGeneratingOperarioPDF] = useState<string | null>(null);
 
   // ==================== FUNCIONES OPERARIOS ====================
   async function handleGenerarFacturas() {
@@ -182,6 +185,80 @@ export function FacturacionClient({
     } else {
       setFacturas((prev) => prev.filter((f) => f.id !== facturaId));
     }
+  }
+
+  async function handleGenerarPDFOperario(factura: FacturaLinea, download: boolean = false) {
+    setGeneratingOperarioPDF(factura.id);
+    try {
+      // Obtener datos del operario
+      const operario = await getOperarioParaFactura(factura.operario_id);
+      if (!operario) {
+        alert("No se pudo obtener los datos del operario");
+        setGeneratingOperarioPDF(null);
+        return;
+      }
+
+      // Obtener clientes de la factura para el detalle
+      const clientesFactura = await getClientesDeFacturaOperario(factura.id);
+
+      // Crear líneas de factura con cada cliente
+      const lineas = clientesFactura.length > 0
+        ? clientesFactura.map((cf) => ({
+            descripcion: `Comisión ${cf.servicio} - ${cf.nombreCliente}`,
+            cantidad: 1,
+            precioUnitario: cf.comision,
+            iva: 0, // Las comisiones a operarios no llevan IVA (lo factura el operario)
+          }))
+        : [{
+            descripcion: "Comisión por gestión de clientes",
+            cantidad: 1,
+            precioUnitario: factura.total_comision,
+            iva: 0,
+          }];
+
+      const facturaData: FacturaData = {
+        numero: factura.numero_factura,
+        fecha: new Date(factura.fecha_factura).toLocaleDateString("es-ES"),
+        fechaVencimiento: new Date(
+          new Date(factura.fecha_factura).getTime() + 30 * 24 * 60 * 60 * 1000
+        ).toLocaleDateString("es-ES"),
+        emisor: {
+          nombre: empresaConfig.nombre,
+          cif: empresaConfig.cif,
+          direccion: empresaConfig.direccion,
+          poblacion: empresaConfig.poblacion,
+          provincia: empresaConfig.provincia,
+          codigoPostal: empresaConfig.codigoPostal,
+          telefono: empresaConfig.telefono,
+          email: empresaConfig.email,
+        },
+        cliente: {
+          nombre: operario.empresa || operario.nombre || operario.alias || "Sin nombre",
+          nif: operario.nif || undefined,
+          direccion: operario.direccion || undefined,
+          poblacion: operario.poblacion || undefined,
+          provincia: operario.provincia || undefined,
+          codigoPostal: operario.codigoPostal || undefined,
+          email: operario.email || undefined,
+        },
+        lineas,
+        metodoPago: "Transferencia bancaria",
+        cuentaBancaria: operario.cuentaBancaria || empresaConfig.cuentaBancaria,
+        notas: "Documento de liquidación de comisiones.",
+      };
+
+      const { blob, filename } = await generateFacturaPDF(facturaData);
+
+      if (download) {
+        downloadPDF(blob, filename);
+      } else {
+        openPDF(blob);
+      }
+    } catch (error) {
+      console.error("Error generating operario PDF:", error);
+      alert("Error al generar el PDF");
+    }
+    setGeneratingOperarioPDF(null);
   }
 
   // ==================== FUNCIONES CLIENTES ====================
@@ -924,7 +1001,29 @@ export function FacturacionClient({
                             )}
                           </td>
                           <td className="px-4 py-3">
-                            <div className="flex items-center justify-center gap-2">
+                            <div className="flex items-center justify-center gap-1">
+                              {/* Ver PDF */}
+                              <button
+                                onClick={() => handleGenerarPDFOperario(factura, false)}
+                                disabled={generatingOperarioPDF === factura.id}
+                                className="p-1.5 text-gray-400 hover:text-[#BB292A] hover:bg-[#BB292A]/10 rounded"
+                                title="Ver factura"
+                              >
+                                {generatingOperarioPDF === factura.id ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <Eye className="w-4 h-4" />
+                                )}
+                              </button>
+                              {/* Descargar PDF */}
+                              <button
+                                onClick={() => handleGenerarPDFOperario(factura, true)}
+                                disabled={generatingOperarioPDF === factura.id}
+                                className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded"
+                                title="Descargar factura"
+                              >
+                                <Download className="w-4 h-4" />
+                              </button>
                               {factura.estado === "emitida" && (
                                 <>
                                   <button
@@ -951,9 +1050,6 @@ export function FacturacionClient({
                                     <Trash2 className="w-4 h-4" />
                                   </button>
                                 </>
-                              )}
-                              {factura.estado === "enviada" && (
-                                <span className="text-xs text-gray-400">Procesada</span>
                               )}
                             </div>
                           </td>

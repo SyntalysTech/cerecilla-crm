@@ -890,3 +890,61 @@ export async function marcarFacturaCobrada(facturaId: string) {
   revalidatePath("/clientes");
   return { success: true };
 }
+
+// Obtener datos del operario para generar factura/comisión PDF
+export async function getOperarioParaFactura(operarioId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("operarios")
+    .select("*")
+    .eq("id", operarioId)
+    .single();
+
+  if (error || !data) {
+    return null;
+  }
+
+  return {
+    id: data.id,
+    nombre: data.nombre || data.alias || "Sin nombre",
+    alias: data.alias,
+    empresa: data.empresa,
+    nif: data.nif || data.cif || null,
+    email: data.email,
+    telefono: data.telefono,
+    direccion: data.direccion,
+    poblacion: data.poblacion,
+    provincia: data.provincia,
+    codigoPostal: data.codigo_postal,
+    cuentaBancaria: data.cuenta_bancaria,
+  };
+}
+
+// Obtener los clientes asociados a una factura de operario (para el detalle)
+export async function getClientesDeFacturaOperario(facturaId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("factura_clientes")
+    .select(`
+      cliente_id,
+      comision,
+      clientes (nombre_apellidos, razon_social, servicio)
+    `)
+    .eq("factura_id", facturaId);
+
+  if (error) {
+    console.error("Error fetching clientes de factura:", error);
+    return [];
+  }
+
+  return (data || []).map((fc) => ({
+    clienteId: fc.cliente_id,
+    comision: fc.comision || 0,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    nombreCliente: (fc.clientes as any)?.nombre_apellidos || (fc.clientes as any)?.razon_social || "Sin nombre",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    servicio: (fc.clientes as any)?.servicio || "-",
+  }));
+}
