@@ -33,6 +33,7 @@ export interface FacturaLinea {
   estado: string;
   documentos_completos: boolean;
   documentos_faltantes: string | null;
+  irpf: number; // Porcentaje de IRPF (15% por defecto)
 }
 
 // Helper function to calculate commission for a single client
@@ -253,6 +254,7 @@ export async function generarFacturas(fechaFactura: string) {
         estado: "emitida",
         documentos_completos: op.documentos_completos,
         documentos_faltantes: op.documentos_faltantes.length > 0 ? op.documentos_faltantes.join(", ") : null,
+        irpf: 15, // IRPF 15% por defecto
       })
       .select()
       .single();
@@ -295,6 +297,7 @@ export async function generarFacturas(fechaFactura: string) {
       estado: factura.estado,
       documentos_completos: factura.documentos_completos,
       documentos_faltantes: factura.documentos_faltantes,
+      irpf: factura.irpf ?? 15,
     });
   }
 
@@ -335,6 +338,7 @@ export async function getFacturasEmitidas() {
     estado: f.estado,
     documentos_completos: f.documentos_completos,
     documentos_faltantes: f.documentos_faltantes,
+    irpf: f.irpf ?? 15, // IRPF 15% por defecto para facturas antiguas
   }));
 }
 
@@ -345,6 +349,23 @@ export async function updateNumeroFactura(facturaId: string, nuevoNumero: string
   const { error } = await supabase
     .from("facturas_operarios")
     .update({ numero_factura: nuevoNumero })
+    .eq("id", facturaId);
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath("/facturacion");
+  return { success: true };
+}
+
+// Update invoice IRPF
+export async function updateIrpfFactura(facturaId: string, irpf: number) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("facturas_operarios")
+    .update({ irpf })
     .eq("id", facturaId);
 
   if (error) {

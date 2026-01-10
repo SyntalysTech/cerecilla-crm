@@ -25,6 +25,7 @@ import {
   enviarTodasFacturas,
   updateNumeroFactura,
   updateFechaFactura,
+  updateIrpfFactura,
   deleteFactura,
   generarFacturaCliente,
   deleteFacturaCliente,
@@ -89,6 +90,7 @@ export function FacturacionClient({
   const [facturasClientes, setFacturasClientes] = useState<FacturaClienteLinea[]>(initialFacturasClientes);
   const [editingNumero, setEditingNumero] = useState<string | null>(null);
   const [editingFecha, setEditingFecha] = useState<string | null>(null);
+  const [editingIrpf, setEditingIrpf] = useState<string | null>(null);
   const [tempValue, setTempValue] = useState("");
   const [sendingId, setSendingId] = useState<string | null>(null);
   const [sendingAll, setSendingAll] = useState(false);
@@ -206,7 +208,7 @@ export function FacturacionClient({
       // Obtener clientes de la factura para el detalle
       const clientesFactura = await getClientesDeFacturaOperario(factura.id);
 
-      // Crear líneas de factura con cada cliente
+      // Crear líneas de factura con cada cliente (IVA 21%)
       const lineas = clientesFactura.length > 0
         ? clientesFactura.map((cf) => {
             let descripcion = `Comisión ${cf.servicio} - ${cf.nombreCliente}`;
@@ -217,14 +219,14 @@ export function FacturacionClient({
               descripcion,
               cantidad: 1,
               precioUnitario: cf.comision,
-              iva: 0, // Las comisiones a operarios no llevan IVA (lo factura el operario)
+              iva: 21, // IVA 21% para operarios
             };
           })
         : [{
             descripcion: "Comisión por gestión de clientes",
             cantidad: 1,
             precioUnitario: factura.total_comision,
-            iva: 0,
+            iva: 21, // IVA 21% para operarios
           }];
 
       const facturaData: FacturaData = {
@@ -233,6 +235,7 @@ export function FacturacionClient({
         fechaVencimiento: new Date(
           new Date(factura.fecha_factura).getTime() + 30 * 24 * 60 * 60 * 1000
         ).toLocaleDateString("es-ES"),
+        irpf: factura.irpf ?? 15, // IRPF (15% por defecto)
         emisor: {
           nombre: empresaConfig.nombre,
           cif: empresaConfig.cif,
@@ -323,7 +326,7 @@ export function FacturacionClient({
         // Obtener clientes de la factura para el detalle
         const clientesFactura = await getClientesDeFacturaOperario(factura.id);
 
-        // Crear líneas de factura con cada cliente
+        // Crear líneas de factura con cada cliente (IVA 21%)
         const lineas = clientesFactura.length > 0
           ? clientesFactura.map((cf) => {
               let descripcion = `Comisión ${cf.servicio} - ${cf.nombreCliente}`;
@@ -334,14 +337,14 @@ export function FacturacionClient({
                 descripcion,
                 cantidad: 1,
                 precioUnitario: cf.comision,
-                iva: 0,
+                iva: 21, // IVA 21% para operarios
               };
             })
           : [{
               descripcion: "Comisión por gestión de clientes",
               cantidad: 1,
               precioUnitario: factura.total_comision,
-              iva: 0,
+              iva: 21, // IVA 21% para operarios
             }];
 
         const facturaData: FacturaData = {
@@ -350,6 +353,7 @@ export function FacturacionClient({
           fechaVencimiento: new Date(
             new Date(factura.fecha_factura).getTime() + 30 * 24 * 60 * 60 * 1000
           ).toLocaleDateString("es-ES"),
+          irpf: factura.irpf ?? 15, // IRPF (15% por defecto)
           emisor: {
             nombre: empresaConfig.nombre,
             cif: empresaConfig.cif,
@@ -1040,6 +1044,9 @@ export function FacturacionClient({
                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
                           Documentos
                         </th>
+                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">
+                          IRPF
+                        </th>
                         <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">
                           Acciones
                         </th>
@@ -1154,6 +1161,63 @@ export function FacturacionClient({
                                 <AlertTriangle className="w-4 h-4" />
                                 Incompleta
                               </span>
+                            )}
+                          </td>
+                          <td className="px-4 py-3">
+                            {editingIrpf === factura.id ? (
+                              <div className="flex items-center gap-2">
+                                <select
+                                  value={tempValue}
+                                  onChange={(e) => setTempValue(e.target.value)}
+                                  className="px-2 py-1 text-sm border border-gray-300 rounded"
+                                  autoFocus
+                                >
+                                  <option value="0">0%</option>
+                                  <option value="7">7%</option>
+                                  <option value="15">15%</option>
+                                  <option value="19">19%</option>
+                                </select>
+                                <button
+                                  onClick={async () => {
+                                    const result = await updateIrpfFactura(factura.id, parseFloat(tempValue));
+                                    if (result.error) {
+                                      alert(result.error);
+                                    } else {
+                                      setFacturas((prev) =>
+                                        prev.map((f) =>
+                                          f.id === factura.id ? { ...f, irpf: parseFloat(tempValue) } : f
+                                        )
+                                      );
+                                    }
+                                    setEditingIrpf(null);
+                                  }}
+                                  className="text-green-600 hover:text-green-700"
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                </button>
+                                <button
+                                  onClick={() => setEditingIrpf(null)}
+                                  className="text-gray-400 hover:text-gray-600"
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <span className="text-sm font-medium">{factura.irpf ?? 15}%</span>
+                                {factura.estado === "emitida" && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingIrpf(factura.id);
+                                      setTempValue(String(factura.irpf ?? 15));
+                                    }}
+                                    className="text-gray-400 hover:text-[#BB292A]"
+                                    title="Cambiar IRPF"
+                                  >
+                                    <Edit3 className="w-3 h-3" />
+                                  </button>
+                                )}
+                              </div>
                             )}
                           </td>
                           <td className="px-4 py-3">

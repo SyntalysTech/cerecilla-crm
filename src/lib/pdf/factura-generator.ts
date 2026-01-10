@@ -8,6 +8,7 @@ export interface FacturaData {
   numero: string;
   fecha: string;
   fechaVencimiento?: string;
+  irpf?: number; // Porcentaje de IRPF (15% por defecto para operarios)
 
   // Datos del emisor (Cerecilla)
   emisor: {
@@ -261,7 +262,14 @@ export async function generateFacturaPDF(data: FacturaData): Promise<FacturaResu
 
   // Calcular totales
   const baseImponible = lineasConTotales.reduce((sum, l) => sum + l.subtotal, 0);
-  const totalFactura = lineasConTotales.reduce((sum, l) => sum + l.total, 0);
+  const totalIva = lineasConTotales.reduce((sum, l) => sum + l.ivaImporte, 0);
+
+  // Calcular IRPF si existe (se aplica sobre la base imponible)
+  const irpfPorcentaje = data.irpf ?? 0;
+  const irpfImporte = (baseImponible * irpfPorcentaje) / 100;
+
+  // Total = Base + IVA - IRPF
+  const totalFactura = baseImponible + totalIva - irpfImporte;
 
   // Desglose de IVA por tipo
   const ivaDesglose: Record<number, { base: number; iva: number }> = {};
@@ -291,7 +299,16 @@ export async function generateFacturaPDF(data: FacturaData): Promise<FacturaResu
     doc.setTextColor(colorGris[0], colorGris[1], colorGris[2]);
     doc.text(`IVA ${porcentaje}%:`, totalesX, totalesY);
     doc.setTextColor(colorTexto[0], colorTexto[1], colorTexto[2]);
-    doc.text(`${valores.iva.toFixed(2)} €`, pageWidth - 15, totalesY, { align: "right" });
+    doc.text(`+${valores.iva.toFixed(2)} €`, pageWidth - 15, totalesY, { align: "right" });
+  }
+
+  // IRPF (si existe)
+  if (irpfPorcentaje > 0) {
+    totalesY += 6;
+    doc.setTextColor(colorGris[0], colorGris[1], colorGris[2]);
+    doc.text(`IRPF ${irpfPorcentaje}%:`, totalesX, totalesY);
+    doc.setTextColor(187, 41, 42); // Color rojo para indicar resta
+    doc.text(`-${irpfImporte.toFixed(2)} €`, pageWidth - 15, totalesY, { align: "right" });
   }
 
   // Línea separadora
