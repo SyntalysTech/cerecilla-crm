@@ -302,7 +302,7 @@ export async function getWhatsAppMessages(
     campaignId: m.campaign_id,
     sentBy: m.sent_by,
     createdAt: m.created_at,
-    cliente: null, // Will be fetched separately if needed
+    cliente: undefined, // Will be fetched separately if needed
     direction: m.direction || "outgoing",
     senderName: m.sender_name,
     receivedAt: m.received_at,
@@ -928,7 +928,7 @@ export async function getConversationMessages(phoneNumber: string): Promise<What
     campaignId: m.campaign_id,
     sentBy: m.sent_by,
     createdAt: m.created_at,
-    cliente: null, // Simplified query
+    cliente: undefined, // Simplified query
     direction: m.direction || "outgoing",
     senderName: m.sender_name,
     receivedAt: m.received_at,
