@@ -719,6 +719,71 @@ export async function startWhatsAppCampaign(campaignId: string) {
 }
 
 // ============================================
+// Test Message (Direct Text)
+// ============================================
+
+export async function sendTestWhatsAppMessage(
+  phoneNumber: string,
+  message: string
+) {
+  const user = await getUser();
+  if (!user) {
+    return { error: "Usuario no autenticado" };
+  }
+
+  const adminUser = await isAdmin();
+  if (!adminUser) {
+    return { error: "Solo administradores pueden enviar mensajes de prueba" };
+  }
+
+  if (!phoneNumber || phoneNumber.length < 9) {
+    return { error: "Número de teléfono inválido" };
+  }
+
+  if (!message || message.trim().length === 0) {
+    return { error: "El mensaje no puede estar vacío" };
+  }
+
+  // Get WhatsApp config
+  const config = await getWhatsAppConfig();
+  if (!config || !config.isActive) {
+    return { error: "WhatsApp no está configurado o activo" };
+  }
+
+  const waConfig: WhatsAppConfig = {
+    phoneNumberId: config.phoneNumberId,
+    accessToken: config.accessToken,
+  };
+
+  // Send text message
+  const result = await sendTextMessage(waConfig, {
+    to: phoneNumber,
+    text: message,
+  });
+
+  const supabase = await createClient();
+
+  // Log message to database
+  await supabase.from("whatsapp_messages").insert({
+    phone_number: formatPhoneNumber(phoneNumber),
+    message_type: "text",
+    content: message,
+    wamid: result.messageId || null,
+    status: result.success ? "sent" : "failed",
+    error_message: result.error || null,
+    sent_at: result.success ? new Date().toISOString() : null,
+    sent_by: user.id,
+  });
+
+  if (!result.success) {
+    return { error: result.error || "Error al enviar mensaje" };
+  }
+
+  revalidatePath("/whatsapp");
+  return { success: true, messageId: result.messageId };
+}
+
+// ============================================
 // Stats
 // ============================================
 

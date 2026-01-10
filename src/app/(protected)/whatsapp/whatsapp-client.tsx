@@ -26,6 +26,7 @@ import {
   testWhatsAppConnection,
   createWhatsAppCampaign,
   startWhatsAppCampaign,
+  sendTestWhatsAppMessage,
   type WhatsAppConfigData,
   type WhatsAppTemplate,
   type WhatsAppMessage,
@@ -68,6 +69,12 @@ export function WhatsAppClient({
   });
   const [creatingCampaign, setCreatingCampaign] = useState(false);
   const [startingCampaign, setStartingCampaign] = useState<string | null>(null);
+
+  // Test message state
+  const [testPhone, setTestPhone] = useState("");
+  const [testMessage, setTestMessage] = useState("Hola! Este es un mensaje de prueba desde el CRM de Cerecilla.");
+  const [sendingTest, setSendingTest] = useState(false);
+  const [testResult, setTestResult] = useState<{ success?: boolean; error?: string } | null>(null);
 
   const isConfigured = config?.phoneNumberId && config?.accessToken && config?.isActive;
 
@@ -159,6 +166,30 @@ export function WhatsAppClient({
       window.location.reload();
     }
     setStartingCampaign(null);
+  }
+
+  async function handleSendTestMessage() {
+    if (!testPhone) {
+      setTestResult({ error: "Introduce un número de teléfono" });
+      return;
+    }
+    if (!testMessage.trim()) {
+      setTestResult({ error: "Introduce un mensaje" });
+      return;
+    }
+
+    setSendingTest(true);
+    setTestResult(null);
+
+    const result = await sendTestWhatsAppMessage(testPhone, testMessage);
+
+    if (result.error) {
+      setTestResult({ error: result.error });
+    } else {
+      setTestResult({ success: true });
+      setTestPhone("");
+    }
+    setSendingTest(false);
   }
 
   const StatusBadge = ({ status }: { status: string }) => {
@@ -327,6 +358,80 @@ export function WhatsAppClient({
                   <p className="text-sm text-gray-500">Historial de envíos</p>
                 </div>
               </button>
+            </div>
+          </div>
+
+          {/* Test Message Section */}
+          <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <h3 className="text-lg font-medium text-gray-900 mb-4">Enviar Mensaje de Prueba</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Envía un mensaje de texto a cualquier número para probar que WhatsApp funciona correctamente.
+            </p>
+
+            {testResult && (
+              <div className={`mb-4 p-3 rounded-lg flex items-center gap-2 ${
+                testResult.success
+                  ? "bg-green-50 border border-green-200 text-green-800"
+                  : "bg-red-50 border border-red-200 text-red-800"
+              }`}>
+                {testResult.success ? (
+                  <>
+                    <CheckCircle className="w-4 h-4" />
+                    <span className="text-sm">Mensaje enviado correctamente</span>
+                  </>
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4" />
+                    <span className="text-sm">{testResult.error}</span>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="flex flex-col md:flex-row gap-4">
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Número de teléfono
+                </label>
+                <div className="flex items-center gap-2">
+                  <Phone className="w-4 h-4 text-gray-400" />
+                  <input
+                    type="tel"
+                    value={testPhone}
+                    onChange={(e) => setTestPhone(e.target.value)}
+                    placeholder="+34 600 000 000"
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Incluye el prefijo del país (ej: +34 para España)
+                </p>
+              </div>
+              <div className="flex-1">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Mensaje
+                </label>
+                <textarea
+                  value={testMessage}
+                  onChange={(e) => setTestMessage(e.target.value)}
+                  rows={2}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-[#BB292A] focus:border-[#BB292A]"
+                />
+              </div>
+              <div className="flex items-end">
+                <button
+                  onClick={handleSendTestMessage}
+                  disabled={sendingTest || !isConfigured}
+                  className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-md hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {sendingTest ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Send className="w-4 h-4" />
+                  )}
+                  Enviar Prueba
+                </button>
+              </div>
             </div>
           </div>
 
