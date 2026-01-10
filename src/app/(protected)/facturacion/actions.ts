@@ -921,6 +921,35 @@ export async function getOperarioParaFactura(operarioId: string) {
   };
 }
 
+// Helper para construir dirección formateada
+function buildDireccion(cliente: {
+  tipo_via?: string | null;
+  nombre_via?: string | null;
+  numero?: string | null;
+  escalera?: string | null;
+  piso?: string | null;
+  puerta?: string | null;
+  direccion?: string | null;
+  poblacion?: string | null;
+}): string {
+  let dir = "";
+  if (cliente.tipo_via && cliente.nombre_via) {
+    dir = `${cliente.tipo_via} ${cliente.nombre_via}`;
+    if (cliente.numero) dir += ` ${cliente.numero}`;
+    if (cliente.escalera) dir += `, Esc. ${cliente.escalera}`;
+    if (cliente.piso) dir += `, ${cliente.piso}º`;
+    if (cliente.puerta) dir += ` ${cliente.puerta}`;
+  } else if (cliente.direccion) {
+    dir = cliente.direccion;
+  }
+  if (cliente.poblacion && dir) {
+    dir += ` (${cliente.poblacion})`;
+  } else if (cliente.poblacion) {
+    dir = cliente.poblacion;
+  }
+  return dir;
+}
+
 // Obtener los clientes asociados a una factura de operario (para el detalle)
 export async function getClientesDeFacturaOperario(facturaId: string) {
   const supabase = await createClient();
@@ -931,7 +960,7 @@ export async function getClientesDeFacturaOperario(facturaId: string) {
     .select(`
       cliente_id,
       comision,
-      clientes (nombre_apellidos, razon_social, servicio)
+      clientes (nombre_apellidos, razon_social, servicio, tipo_via, nombre_via, numero, escalera, piso, puerta, direccion, poblacion)
     `)
     .eq("factura_id", facturaId);
 
@@ -942,14 +971,17 @@ export async function getClientesDeFacturaOperario(facturaId: string) {
 
   // Si hay datos en factura_clientes, los devolvemos
   if (data && data.length > 0) {
-    return data.map((fc) => ({
-      clienteId: fc.cliente_id,
-      comision: fc.comision || 0,
+    return data.map((fc) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      nombreCliente: (fc.clientes as any)?.nombre_apellidos || (fc.clientes as any)?.razon_social || "Sin nombre",
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      servicio: (fc.clientes as any)?.servicio || "-",
-    }));
+      const c = fc.clientes as any;
+      return {
+        clienteId: fc.cliente_id,
+        comision: fc.comision || 0,
+        nombreCliente: c?.nombre_apellidos || c?.razon_social || "Sin nombre",
+        servicio: c?.servicio || "-",
+        direccion: c ? buildDireccion(c) : "",
+      };
+    });
   }
 
   // Si no hay datos, buscamos los clientes Liquidados del operario asociado a esta factura
@@ -974,7 +1006,7 @@ export async function getClientesDeFacturaOperario(facturaId: string) {
   // Buscar clientes liquidados con esta factura
   const { data: clientes } = await supabase
     .from("clientes")
-    .select("id, nombre_apellidos, razon_social, servicio")
+    .select("id, nombre_apellidos, razon_social, servicio, tipo_via, nombre_via, numero, escalera, piso, puerta, direccion, poblacion")
     .eq("factura_pagos", factura.numero_factura);
 
   if (!clientes || clientes.length === 0) return [];
@@ -1001,6 +1033,7 @@ export async function getClientesDeFacturaOperario(facturaId: string) {
       comision,
       nombreCliente: c.nombre_apellidos || c.razon_social || "Sin nombre",
       servicio: c.servicio || "-",
+      direccion: buildDireccion(c),
     };
   });
 }

@@ -208,12 +208,18 @@ export function FacturacionClient({
 
       // Crear líneas de factura con cada cliente
       const lineas = clientesFactura.length > 0
-        ? clientesFactura.map((cf) => ({
-            descripcion: `Comisión ${cf.servicio} - ${cf.nombreCliente}`,
-            cantidad: 1,
-            precioUnitario: cf.comision,
-            iva: 0, // Las comisiones a operarios no llevan IVA (lo factura el operario)
-          }))
+        ? clientesFactura.map((cf) => {
+            let descripcion = `Comisión ${cf.servicio} - ${cf.nombreCliente}`;
+            if (cf.direccion) {
+              descripcion += ` - ${cf.direccion}`;
+            }
+            return {
+              descripcion,
+              cantidad: 1,
+              precioUnitario: cf.comision,
+              iva: 0, // Las comisiones a operarios no llevan IVA (lo factura el operario)
+            };
+          })
         : [{
             descripcion: "Comisión por gestión de clientes",
             cantidad: 1,
@@ -310,12 +316,18 @@ export function FacturacionClient({
 
         // Crear líneas de factura con cada cliente
         const lineas = clientesFactura.length > 0
-          ? clientesFactura.map((cf) => ({
-              descripcion: `Comisión ${cf.servicio} - ${cf.nombreCliente}`,
-              cantidad: 1,
-              precioUnitario: cf.comision,
-              iva: 0,
-            }))
+          ? clientesFactura.map((cf) => {
+              let descripcion = `Comisión ${cf.servicio} - ${cf.nombreCliente}`;
+              if (cf.direccion) {
+                descripcion += ` - ${cf.direccion}`;
+              }
+              return {
+                descripcion,
+                cantidad: 1,
+                precioUnitario: cf.comision,
+                iva: 0,
+              };
+            })
           : [{
               descripcion: "Comisión por gestión de clientes",
               cantidad: 1,
