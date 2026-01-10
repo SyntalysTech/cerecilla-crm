@@ -921,6 +921,43 @@ export async function getOperarioParaFactura(operarioId: string) {
   };
 }
 
+// Helper para anonimizar nombre (protección de datos)
+// Ej: "Juan García López" → "J. García L."
+function anonimizarNombre(nombreCompleto: string): string {
+  if (!nombreCompleto) return "Cliente";
+
+  const partes = nombreCompleto.trim().split(/\s+/);
+  if (partes.length === 0) return "Cliente";
+
+  if (partes.length === 1) {
+    // Solo un nombre/palabra: mostrar inicial + primeras letras
+    return partes[0].charAt(0).toUpperCase() + ".";
+  }
+
+  // Múltiples partes: Primera inicial + segundo elemento completo + iniciales del resto
+  const resultado: string[] = [];
+
+  for (let i = 0; i < partes.length; i++) {
+    const parte = partes[i];
+    if (i === 0) {
+      // Primer nombre: solo inicial
+      resultado.push(parte.charAt(0).toUpperCase() + ".");
+    } else if (i === 1) {
+      // Primer apellido: completo (o parcial si es muy largo)
+      if (parte.length > 10) {
+        resultado.push(parte.substring(0, 6) + "...");
+      } else {
+        resultado.push(parte);
+      }
+    } else {
+      // Resto de apellidos: solo inicial
+      resultado.push(parte.charAt(0).toUpperCase() + ".");
+    }
+  }
+
+  return resultado.join(" ");
+}
+
 // Helper para construir dirección formateada
 function buildDireccion(cliente: {
   tipo_via?: string | null;
@@ -974,10 +1011,11 @@ export async function getClientesDeFacturaOperario(facturaId: string) {
     return data.map((fc) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const c = fc.clientes as any;
+      const nombreCompleto = c?.nombre_apellidos || c?.razon_social || "Sin nombre";
       return {
         clienteId: fc.cliente_id,
         comision: fc.comision || 0,
-        nombreCliente: c?.nombre_apellidos || c?.razon_social || "Sin nombre",
+        nombreCliente: anonimizarNombre(nombreCompleto),
         servicio: c?.servicio || "-",
         direccion: c ? buildDireccion(c) : "",
       };
@@ -1027,11 +1065,12 @@ export async function getClientesDeFacturaOperario(facturaId: string) {
     // Calcular comisión basada en servicios
     const servicios = (c.servicio || "").split(", ").filter(Boolean);
     const comision = servicios.reduce((sum: number, s: string) => sum + (comisionesDefecto[s] || 0), 0);
+    const nombreCompleto = c.nombre_apellidos || c.razon_social || "Sin nombre";
 
     return {
       clienteId: c.id,
       comision,
-      nombreCliente: c.nombre_apellidos || c.razon_social || "Sin nombre",
+      nombreCliente: anonimizarNombre(nombreCompleto),
       servicio: c.servicio || "-",
       direccion: buildDireccion(c),
     };
