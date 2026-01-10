@@ -33,6 +33,7 @@ interface Cliente {
   observaciones: string | null;
   observaciones_admin: string | null;
   created_at: string;
+  fecha_comisionable: string | null;
 }
 
 interface ExportButtonProps {
@@ -82,6 +83,7 @@ export function ExportButton({ clientes }: ExportButtonProps) {
         "Email",
         "Teléfono",
         "Estado",
+        "Fecha Comisionable",
         "Servicios",
         "Comisión",
         "Dirección",
@@ -93,7 +95,7 @@ export function ExportButton({ clientes }: ExportButtonProps) {
         "Potencia Gas",
         "Potencia Luz",
         "Operador",
-        "Fecha",
+        "Fecha Alta",
         "Facturado",
         "Cobrado",
         "Pagado",
@@ -110,6 +112,7 @@ export function ExportButton({ clientes }: ExportButtonProps) {
         cliente.email || "",
         cliente.telefono || "",
         cliente.estado || "",
+        cliente.fecha_comisionable ? new Date(cliente.fecha_comisionable).toLocaleDateString("es-ES") : "",
         cliente.servicio || "",
         calculateComision(cliente.servicio),
         cliente.direccion || "",

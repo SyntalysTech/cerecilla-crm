@@ -79,6 +79,12 @@ export async function cambiarEstadosMasivo(
   let countResult;
   let updateResult;
 
+  // Prepare update data - include fecha_comisionable if changing to COMISIONABLE
+  const updateData: { estado: string; fecha_comisionable?: string } = { estado: estadoDestino };
+  if (estadoDestino === "COMISIONABLE") {
+    updateData.fecha_comisionable = new Date().toISOString();
+  }
+
   if (isNullEstado) {
     // Handle null estado
     countResult = await supabase
@@ -97,7 +103,7 @@ export async function cambiarEstadosMasivo(
     // Perform the update
     updateResult = await supabase
       .from("clientes")
-      .update({ estado: estadoDestino })
+      .update(updateData)
       .is("estado", null);
   } else {
     // Use ilike for case-insensitive matching
@@ -117,7 +123,7 @@ export async function cambiarEstadosMasivo(
     // Perform the update using ilike for case-insensitive match
     updateResult = await supabase
       .from("clientes")
-      .update({ estado: estadoDestino })
+      .update(updateData)
       .ilike("estado", estadoOrigen);
   }
 

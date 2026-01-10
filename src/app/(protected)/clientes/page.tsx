@@ -35,6 +35,7 @@ interface Cliente {
   observaciones: string | null;
   observaciones_admin: string | null;
   created_at: string;
+  fecha_comisionable: string | null;
 }
 
 export default async function ClientesPage() {

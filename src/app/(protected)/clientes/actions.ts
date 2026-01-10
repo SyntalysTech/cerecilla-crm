@@ -129,9 +129,26 @@ export async function createCliente(data: ClienteFormData) {
 export async function updateCliente(id: string, data: ClienteFormData) {
   const supabase = await createClient();
 
+  // If estado is being changed to COMISIONABLE, get current estado first
+  let updateData: Record<string, unknown> = { ...data };
+
+  if (data.estado === "COMISIONABLE") {
+    // Check if estado is actually changing to COMISIONABLE
+    const { data: currentCliente } = await supabase
+      .from("clientes")
+      .select("estado, fecha_comisionable")
+      .eq("id", id)
+      .single();
+
+    // Only set fecha_comisionable if it's a new change to COMISIONABLE and not already set
+    if (currentCliente?.estado !== "COMISIONABLE" && !currentCliente?.fecha_comisionable) {
+      updateData.fecha_comisionable = new Date().toISOString();
+    }
+  }
+
   const { error } = await supabase
     .from("clientes")
-    .update(data)
+    .update(updateData)
     .eq("id", id);
 
   if (error) {
