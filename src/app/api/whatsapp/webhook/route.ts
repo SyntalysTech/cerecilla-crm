@@ -29,10 +29,13 @@ export async function GET(request: NextRequest) {
 
 // POST: Receive incoming messages and status updates
 export async function POST(request: NextRequest) {
+  console.log("=== WHATSAPP WEBHOOK POST RECEIVED ===");
+  console.log("Headers:", Object.fromEntries(request.headers.entries()));
+
   try {
     const body = await request.json();
 
-    console.log("WhatsApp webhook received:", JSON.stringify(body, null, 2));
+    console.log("WhatsApp webhook body:", JSON.stringify(body, null, 2));
 
     // Meta sends notifications in this format
     const entry = body.entry?.[0];
