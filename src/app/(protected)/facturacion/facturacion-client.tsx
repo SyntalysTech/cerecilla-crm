@@ -107,6 +107,9 @@ export function FacturacionClient({
   const [previewingPDF, setPreviewingPDF] = useState(false);
   const [generatingOperarioPDF, setGeneratingOperarioPDF] = useState<string | null>(null);
   const [downloadingAll, setDownloadingAll] = useState(false);
+  const [showDownloadModal, setShowDownloadModal] = useState(false);
+  const [downloadFechaDesde, setDownloadFechaDesde] = useState("");
+  const [downloadFechaHasta, setDownloadFechaHasta] = useState("");
 
   // ==================== FUNCIONES OPERARIOS ====================
   async function handleGenerarFacturas() {
@@ -263,10 +266,33 @@ export function FacturacionClient({
     setGeneratingOperarioPDF(null);
   }
 
+  function openDownloadModal() {
+    // Establecer fechas por defecto (último mes)
+    const hoy = new Date();
+    const hace30Dias = new Date(hoy.getTime() - 30 * 24 * 60 * 60 * 1000);
+    setDownloadFechaDesde(hace30Dias.toISOString().split("T")[0]);
+    setDownloadFechaHasta(hoy.toISOString().split("T")[0]);
+    setShowDownloadModal(true);
+  }
+
   async function handleDownloadAllOperarioFacturas() {
-    const facturasToDownload = facturas.filter(f => f.estado === "emitida" || f.estado === "enviada");
+    if (!downloadFechaDesde || !downloadFechaHasta) {
+      alert("Selecciona un rango de fechas");
+      return;
+    }
+
+    // Filtrar facturas por rango de fechas
+    const desde = new Date(downloadFechaDesde);
+    const hasta = new Date(downloadFechaHasta);
+    hasta.setHours(23, 59, 59, 999); // Incluir todo el día
+
+    const facturasToDownload = facturas.filter(f => {
+      const fechaFactura = new Date(f.fecha_factura);
+      return fechaFactura >= desde && fechaFactura <= hasta;
+    });
+
     if (facturasToDownload.length === 0) {
-      alert("No hay facturas para descargar");
+      alert("No hay facturas en el rango de fechas seleccionado");
       return;
     }
 
@@ -334,18 +360,16 @@ export function FacturacionClient({
 
       // Generar y descargar el ZIP
       const zipBlob = await zip.generateAsync({ type: "blob" });
-      const fecha = facturasToDownload[0]?.fecha_factura
-        ? new Date(facturasToDownload[0].fecha_factura).toISOString().split("T")[0]
-        : new Date().toISOString().split("T")[0];
 
       const url = URL.createObjectURL(zipBlob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `Facturas_Operarios_${fecha}.zip`;
+      a.download = `Facturas_Operarios_${downloadFechaDesde}_a_${downloadFechaHasta}.zip`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
+      setShowDownloadModal(false);
     } catch (error) {
       console.error("Error downloading all PDFs:", error);
       alert("Error al descargar las facturas");
@@ -940,16 +964,11 @@ export function FacturacionClient({
                   </button>
                   {facturas.length > 0 && (
                     <button
-                      onClick={handleDownloadAllOperarioFacturas}
-                      disabled={downloadingAll}
-                      className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 flex items-center gap-2"
+                      onClick={openDownloadModal}
+                      className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 flex items-center gap-2"
                     >
-                      {downloadingAll ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Download className="w-4 h-4" />
-                      )}
-                      Descargar Todas
+                      <Download className="w-4 h-4" />
+                      Descargar por Fechas
                     </button>
                   )}
                   {facturas.some(f => f.estado === "emitida") && (
@@ -1366,6 +1385,88 @@ export function FacturacionClient({
                   Crear Factura
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ==================== MODAL DESCARGAR POR FECHAS ==================== */}
+      {showDownloadModal && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+            <div className="p-6 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
+                <Download className="w-5 h-5 text-[#BB292A]" />
+                Descargar Facturas por Fechas
+              </h3>
+              <p className="text-sm text-gray-500 mt-1">
+                Selecciona el rango de fechas para descargar las facturas en un ZIP
+              </p>
+            </div>
+
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Desde
+                  </label>
+                  <input
+                    type="date"
+                    value={downloadFechaDesde}
+                    onChange={(e) => setDownloadFechaDesde(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#BB292A] focus:border-[#BB292A]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Hasta
+                  </label>
+                  <input
+                    type="date"
+                    value={downloadFechaHasta}
+                    onChange={(e) => setDownloadFechaHasta(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-[#BB292A] focus:border-[#BB292A]"
+                  />
+                </div>
+              </div>
+
+              {downloadFechaDesde && downloadFechaHasta && (
+                <div className="bg-gray-50 rounded-lg p-3">
+                  <p className="text-sm text-gray-600">
+                    Facturas encontradas:{" "}
+                    <span className="font-semibold text-[#BB292A]">
+                      {facturas.filter(f => {
+                        const fecha = new Date(f.fecha_factura);
+                        const desde = new Date(downloadFechaDesde);
+                        const hasta = new Date(downloadFechaHasta);
+                        hasta.setHours(23, 59, 59, 999);
+                        return fecha >= desde && fecha <= hasta;
+                      }).length}
+                    </span>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="p-6 border-t border-gray-200 flex justify-end gap-3">
+              <button
+                onClick={() => setShowDownloadModal(false)}
+                className="px-4 py-2 text-sm text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDownloadAllOperarioFacturas}
+                disabled={downloadingAll || !downloadFechaDesde || !downloadFechaHasta}
+                className="px-4 py-2 text-sm bg-[#BB292A] text-white rounded-md hover:bg-[#a02324] disabled:opacity-50 flex items-center gap-2"
+              >
+                {downloadingAll ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Download className="w-4 h-4" />
+                )}
+                Descargar ZIP
+              </button>
             </div>
           </div>
         </div>
