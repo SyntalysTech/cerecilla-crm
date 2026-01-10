@@ -226,7 +226,11 @@ export async function generarFacturas(fechaFactura: string) {
 
   let nextNumber = 1;
   if (lastFactura?.numero_factura) {
-    const match = lastFactura.numero_factura.match(/(\d+)$/);
+    // New format: FAC-00001-2026 (number-year)
+    // Old format: FAC-2026-00001 (year-number)
+    const newFormatMatch = lastFactura.numero_factura.match(/FAC-(\d{5})-\d{4}/);
+    const oldFormatMatch = lastFactura.numero_factura.match(/FAC-\d{4}-(\d{5})/);
+    const match = newFormatMatch || oldFormatMatch;
     if (match) {
       nextNumber = parseInt(match[1]) + 1;
     }
@@ -236,7 +240,7 @@ export async function generarFacturas(fechaFactura: string) {
   const facturas: FacturaLinea[] = [];
 
   for (const op of operarios) {
-    const numeroFactura = `FAC-${year}-${String(nextNumber).padStart(5, "0")}`;
+    const numeroFactura = `FAC-${String(nextNumber).padStart(5, "0")}-${year}`;
     nextNumber++;
 
     const { data: factura, error } = await supabase
@@ -734,14 +738,18 @@ export async function generarFacturaCliente(
 
   let nextNumber = 1;
   if (lastFactura?.numero_factura) {
-    const match = lastFactura.numero_factura.match(/(\d+)$/);
+    // New format: FC-00001-2026 (number-year)
+    // Old format: FC-2026-00001 (year-number)
+    const newFormatMatch = lastFactura.numero_factura.match(/FC-(\d{5})-\d{4}/);
+    const oldFormatMatch = lastFactura.numero_factura.match(/FC-\d{4}-(\d{5})/);
+    const match = newFormatMatch || oldFormatMatch;
     if (match) {
       nextNumber = parseInt(match[1]) + 1;
     }
   }
 
   const year = new Date(datos.fechaFactura).getFullYear();
-  const numeroFactura = `FC-${year}-${String(nextNumber).padStart(5, "0")}`;
+  const numeroFactura = `FC-${String(nextNumber).padStart(5, "0")}-${year}`;
 
   const total = datos.importe * (1 + datos.iva / 100);
 
