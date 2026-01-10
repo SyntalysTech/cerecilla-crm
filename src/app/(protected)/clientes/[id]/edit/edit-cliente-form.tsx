@@ -940,32 +940,37 @@ export function EditClienteForm({ cliente, operarios, isOperario = false, isAdmi
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex items-center justify-end gap-3">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md"
-        >
-          Cancelar
-        </button>
-        <button
-          type="submit"
-          disabled={loading}
-          className="px-6 py-2 bg-[#BB292A] text-white text-sm font-medium rounded-md hover:bg-[#a02324] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Guardando...
-            </>
-          ) : (
-            <>
-              <Save className="w-4 h-4" />
-              Guardar cambios
-            </>
-          )}
-        </button>
+      {/* Spacer for sticky buttons */}
+      <div className="h-20"></div>
+
+      {/* Sticky Actions */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-50">
+        <div className="max-w-4xl mx-auto flex items-center justify-end gap-3">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="px-4 py-2 text-sm font-medium text-gray-700 hover:text-gray-900 border border-gray-300 rounded-md bg-white"
+          >
+            Cancelar
+          </button>
+          <button
+            type="submit"
+            disabled={loading}
+            className="px-6 py-2 bg-[#BB292A] text-white text-sm font-medium rounded-md hover:bg-[#a02324] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Guardando...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Guardar cambios
+              </>
+            )}
+          </button>
+        </div>
       </div>
     </form>
   );
