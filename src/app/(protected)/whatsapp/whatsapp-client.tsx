@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   MessageSquare,
   Settings,
@@ -20,6 +20,9 @@ import {
   Plus,
   Save,
   X,
+  Inbox,
+  ArrowLeft,
+  User,
 } from "lucide-react";
 import {
   updateWhatsAppConfig,
@@ -27,10 +30,15 @@ import {
   createWhatsAppCampaign,
   startWhatsAppCampaign,
   sendTestWhatsAppMessage,
+  getWhatsAppConversations,
+  getConversationMessages,
+  markConversationAsRead,
+  replyToConversation,
   type WhatsAppConfigData,
   type WhatsAppTemplate,
   type WhatsAppMessage,
   type WhatsAppCampaign,
+  type WhatsAppConversation,
 } from "./actions";
 
 interface Props {
@@ -47,7 +55,7 @@ interface Props {
   };
 }
 
-type Tab = "overview" | "messages" | "campaigns" | "templates" | "settings";
+type Tab = "overview" | "conversations" | "messages" | "campaigns" | "templates" | "settings";
 
 export function WhatsAppClient({
   initialConfig,
@@ -76,15 +84,74 @@ export function WhatsAppClient({
   const [sendingTest, setSendingTest] = useState(false);
   const [testResult, setTestResult] = useState<{ success?: boolean; error?: string } | null>(null);
 
+  // Conversations state
+  const [conversations, setConversations] = useState<WhatsAppConversation[]>([]);
+  const [loadingConversations, setLoadingConversations] = useState(false);
+  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [conversationMessages, setConversationMessages] = useState<WhatsAppMessage[]>([]);
+  const [loadingMessages, setLoadingMessages] = useState(false);
+  const [replyText, setReplyText] = useState("");
+  const [sendingReply, setSendingReply] = useState(false);
+
   const isConfigured = config?.phoneNumberId && config?.accessToken && config?.isActive;
 
   const tabs: { id: Tab; label: string; icon: typeof MessageSquare }[] = [
     { id: "overview", label: "Resumen", icon: BarChart3 },
+    { id: "conversations", label: "Conversaciones", icon: Inbox },
     { id: "messages", label: "Mensajes", icon: MessageSquare },
     { id: "campaigns", label: "Campañas", icon: Megaphone },
     { id: "templates", label: "Plantillas", icon: FileText },
     { id: "settings", label: "Configuración", icon: Settings },
   ];
+
+  // Load conversations when tab is selected
+  useEffect(() => {
+    if (activeTab === "conversations") {
+      loadConversations();
+    }
+  }, [activeTab]);
+
+  async function loadConversations() {
+    setLoadingConversations(true);
+    const convs = await getWhatsAppConversations();
+    setConversations(convs);
+    setLoadingConversations(false);
+  }
+
+  async function handleSelectConversation(phoneNumber: string) {
+    setSelectedConversation(phoneNumber);
+    setLoadingMessages(true);
+
+    // Mark as read
+    await markConversationAsRead(phoneNumber);
+
+    // Load messages
+    const msgs = await getConversationMessages(phoneNumber);
+    setConversationMessages(msgs);
+    setLoadingMessages(false);
+
+    // Update unread count in conversations list
+    setConversations(prev =>
+      prev.map(c => c.phoneNumber === phoneNumber ? { ...c, unreadCount: 0 } : c)
+    );
+  }
+
+  async function handleSendReply() {
+    if (!selectedConversation || !replyText.trim()) return;
+
+    setSendingReply(true);
+    const result = await replyToConversation(selectedConversation, replyText);
+
+    if (result.error) {
+      alert(result.error);
+    } else {
+      setReplyText("");
+      // Reload messages
+      const msgs = await getConversationMessages(selectedConversation);
+      setConversationMessages(msgs);
+    }
+    setSendingReply(false);
+  }
 
   const estados = [
     "SIN ESTADO",
@@ -459,6 +526,188 @@ export function WhatsAppClient({
               )}
             </div>
           </div>
+        </div>
+      )}
+
+      {activeTab === "conversations" && (
+        <div className="bg-white rounded-lg border border-gray-200 min-h-[500px]">
+          {selectedConversation ? (
+            // Chat view
+            <div className="flex flex-col h-[600px]">
+              {/* Chat header */}
+              <div className="p-4 border-b border-gray-200 flex items-center gap-3">
+                <button
+                  onClick={() => {
+                    setSelectedConversation(null);
+                    setConversationMessages([]);
+                  }}
+                  className="p-1 hover:bg-gray-100 rounded-md"
+                >
+                  <ArrowLeft className="w-5 h-5 text-gray-600" />
+                </button>
+                <div className="w-10 h-10 rounded-full bg-green-100 flex items-center justify-center">
+                  <User className="w-5 h-5 text-green-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">
+                    {conversationMessages[0]?.cliente?.nombre ||
+                      conversations.find(c => c.phoneNumber === selectedConversation)?.senderName ||
+                      selectedConversation}
+                  </p>
+                  <p className="text-sm text-gray-500">{selectedConversation}</p>
+                </div>
+              </div>
+
+              {/* Messages */}
+              <div className="flex-1 overflow-y-auto p-4 space-y-3 bg-gray-50">
+                {loadingMessages ? (
+                  <div className="flex items-center justify-center h-full">
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  </div>
+                ) : (
+                  conversationMessages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex ${msg.direction === "incoming" ? "justify-start" : "justify-end"}`}
+                    >
+                      <div
+                        className={`max-w-[70%] rounded-lg p-3 ${
+                          msg.direction === "incoming"
+                            ? "bg-white border border-gray-200"
+                            : "bg-green-600 text-white"
+                        }`}
+                      >
+                        <p className="text-sm whitespace-pre-wrap">{msg.content}</p>
+                        <p
+                          className={`text-xs mt-1 ${
+                            msg.direction === "incoming"
+                              ? "text-gray-400"
+                              : "text-green-100"
+                          }`}
+                        >
+                          {new Date(msg.createdAt).toLocaleString("es-ES", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                            day: "2-digit",
+                            month: "short",
+                          })}
+                          {msg.direction !== "incoming" && (
+                            <span className="ml-2">
+                              {msg.status === "read" && <Eye className="w-3 h-3 inline" />}
+                              {msg.status === "delivered" && <CheckCircle className="w-3 h-3 inline" />}
+                              {msg.status === "sent" && <Clock className="w-3 h-3 inline" />}
+                              {msg.status === "failed" && <XCircle className="w-3 h-3 inline text-red-300" />}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+                {conversationMessages.length === 0 && !loadingMessages && (
+                  <div className="flex items-center justify-center h-full text-gray-500">
+                    No hay mensajes en esta conversacion
+                  </div>
+                )}
+              </div>
+
+              {/* Reply input */}
+              <div className="p-4 border-t border-gray-200">
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSendReply();
+                      }
+                    }}
+                    placeholder="Escribe un mensaje..."
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-full text-sm focus:ring-green-500 focus:border-green-500"
+                    disabled={sendingReply}
+                  />
+                  <button
+                    onClick={handleSendReply}
+                    disabled={sendingReply || !replyText.trim()}
+                    className="p-2 bg-green-600 text-white rounded-full hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {sendingReply ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Send className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            // Conversations list
+            <div>
+              <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+                <h3 className="text-lg font-medium text-gray-900">Conversaciones</h3>
+                <button
+                  onClick={loadConversations}
+                  disabled={loadingConversations}
+                  className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-md disabled:opacity-50"
+                >
+                  <RefreshCw className={`w-4 h-4 ${loadingConversations ? "animate-spin" : ""}`} />
+                  Actualizar
+                </button>
+              </div>
+              <div className="divide-y divide-gray-200">
+                {loadingConversations ? (
+                  <div className="p-8 flex items-center justify-center">
+                    <Loader2 className="w-6 h-6 animate-spin text-gray-400" />
+                  </div>
+                ) : conversations.length === 0 ? (
+                  <div className="p-8 text-center text-gray-500">
+                    <Inbox className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                    <p>No hay conversaciones todavia</p>
+                    <p className="text-sm mt-1">Los mensajes recibidos aparecerán aquí</p>
+                  </div>
+                ) : (
+                  conversations.map((conv) => (
+                    <button
+                      key={conv.phoneNumber}
+                      onClick={() => handleSelectConversation(conv.phoneNumber)}
+                      className="w-full p-4 hover:bg-gray-50 flex items-center gap-3 text-left"
+                    >
+                      <div className="relative">
+                        <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center">
+                          <User className="w-6 h-6 text-green-600" />
+                        </div>
+                        {conv.unreadCount > 0 && (
+                          <span className="absolute -top-1 -right-1 w-5 h-5 bg-green-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
+                            {conv.unreadCount}
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <p className="font-medium text-gray-900 truncate">
+                            {conv.clienteNombre || conv.senderName || conv.phoneNumber}
+                          </p>
+                          <span className="text-xs text-gray-500">
+                            {new Date(conv.lastMessageAt).toLocaleDateString("es-ES", {
+                              day: "2-digit",
+                              month: "short",
+                            })}
+                          </span>
+                        </div>
+                        <p className="text-sm text-gray-500 truncate">{conv.phoneNumber}</p>
+                        <p className={`text-sm truncate ${conv.unreadCount > 0 ? "font-medium text-gray-900" : "text-gray-500"}`}>
+                          {conv.direction === "outgoing" && <span className="text-gray-400">Tu: </span>}
+                          {conv.lastMessage}
+                        </p>
+                      </div>
+                    </button>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
       )}
 

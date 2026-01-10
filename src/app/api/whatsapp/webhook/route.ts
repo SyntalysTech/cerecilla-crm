@@ -1,0 +1,211 @@
+import { NextRequest, NextResponse } from "next/server";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
+
+// Use service role for webhook (no user auth context)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+
+const WEBHOOK_VERIFY_TOKEN = process.env.WHATSAPP_WEBHOOK_VERIFY_TOKEN || "cerecilla_webhook_2024";
+
+// GET: Webhook verification (Meta calls this to verify the endpoint)
+export async function GET(request: NextRequest) {
+  const searchParams = request.nextUrl.searchParams;
+
+  const mode = searchParams.get("hub.mode");
+  const token = searchParams.get("hub.verify_token");
+  const challenge = searchParams.get("hub.challenge");
+
+  console.log("WhatsApp webhook verification:", { mode, token, challenge });
+
+  if (mode === "subscribe" && token === WEBHOOK_VERIFY_TOKEN) {
+    console.log("Webhook verified successfully");
+    return new NextResponse(challenge, { status: 200 });
+  }
+
+  console.log("Webhook verification failed");
+  return new NextResponse("Forbidden", { status: 403 });
+}
+
+// POST: Receive incoming messages and status updates
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+
+    console.log("WhatsApp webhook received:", JSON.stringify(body, null, 2));
+
+    // Meta sends notifications in this format
+    const entry = body.entry?.[0];
+    if (!entry) {
+      return NextResponse.json({ status: "ok" });
+    }
+
+    const changes = entry.changes?.[0];
+    if (!changes) {
+      return NextResponse.json({ status: "ok" });
+    }
+
+    const value = changes.value;
+    if (!value) {
+      return NextResponse.json({ status: "ok" });
+    }
+
+    const supabase = createClient(supabaseUrl, supabaseServiceRole);
+
+    // Handle incoming messages
+    if (value.messages) {
+      for (const message of value.messages) {
+        await handleIncomingMessage(supabase, value, message);
+      }
+    }
+
+    // Handle status updates (sent, delivered, read)
+    if (value.statuses) {
+      for (const status of value.statuses) {
+        await handleStatusUpdate(supabase, status);
+      }
+    }
+
+    return NextResponse.json({ status: "ok" });
+  } catch (error) {
+    console.error("Webhook error:", error);
+    return NextResponse.json({ status: "error" }, { status: 500 });
+  }
+}
+
+async function handleIncomingMessage(
+  supabase: SupabaseClient,
+  value: Record<string, unknown>,
+  message: Record<string, unknown>
+) {
+  const contacts = value.contacts as Array<{ profile: { name: string }; wa_id: string }> | undefined;
+  const contact = contacts?.[0];
+
+  const phoneNumber = message.from as string;
+  const messageId = message.id as string;
+  const timestamp = message.timestamp as string;
+  const messageType = message.type as string;
+
+  let content = "";
+  let mediaUrl = null;
+
+  // Extract content based on message type
+  switch (messageType) {
+    case "text":
+      content = (message.text as { body: string })?.body || "";
+      break;
+    case "image":
+      content = "[Imagen]";
+      mediaUrl = (message.image as { id: string })?.id;
+      break;
+    case "audio":
+      content = "[Audio]";
+      mediaUrl = (message.audio as { id: string })?.id;
+      break;
+    case "video":
+      content = "[Video]";
+      mediaUrl = (message.video as { id: string })?.id;
+      break;
+    case "document":
+      content = "[Documento]";
+      mediaUrl = (message.document as { id: string })?.id;
+      break;
+    case "location":
+      const loc = message.location as { latitude: number; longitude: number } | undefined;
+      content = `[Ubicacion: ${loc?.latitude}, ${loc?.longitude}]`;
+      break;
+    case "contacts":
+      content = "[Contacto]";
+      break;
+    case "sticker":
+      content = "[Sticker]";
+      break;
+    case "reaction":
+      const reaction = message.reaction as { emoji: string } | undefined;
+      content = `[Reaccion: ${reaction?.emoji}]`;
+      break;
+    case "button":
+      content = (message.button as { text: string })?.text || "[Boton]";
+      break;
+    case "interactive":
+      const interactive = message.interactive as { button_reply?: { title: string }; list_reply?: { title: string } } | undefined;
+      content = interactive?.button_reply?.title || interactive?.list_reply?.title || "[Interactivo]";
+      break;
+    default:
+      content = `[${messageType}]`;
+  }
+
+  // Try to find matching cliente by phone number
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const { data: cliente } = await supabase
+    .from("clientes")
+    .select("id, nombre")
+    .or(`telefono.ilike.%${cleanPhone.slice(-9)}%,telefono2.ilike.%${cleanPhone.slice(-9)}%`)
+    .limit(1)
+    .single();
+
+  // Insert the received message
+  const { error } = await supabase.from("whatsapp_messages").insert({
+    cliente_id: cliente?.id || null,
+    phone_number: phoneNumber,
+    wamid: messageId,
+    message_type: messageType,
+    content: content,
+    media_url: mediaUrl,
+    direction: "incoming",
+    status: "received",
+    sender_name: contact?.profile?.name || null,
+    received_at: timestamp ? new Date(parseInt(timestamp) * 1000).toISOString() : new Date().toISOString(),
+  });
+
+  if (error) {
+    console.error("Error saving incoming message:", error);
+  } else {
+    console.log("Incoming message saved:", { phoneNumber, content, clienteId: cliente?.id });
+  }
+}
+
+async function handleStatusUpdate(
+  supabase: SupabaseClient,
+  status: Record<string, unknown>
+) {
+  const messageId = status.id as string;
+  const statusValue = status.status as string;
+  const timestamp = status.timestamp as string;
+
+  const updateData: Record<string, unknown> = {
+    status: statusValue,
+  };
+
+  // Set the appropriate timestamp based on status
+  const isoTimestamp = timestamp ? new Date(parseInt(timestamp) * 1000).toISOString() : new Date().toISOString();
+
+  switch (statusValue) {
+    case "sent":
+      updateData.sent_at = isoTimestamp;
+      break;
+    case "delivered":
+      updateData.delivered_at = isoTimestamp;
+      break;
+    case "read":
+      updateData.read_at = isoTimestamp;
+      break;
+    case "failed":
+      const errors = status.errors as Array<{ code: number; title: string }> | undefined;
+      if (errors && errors.length > 0) {
+        updateData.error_code = String(errors[0].code);
+        updateData.error_message = errors[0].title;
+      }
+      break;
+  }
+
+  const { error } = await supabase
+    .from("whatsapp_messages")
+    .update(updateData)
+    .eq("wamid", messageId);
+
+  if (error) {
+    console.error("Error updating message status:", error);
+  } else {
+    console.log("Message status updated:", { messageId, status: statusValue });
+  }
+}

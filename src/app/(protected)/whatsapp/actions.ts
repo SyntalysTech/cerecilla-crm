@@ -64,6 +64,9 @@ export interface WhatsAppMessage {
   campaignId: string | null;
   sentBy: string | null;
   createdAt: string;
+  direction?: "incoming" | "outgoing";
+  senderName?: string | null;
+  receivedAt?: string | null;
   cliente?: {
     nombre: string;
     email: string | null;
@@ -820,4 +823,211 @@ export async function getWhatsAppStats() {
   }
 
   return stats;
+}
+
+// ============================================
+// Conversations (Incoming Messages)
+// ============================================
+
+export interface WhatsAppConversation {
+  phoneNumber: string;
+  clienteId: string | null;
+  clienteNombre: string | null;
+  senderName: string | null;
+  lastMessage: string;
+  lastMessageAt: string;
+  unreadCount: number;
+  direction: "incoming" | "outgoing";
+}
+
+export async function getWhatsAppConversations(): Promise<WhatsAppConversation[]> {
+  const supabase = await createClient();
+
+  // Get distinct phone numbers with their last message
+  const { data, error } = await supabase
+    .from("whatsapp_messages")
+    .select(`
+      phone_number,
+      cliente_id,
+      content,
+      direction,
+      sender_name,
+      created_at,
+      is_read,
+      cliente:clientes(nombre)
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching conversations:", error);
+    return [];
+  }
+
+  // Group by phone number and get last message + unread count
+  const conversationsMap = new Map<string, WhatsAppConversation>();
+
+  for (const msg of data || []) {
+    const phone = msg.phone_number;
+    const cliente = msg.cliente as { nombre: string } | { nombre: string }[] | null;
+    const clienteNombre = Array.isArray(cliente) ? cliente[0]?.nombre : cliente?.nombre;
+
+    if (!conversationsMap.has(phone)) {
+      conversationsMap.set(phone, {
+        phoneNumber: phone,
+        clienteId: msg.cliente_id,
+        clienteNombre: clienteNombre || null,
+        senderName: msg.sender_name,
+        lastMessage: msg.content || "",
+        lastMessageAt: msg.created_at,
+        unreadCount: 0,
+        direction: msg.direction || "outgoing",
+      });
+    }
+
+    // Count unread incoming messages
+    if (msg.direction === "incoming" && !msg.is_read) {
+      const conv = conversationsMap.get(phone)!;
+      conv.unreadCount++;
+    }
+  }
+
+  // Sort by last message date
+  return Array.from(conversationsMap.values()).sort(
+    (a, b) => new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime()
+  );
+}
+
+export async function getConversationMessages(phoneNumber: string): Promise<WhatsAppMessage[]> {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("whatsapp_messages")
+    .select(`
+      *,
+      cliente:clientes(nombre, email)
+    `)
+    .eq("phone_number", phoneNumber)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("Error fetching conversation messages:", error);
+    return [];
+  }
+
+  return (data || []).map((m) => ({
+    id: m.id,
+    clienteId: m.cliente_id,
+    phoneNumber: m.phone_number,
+    templateId: m.template_id,
+    templateName: m.template_name,
+    messageType: m.message_type,
+    content: m.content,
+    mediaUrl: m.media_url,
+    templateVariables: m.template_variables,
+    wamid: m.wamid,
+    status: m.status,
+    errorCode: m.error_code,
+    errorMessage: m.error_message,
+    sentAt: m.sent_at,
+    deliveredAt: m.delivered_at,
+    readAt: m.read_at,
+    campaignId: m.campaign_id,
+    sentBy: m.sent_by,
+    createdAt: m.created_at,
+    cliente: m.cliente,
+    direction: m.direction || "outgoing",
+    senderName: m.sender_name,
+    receivedAt: m.received_at,
+  }));
+}
+
+export async function markConversationAsRead(phoneNumber: string) {
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("whatsapp_messages")
+    .update({ is_read: true })
+    .eq("phone_number", phoneNumber)
+    .eq("direction", "incoming")
+    .eq("is_read", false);
+
+  if (error) {
+    console.error("Error marking conversation as read:", error);
+    return { error: error.message };
+  }
+
+  revalidatePath("/whatsapp");
+  return { success: true };
+}
+
+export async function replyToConversation(phoneNumber: string, message: string) {
+  const user = await getUser();
+  if (!user) {
+    return { error: "Usuario no autenticado" };
+  }
+
+  if (!message || message.trim().length === 0) {
+    return { error: "El mensaje no puede estar vacío" };
+  }
+
+  // Get WhatsApp config
+  const config = await getWhatsAppConfig();
+  if (!config || !config.isActive) {
+    return { error: "WhatsApp no está configurado o activo" };
+  }
+
+  const waConfig: WhatsAppConfig = {
+    phoneNumberId: config.phoneNumberId,
+    accessToken: config.accessToken,
+  };
+
+  // Send text message
+  const result = await sendTextMessage(waConfig, {
+    to: phoneNumber,
+    text: message,
+  });
+
+  const supabase = await createClient();
+
+  // Try to find cliente
+  const cleanPhone = phoneNumber.replace(/\D/g, "");
+  const { data: cliente } = await supabase
+    .from("clientes")
+    .select("id")
+    .or(`telefono.ilike.%${cleanPhone.slice(-9)}%,telefono2.ilike.%${cleanPhone.slice(-9)}%`)
+    .limit(1)
+    .single();
+
+  // Log message to database
+  await supabase.from("whatsapp_messages").insert({
+    cliente_id: cliente?.id || null,
+    phone_number: formatPhoneNumber(phoneNumber),
+    message_type: "text",
+    content: message,
+    direction: "outgoing",
+    wamid: result.messageId || null,
+    status: result.success ? "sent" : "failed",
+    error_message: result.error || null,
+    sent_at: result.success ? new Date().toISOString() : null,
+    sent_by: user.id,
+  });
+
+  if (!result.success) {
+    return { error: result.error || "Error al enviar mensaje" };
+  }
+
+  revalidatePath("/whatsapp");
+  return { success: true, messageId: result.messageId };
+}
+
+export async function getUnreadCount(): Promise<number> {
+  const supabase = await createClient();
+
+  const { count } = await supabase
+    .from("whatsapp_messages")
+    .select("*", { count: "exact", head: true })
+    .eq("direction", "incoming")
+    .eq("is_read", false);
+
+  return count || 0;
 }
