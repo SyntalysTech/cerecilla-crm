@@ -858,6 +858,8 @@ export async function getWhatsAppConversations(): Promise<WhatsAppConversation[]
     `)
     .order("created_at", { ascending: false });
 
+  console.log("getWhatsAppConversations - data:", data?.length, "error:", error);
+
   if (error) {
     console.error("Error fetching conversations:", error);
     return [];
