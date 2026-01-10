@@ -213,7 +213,7 @@ export function Sidebar({ userEmail, userName, userRole = "viewer" }: SidebarPro
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3">
+        <nav className="flex-1 overflow-y-auto overflow-x-hidden py-4 px-3 sidebar-scroll">
           {navigation.map((group) => (
             <div key={group.category} className="mb-6">
               <h3
