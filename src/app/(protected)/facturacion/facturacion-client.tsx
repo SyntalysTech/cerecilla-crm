@@ -232,9 +232,6 @@ export function FacturacionClient({
       const facturaData: FacturaData = {
         numero: factura.numero_factura,
         fecha: new Date(factura.fecha_factura).toLocaleDateString("es-ES"),
-        fechaVencimiento: new Date(
-          new Date(factura.fecha_factura).getTime() + 30 * 24 * 60 * 60 * 1000
-        ).toLocaleDateString("es-ES"),
         irpf: factura.irpf ?? 15, // IRPF (15% por defecto)
         emisor: {
           nombre: empresaConfig.nombre,
@@ -350,9 +347,6 @@ export function FacturacionClient({
         const facturaData: FacturaData = {
           numero: factura.numero_factura,
           fecha: new Date(factura.fecha_factura).toLocaleDateString("es-ES"),
-          fechaVencimiento: new Date(
-            new Date(factura.fecha_factura).getTime() + 30 * 24 * 60 * 60 * 1000
-          ).toLocaleDateString("es-ES"),
           irpf: factura.irpf ?? 15, // IRPF (15% por defecto)
           emisor: {
             nombre: empresaConfig.nombre,
