@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Save, User, Building2, Zap, Flame, FileText, MapPin, Upload, X, File } from "lucide-react";
+import { Loader2, Save, User, Building2, Zap, Flame, FileText, MapPin, Upload, X, File, Plus, Check } from "lucide-react";
 import { createCliente, type ClienteFormData } from "../actions";
 import { uploadClienteDocumento } from "../[id]/documentos-actions";
 
@@ -56,10 +56,57 @@ function formatFileSize(bytes: number) {
   return (bytes / (1024 * 1024)).toFixed(1) + " MB";
 }
 
+// Default form data for reset
+const getDefaultFormData = (isOperario: boolean, operarioAlias: string): ClienteFormData => ({
+  operador: isOperario ? operarioAlias : "",
+  servicio: "",
+  estado: "SIN ESTADO",
+  tipo_persona: "particular",
+  nombre_apellidos: "",
+  razon_social: "",
+  cif_empresa: "",
+  nombre_admin: "",
+  dni_admin: "",
+  documento_nuevo_titular: "",
+  documento_anterior_titular: "",
+  email: "",
+  telefono: "",
+  direccion: "",
+  tipo_via: "",
+  nombre_via: "",
+  numero: "",
+  escalera: "",
+  piso: "",
+  puerta: "",
+  codigo_postal: "",
+  poblacion: "",
+  provincia: "",
+  cuenta_bancaria: "",
+  cups_gas: "",
+  cups_luz: "",
+  compania_gas: "",
+  compania_luz: "",
+  potencia_gas: "",
+  potencia_luz: "",
+  tiene_suministro: null,
+  es_cambio_titular: null,
+  facturado: false,
+  cobrado: false,
+  pagado: false,
+  factura_pagos: "",
+  factura_cobros: "",
+  precio_kw_gas: "",
+  precio_kw_luz: "",
+  observaciones: "",
+  observaciones_admin: "",
+});
+
 export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias }: NuevoClienteFormProps) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [clientesCreados, setClientesCreados] = useState(0);
   const [tipoDocumentoNuevo, setTipoDocumentoNuevo] = useState("DNI");
   const [tipoDocumentoAnterior, setTipoDocumentoAnterior] = useState("DNI");
   const [tipoDocumentoAdmin, setTipoDocumentoAdmin] = useState("DNI");
@@ -71,54 +118,16 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
   const [fileNames, setFileNames] = useState<Record<number, string>>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [formData, setFormData] = useState<ClienteFormData>({
-    operador: isOperario ? operarioAlias : "",
-    servicio: "",
-    estado: "SIN ESTADO",
-    tipo_persona: "particular",
-    nombre_apellidos: "",
-    razon_social: "",
-    cif_empresa: "",
-    nombre_admin: "",
-    dni_admin: "",
-    documento_nuevo_titular: "",
-    documento_anterior_titular: "",
-    email: "",
-    telefono: "",
-    direccion: "",
-    tipo_via: "",
-    nombre_via: "",
-    numero: "",
-    escalera: "",
-    piso: "",
-    puerta: "",
-    codigo_postal: "",
-    poblacion: "",
-    provincia: "",
-    cuenta_bancaria: "",
-    cups_gas: "",
-    cups_luz: "",
-    compania_gas: "",
-    compania_luz: "",
-    potencia_gas: "",
-    potencia_luz: "",
-    tiene_suministro: null,
-    es_cambio_titular: null,
-    facturado: false,
-    cobrado: false,
-    pagado: false,
-    factura_pagos: "",
-    factura_cobros: "",
-    precio_kw_gas: "",
-    precio_kw_luz: "",
-    observaciones: "",
-    observaciones_admin: "",
-  });
+  const [formData, setFormData] = useState<ClienteFormData>(getDefaultFormData(isOperario, operarioAlias));
+
+  // Ref to track if we should add another client after submit
+  const addAnotherRef = useRef(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     // Validate required fields (except escalera, piso, puerta, documento_anterior_titular)
     const requiredFields = {
@@ -200,10 +209,50 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
         }
       }
 
-      // Redirect to clients list
-      router.push("/clientes");
+      // Track how many clients were created
+      const numCreated = result.clientes.length;
+      setClientesCreados(prev => prev + numCreated);
+
+      if (addAnotherRef.current) {
+        // Reset form but keep some common fields (operador, provincia)
+        const currentOperador = formData.operador;
+        const currentProvincia = formData.provincia;
+
+        setFormData({
+          ...getDefaultFormData(isOperario, operarioAlias),
+          operador: currentOperador,
+          provincia: currentProvincia,
+        });
+
+        // Reset documents
+        setPendingDocuments([]);
+        setTipoDocumentoNuevo("DNI");
+        setTipoDocumentoAnterior("DNI");
+        setTipoDocumentoAdmin("DNI");
+
+        // Show success message
+        const clienteName = result.cliente.nombre_apellidos || result.cliente.razon_social || "Cliente";
+        setSuccessMessage(`"${clienteName}" guardado correctamente. Puedes añadir otro cliente.`);
+        setLoading(false);
+        addAnotherRef.current = false;
+
+        // Scroll to top
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        // Redirect to clients list
+        router.push("/clientes");
+      }
     } else {
       router.push("/clientes");
+    }
+  }
+
+  function handleSaveAndAddAnother() {
+    addAnotherRef.current = true;
+    // Trigger form submit
+    const form = document.querySelector('form');
+    if (form) {
+      form.requestSubmit();
     }
   }
 
@@ -249,6 +298,23 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
+      {/* Success message */}
+      {successMessage && (
+        <div className="p-4 bg-green-50 border border-green-200 text-green-700 text-sm rounded-lg flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+            <Check className="w-5 h-5 text-green-600" />
+          </div>
+          <div className="flex-1">
+            <p className="font-medium">{successMessage}</p>
+            {clientesCreados > 0 && (
+              <p className="text-green-600 text-xs mt-1">
+                Total clientes añadidos en esta sesión: {clientesCreados}
+              </p>
+            )}
+          </div>
+        </div>
+      )}
+
       {error && (
         <div className="p-4 bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg">
           {error}
@@ -846,21 +912,30 @@ export function NuevoClienteForm({ operarios, isOperario, isAdmin, operarioAlias
       </div>
 
       {/* Botones */}
-      <div className="flex justify-end gap-3">
+      <div className="flex flex-col sm:flex-row justify-end gap-3">
         <button
           type="button"
           onClick={() => router.push("/clientes")}
-          className="px-6 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+          className="px-6 py-2 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50 order-3 sm:order-1"
         >
-          Cancelar
+          {clientesCreados > 0 ? `Terminar (${clientesCreados} añadidos)` : "Cancelar"}
+        </button>
+        <button
+          type="button"
+          onClick={handleSaveAndAddAnother}
+          disabled={loading}
+          className="px-6 py-2 bg-[#87CEEB] text-gray-800 rounded-md hover:bg-[#6bb8db] disabled:opacity-50 flex items-center justify-center gap-2 order-2"
+        >
+          {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+          Guardar y añadir otro
         </button>
         <button
           type="submit"
           disabled={loading}
-          className="px-6 py-2 bg-[#BB292A] text-white rounded-md hover:bg-[#a02324] disabled:opacity-50 flex items-center gap-2"
+          className="px-6 py-2 bg-[#BB292A] text-white rounded-md hover:bg-[#a02324] disabled:opacity-50 flex items-center justify-center gap-2 order-1 sm:order-3"
         >
           {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-          {loading ? "Guardando..." : "Guardar Cliente"}
+          {loading ? "Guardando..." : "Guardar y terminar"}
         </button>
       </div>
 
