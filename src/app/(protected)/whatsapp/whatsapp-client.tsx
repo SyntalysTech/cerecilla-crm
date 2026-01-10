@@ -185,18 +185,15 @@ export function WhatsAppClient({
 
   return (
     <div className="space-y-6">
-      {/* Nota de Syntalys para Laia */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
-        <Clock className="w-5 h-5 text-blue-600 mt-0.5" />
+      {/* Success banner - WhatsApp is active */}
+      <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-start gap-3">
+        <CheckCircle className="w-5 h-5 text-green-600 mt-0.5" />
         <div>
-          <h3 className="font-medium text-blue-800">Hola Laia! 👋</h3>
-          <p className="text-sm text-blue-700 mt-1">
-            El modulo de WhatsApp ya esta preparado, pero estamos pendientes de que Meta apruebe el numero de telefono <strong>+34 643 87 91 49</strong>.
+          <h3 className="font-medium text-green-800">WhatsApp Business Activo</h3>
+          <p className="text-sm text-green-700 mt-1">
+            El numero <strong>+34 643 87 91 49</strong> esta conectado y listo para enviar mensajes.
+            Configura las credenciales en la pestana <strong>Configuracion</strong> y activa el envio para empezar.
           </p>
-          <p className="text-sm text-blue-700 mt-2">
-            En cuanto lo aprueben, te avisamos y lo activamos para que puedas empezar a enviar mensajes a tus clientes. No tienes que hacer nada, nosotros nos encargamos!
-          </p>
-          <p className="text-xs text-blue-500 mt-3 italic">— Syntalys</p>
         </div>
       </div>
 
@@ -205,9 +202,9 @@ export function WhatsAppClient({
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 flex items-start gap-3">
           <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5" />
           <div>
-            <h3 className="font-medium text-amber-800">WhatsApp no configurado</h3>
+            <h3 className="font-medium text-amber-800">Configuracion pendiente</h3>
             <p className="text-sm text-amber-700 mt-1">
-              Configura las credenciales de WhatsApp Business API en la pestana de Configuracion para poder enviar mensajes.
+              Ve a la pestana <strong>Configuracion</strong>, introduce las credenciales y marca <strong>Activar envio de WhatsApp</strong> para empezar a enviar mensajes.
             </p>
           </div>
         </div>
