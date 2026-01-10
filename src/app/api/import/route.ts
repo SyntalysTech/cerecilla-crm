@@ -22,8 +22,11 @@ function getValue(row: Record<string, unknown>, ...keys: string[]): string | nul
 
 function parseBoolean(value: unknown): boolean {
   if (typeof value === "boolean") return value;
+  if (typeof value === "number") return value === 1;
   if (typeof value === "string") {
-    return value.toLowerCase() === "si" || value.toLowerCase() === "yes" || value.toLowerCase() === "true";
+    const v = value.toLowerCase().trim();
+    // Accept various affirmative values: si, sí, yes, true, 1, x, ok
+    return v === "si" || v === "sí" || v === "yes" || v === "true" || v === "1" || v === "x" || v === "ok";
   }
   return false;
 }
@@ -259,9 +262,19 @@ function parseClienteRow(row: Record<string, unknown>) {
   return result;
 }
 
+// Helper to get boolean value from row with flexible key matching
+function getBooleanValue(row: Record<string, unknown>, ...keys: string[]): boolean {
+  for (const key of keys) {
+    if (row[key] !== undefined && row[key] !== null && row[key] !== "") {
+      return parseBoolean(row[key]);
+    }
+  }
+  return false;
+}
+
 function parseOperarioRow(row: Record<string, unknown>) {
-  const alias = getValue(row, "Alias");
-  const email = getValue(row, "Correo Electronico");
+  const alias = getValue(row, "Alias", "alias");
+  const email = getValue(row, "Correo Electronico", "Correo Electrónico", "Email", "email", "correo");
 
   // Skip empty rows
   if (!alias && !email) return null;
@@ -269,18 +282,35 @@ function parseOperarioRow(row: Record<string, unknown>) {
   return {
     email,
     alias,
-    telefonos: getValue(row, "Telefonos"),
-    tiene_doc_autonomo: parseBoolean(row["¿Tenemos Doc Autonomo?"]),
-    tiene_doc_escritura: parseBoolean(row["¿Tenemos Doc Escritura?"]),
-    tiene_doc_cif: parseBoolean(row["¿Tenemos Doc CIF?"]),
-    tiene_doc_contrato: parseBoolean(row["¿Tenemos Doc Contrato?"]),
-    tipo: normalizeTipo(getValue(row, "Empresa o Autonomo")),
-    nombre: getValue(row, "Nombre"),
-    documento: getValue(row, "Documento"),
-    empresa: getValue(row, "Empresa"),
-    cif: getValue(row, "CIF"),
-    cuenta_bancaria: getValue(row, "Cuenta Bancaria"),
-    direccion: getValue(row, "Direccion"),
+    telefonos: getValue(row, "Telefonos", "Teléfonos", "telefonos", "telefono", "Telefono", "Teléfono"),
+    tiene_doc_autonomo: getBooleanValue(row,
+      "¿Tenemos Doc Autonomo?", "¿Tenemos Doc Autónomo?",
+      "Doc Autonomo", "Doc Autónomo", "Doc. Autonomo", "Doc. Autónomo",
+      "tiene_doc_autonomo", "Tiene Doc Autonomo"
+    ),
+    tiene_doc_escritura: getBooleanValue(row,
+      "¿Tenemos Doc Escritura?", "Doc Escritura", "Doc. Escritura",
+      "tiene_doc_escritura", "Tiene Doc Escritura"
+    ),
+    tiene_doc_cif: getBooleanValue(row,
+      "¿Tenemos Doc CIF?", "Doc CIF", "Doc. CIF",
+      "tiene_doc_cif", "Tiene Doc CIF"
+    ),
+    tiene_doc_contrato: getBooleanValue(row,
+      "¿Tenemos Doc Contrato?", "Doc Contrato", "Doc. Contrato",
+      "tiene_doc_contrato", "Tiene Doc Contrato", "Contrato"
+    ),
+    tiene_cuenta_bancaria: getBooleanValue(row,
+      "Tiene Cuenta Bancaria", "tiene_cuenta_bancaria", "Cuenta Bancaria OK",
+      "¿Tenemos Cuenta Bancaria?", "¿Tiene Cuenta?"
+    ),
+    tipo: normalizeTipo(getValue(row, "Empresa o Autonomo", "Empresa o Autónomo", "Tipo", "tipo")),
+    nombre: getValue(row, "Nombre", "nombre", "Nombre y Apellidos", "nombre_apellidos"),
+    documento: getValue(row, "Documento", "documento", "DNI", "dni", "NIE", "nie"),
+    empresa: getValue(row, "Empresa", "empresa", "Nombre Empresa", "Razón Social", "razon_social"),
+    cif: getValue(row, "CIF", "cif", "NIF", "nif"),
+    cuenta_bancaria: getValue(row, "Cuenta Bancaria", "cuenta_bancaria", "IBAN", "iban"),
+    direccion: getValue(row, "Direccion", "Dirección", "direccion"),
   };
 }
 
