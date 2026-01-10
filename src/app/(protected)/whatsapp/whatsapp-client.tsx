@@ -714,7 +714,7 @@ export function WhatsAppClient({
       {activeTab === "messages" && (
         <div className="bg-white rounded-lg border border-gray-200">
           <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-            <h3 className="text-lg font-medium text-gray-900">Mensajes Enviados</h3>
+            <h3 className="text-lg font-medium text-gray-900">Historial de Mensajes</h3>
             <button
               onClick={() => window.location.reload()}
               className="flex items-center gap-2 px-3 py-1.5 text-sm text-gray-600 hover:bg-gray-100 rounded-md"
@@ -727,8 +727,9 @@ export function WhatsAppClient({
             <table className="w-full">
               <thead className="bg-gray-50 border-b border-gray-200">
                 <tr>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Destinatario</th>
-                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Plantilla</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Direccion</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contacto</th>
+                  <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contenido</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Estado</th>
                   <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
                 </tr>
@@ -737,23 +738,38 @@ export function WhatsAppClient({
                 {messages.map((msg) => (
                   <tr key={msg.id} className="hover:bg-gray-50">
                     <td className="px-4 py-3">
+                      {msg.direction === "incoming" ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
+                          <Inbox className="w-3 h-3" />
+                          Recibido
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-green-100 text-green-700 rounded-full">
+                          <Send className="w-3 h-3" />
+                          Enviado
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Phone className="w-4 h-4 text-gray-400" />
                         <div>
                           <p className="text-sm text-gray-900">
-                            {msg.cliente?.nombre || msg.phoneNumber}
+                            {msg.senderName || msg.cliente?.nombre || msg.phoneNumber}
                           </p>
                           <p className="text-xs text-gray-500">{msg.phoneNumber}</p>
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3">
-                      <span className="text-sm text-gray-900">{msg.templateName || "-"}</span>
+                    <td className="px-4 py-3 max-w-xs">
+                      <p className="text-sm text-gray-900 truncate" title={msg.content || msg.templateName || "-"}>
+                        {msg.content || msg.templateName || "-"}
+                      </p>
                     </td>
                     <td className="px-4 py-3">
                       <StatusBadge status={msg.status} />
                       {msg.errorMessage && (
-                        <p className="text-xs text-red-600 mt-1">{msg.errorMessage}</p>
+                        <p className="text-xs text-red-600 mt-1 max-w-xs truncate" title={msg.errorMessage}>{msg.errorMessage}</p>
                       )}
                     </td>
                     <td className="px-4 py-3">
@@ -765,8 +781,8 @@ export function WhatsAppClient({
                 ))}
                 {messages.length === 0 && (
                   <tr>
-                    <td colSpan={4} className="px-4 py-8 text-center text-gray-500">
-                      No hay mensajes todavía
+                    <td colSpan={5} className="px-4 py-8 text-center text-gray-500">
+                      No hay mensajes todavia
                     </td>
                   </tr>
                 )}
