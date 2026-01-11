@@ -1,5 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import {
+  generateAIResponse,
+  getFallbackResponse,
+  shouldAutoRespond,
+  isAutoResponseEnabled,
+  type ConversationMessage,
+} from "@/lib/whatsapp/ai-responder";
+import { sendTextMessage, formatPhoneNumber, type WhatsAppConfig } from "@/lib/whatsapp/client";
 
 // Use service role for webhook (no user auth context)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -166,6 +174,11 @@ async function handleIncomingMessage(
   } else {
     console.log("Incoming message saved:", { phoneNumber, content, clienteId: cliente?.id });
   }
+
+  // Auto-respond with AI if enabled
+  if (isAutoResponseEnabled() && shouldAutoRespond(messageType, content)) {
+    await sendAIResponse(supabase, phoneNumber, content, contact?.profile?.name, cliente?.id);
+  }
 }
 
 async function handleStatusUpdate(
@@ -211,5 +224,97 @@ async function handleStatusUpdate(
     console.error("Error updating message status:", error);
   } else {
     console.log("Message status updated:", { messageId, status: statusValue });
+  }
+}
+
+/**
+ * Send an AI-generated response to the incoming message
+ */
+async function sendAIResponse(
+  supabase: SupabaseClient,
+  phoneNumber: string,
+  incomingContent: string,
+  senderName?: string,
+  clienteId?: string
+) {
+  try {
+    console.log("Generating AI response for:", { phoneNumber, incomingContent, senderName });
+
+    // Get conversation history (last 20 messages for context)
+    const { data: historyData } = await supabase
+      .from("whatsapp_messages")
+      .select("content, direction, created_at")
+      .eq("phone_number", phoneNumber)
+      .order("created_at", { ascending: true })
+      .limit(20);
+
+    // Build conversation history for AI
+    const conversationHistory: ConversationMessage[] = (historyData || [])
+      .filter((msg) => msg.content && msg.content.trim() !== "")
+      .map((msg) => ({
+        role: msg.direction === "incoming" ? "user" : "assistant",
+        content: msg.content,
+      })) as ConversationMessage[];
+
+    // Generate AI response
+    const aiResult = await generateAIResponse(incomingContent, conversationHistory, senderName);
+
+    let responseText: string;
+    if (aiResult.success && aiResult.response) {
+      responseText = aiResult.response;
+      console.log("AI response generated:", responseText.substring(0, 100) + "...");
+    } else {
+      console.error("AI generation failed:", aiResult.error);
+      responseText = getFallbackResponse();
+    }
+
+    // Get WhatsApp config from database
+    const { data: waConfig } = await supabase
+      .from("configuracion_whatsapp")
+      .select("phone_number_id, access_token, is_active")
+      .limit(1)
+      .single();
+
+    if (!waConfig || !waConfig.is_active) {
+      console.error("WhatsApp config not found or inactive");
+      return;
+    }
+
+    const config: WhatsAppConfig = {
+      phoneNumberId: waConfig.phone_number_id,
+      accessToken: waConfig.access_token,
+    };
+
+    // Send the response via WhatsApp
+    const sendResult = await sendTextMessage(config, {
+      to: phoneNumber,
+      text: responseText,
+    });
+
+    if (!sendResult.success) {
+      console.error("Failed to send AI response:", sendResult.error);
+      return;
+    }
+
+    console.log("AI response sent successfully, messageId:", sendResult.messageId);
+
+    // Save the outgoing message to database
+    const { error: insertError } = await supabase.from("whatsapp_messages").insert({
+      cliente_id: clienteId || null,
+      phone_number: formatPhoneNumber(phoneNumber),
+      message_type: "text",
+      content: responseText,
+      direction: "outgoing",
+      wamid: sendResult.messageId || null,
+      status: "sent",
+      sent_at: new Date().toISOString(),
+      sent_by: null, // AI-generated, no user
+    });
+
+    if (insertError) {
+      console.error("Error saving AI response to database:", insertError);
+    }
+  } catch (error) {
+    console.error("Error in sendAIResponse:", error);
   }
 }
