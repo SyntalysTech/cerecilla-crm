@@ -133,6 +133,12 @@ function parseClienteRow(row: Record<string, unknown>) {
                    row["fecha_alta"] ?? row["created_at"] ?? row["fecha registro"] ?? row["Fecha Registro"];
   const fecha = parseDate(fechaRaw);
 
+  // Get fecha_comisionable from Excel
+  const fechaComisionableRaw = row["fecha (comisionable)"] ?? row["fecha comisionable"] ??
+                               row["Fecha (comisionable)"] ?? row["Fecha Comisionable"] ??
+                               row["fecha_comisionable"];
+  const fechaComisionable = parseDate(fechaComisionableRaw);
+
   // Get separate address fields if provided (including __EMPTY columns from Excel)
   const tipoVia = getValue(row, "tipo_via", "tipo via", "Tipo Via", "Tipo Vía", "tipo calle", "Tipo Calle");
 
@@ -257,6 +263,11 @@ function parseClienteRow(row: Record<string, unknown>) {
   // Only add created_at if we have a valid date
   if (fecha) {
     result.created_at = fecha;
+  }
+
+  // Add fecha_comisionable if we have it
+  if (fechaComisionable) {
+    result.fecha_comisionable = fechaComisionable;
   }
 
   return result;
