@@ -176,7 +176,12 @@ async function handleIncomingMessage(
   }
 
   // Auto-respond with AI if enabled
-  if (isAutoResponseEnabled() && shouldAutoRespond(messageType, content)) {
+  const autoResponseEnabled = isAutoResponseEnabled();
+  const shouldRespond = shouldAutoRespond(messageType, content);
+  console.log("Auto-response check:", { autoResponseEnabled, shouldRespond, messageType, content });
+
+  if (autoResponseEnabled && shouldRespond) {
+    console.log("Triggering AI auto-response for:", phoneNumber);
     await sendAIResponse(supabase, phoneNumber, content, contact?.profile?.name, cliente?.id);
   }
 }
