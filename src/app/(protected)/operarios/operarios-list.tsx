@@ -627,16 +627,16 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
                   <td className="px-4 py-3">
                     {operario.tipo === "Autonomo" ? (
                       <div className="flex items-center gap-2" title="Cuenta / Autónomo / Contrato">
-                        <DocStatus ok={operario.tiene_cuenta_bancaria || false} />
-                        <DocStatus ok={operario.tiene_doc_autonomo} />
-                        <DocStatus ok={operario.tiene_doc_contrato} />
+                        <DocStatus ok={Boolean(operario.tiene_cuenta_bancaria)} />
+                        <DocStatus ok={Boolean(operario.tiene_doc_autonomo)} />
+                        <DocStatus ok={Boolean(operario.tiene_doc_contrato)} />
                       </div>
                     ) : operario.tipo === "Empresa" ? (
                       <div className="flex items-center gap-2" title="Cuenta / Escritura / CIF / Contrato">
-                        <DocStatus ok={operario.tiene_cuenta_bancaria || false} />
-                        <DocStatus ok={operario.tiene_doc_escritura} />
-                        <DocStatus ok={operario.tiene_doc_cif} />
-                        <DocStatus ok={operario.tiene_doc_contrato} />
+                        <DocStatus ok={Boolean(operario.tiene_cuenta_bancaria)} />
+                        <DocStatus ok={Boolean(operario.tiene_doc_escritura)} />
+                        <DocStatus ok={Boolean(operario.tiene_doc_cif)} />
+                        <DocStatus ok={Boolean(operario.tiene_doc_contrato)} />
                       </div>
                     ) : (
                       <span className="text-xs text-gray-400">Sin tipo</span>
@@ -737,34 +737,34 @@ export function OperariosList({ operarios, error }: OperariosListProps) {
                 {operario.tipo === "Autonomo" ? (
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1">
-                      <DocStatus ok={operario.tiene_cuenta_bancaria || false} />
+                      <DocStatus ok={Boolean(operario.tiene_cuenta_bancaria)} />
                       <span className="text-gray-500">Cuenta</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <DocStatus ok={operario.tiene_doc_autonomo} />
+                      <DocStatus ok={Boolean(operario.tiene_doc_autonomo)} />
                       <span className="text-gray-500">Aut.</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <DocStatus ok={operario.tiene_doc_contrato} />
+                      <DocStatus ok={Boolean(operario.tiene_doc_contrato)} />
                       <span className="text-gray-500">Cont.</span>
                     </div>
                   </div>
                 ) : operario.tipo === "Empresa" ? (
                   <div className="flex items-center gap-2">
                     <div className="flex items-center gap-1">
-                      <DocStatus ok={operario.tiene_cuenta_bancaria || false} />
+                      <DocStatus ok={Boolean(operario.tiene_cuenta_bancaria)} />
                       <span className="text-gray-500">Cuenta</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <DocStatus ok={operario.tiene_doc_escritura} />
+                      <DocStatus ok={Boolean(operario.tiene_doc_escritura)} />
                       <span className="text-gray-500">Esc.</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <DocStatus ok={operario.tiene_doc_cif} />
+                      <DocStatus ok={Boolean(operario.tiene_doc_cif)} />
                       <span className="text-gray-500">CIF</span>
                     </div>
                     <div className="flex items-center gap-1">
-                      <DocStatus ok={operario.tiene_doc_contrato} />
+                      <DocStatus ok={Boolean(operario.tiene_doc_contrato)} />
                       <span className="text-gray-500">Cont.</span>
                     </div>
                   </div>

@@ -2,10 +2,11 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import * as XLSX from "xlsx";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SECRET_KEY!
-);
+// Use service role key to bypass RLS for import operations
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseServiceRole = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SECRET_KEY!;
+
+const supabase = createClient(supabaseUrl, supabaseServiceRole);
 
 // Batch size for inserts (Supabase handles up to 1000 rows per insert)
 const BATCH_SIZE = 50;
@@ -290,22 +291,37 @@ function parseOperarioRow(row: Record<string, unknown>) {
   // Skip empty rows
   if (!alias && !email) return null;
 
-  return {
+  // Get address fields - check for separate columns or combined direccion
+  const tipoVia = getValue(row, "Tipo Via", "Tipo Vía", "tipo_via", "Tipo de Via", "Tipo de Vía");
+  const nombreVia = getValue(row, "Nombre Via", "Nombre Vía", "nombre_via", "Calle", "calle", "Via", "Vía");
+  const numero = getValue(row, "Numero", "Número", "numero", "Nº", "N°", "Num");
+  const escalera = getValue(row, "Escalera", "escalera", "Esc", "Esc.");
+  const piso = getValue(row, "Piso", "piso", "Planta", "planta");
+  const puerta = getValue(row, "Puerta", "puerta", "Pta", "Pta.");
+  const codigoPostal = getValue(row, "Codigo Postal", "Código Postal", "codigo_postal", "CP", "cp", "C.P.");
+  const poblacion = getValue(row, "Poblacion", "Población", "poblacion", "Localidad", "localidad", "Ciudad", "ciudad");
+  const provincia = getValue(row, "Provincia", "provincia");
+
+  // Get full direccion field
+  const direccionCompleta = getValue(row, "Direccion", "Dirección", "direccion", "Domicilio", "domicilio", "Direccion Completa", "Dirección Completa");
+
+  // Build result
+  const result: Record<string, unknown> = {
     email,
     alias,
     telefonos: getValue(row, "Telefonos", "Teléfonos", "telefonos", "telefono", "Telefono", "Teléfono"),
     tiene_doc_autonomo: getBooleanValue(row,
       "¿Tenemos Doc Autonomo?", "¿Tenemos Doc Autónomo?",
       "Doc Autonomo", "Doc Autónomo", "Doc. Autonomo", "Doc. Autónomo",
-      "tiene_doc_autonomo", "Tiene Doc Autonomo"
+      "tiene_doc_autonomo", "Tiene Doc Autonomo", "Autonomo", "Autónomo"
     ),
     tiene_doc_escritura: getBooleanValue(row,
       "¿Tenemos Doc Escritura?", "Doc Escritura", "Doc. Escritura",
-      "tiene_doc_escritura", "Tiene Doc Escritura"
+      "tiene_doc_escritura", "Tiene Doc Escritura", "Escritura"
     ),
     tiene_doc_cif: getBooleanValue(row,
       "¿Tenemos Doc CIF?", "Doc CIF", "Doc. CIF",
-      "tiene_doc_cif", "Tiene Doc CIF"
+      "tiene_doc_cif", "Tiene Doc CIF", "CIF Doc"
     ),
     tiene_doc_contrato: getBooleanValue(row,
       "¿Tenemos Doc Contrato?", "Doc Contrato", "Doc. Contrato",
@@ -313,16 +329,46 @@ function parseOperarioRow(row: Record<string, unknown>) {
     ),
     tiene_cuenta_bancaria: getBooleanValue(row,
       "Tiene Cuenta Bancaria", "tiene_cuenta_bancaria", "Cuenta Bancaria OK",
-      "¿Tenemos Cuenta Bancaria?", "¿Tiene Cuenta?"
+      "¿Tenemos Cuenta Bancaria?", "¿Tiene Cuenta?", "Cuenta OK", "IBAN OK"
     ),
     tipo: normalizeTipo(getValue(row, "Empresa o Autonomo", "Empresa o Autónomo", "Tipo", "tipo")),
     nombre: getValue(row, "Nombre", "nombre", "Nombre y Apellidos", "nombre_apellidos"),
-    documento: getValue(row, "Documento", "documento", "DNI", "dni", "NIE", "nie"),
+    documento: getValue(row, "Documento", "documento", "DNI", "dni", "NIE", "nie", "DNI/NIE"),
     empresa: getValue(row, "Empresa", "empresa", "Nombre Empresa", "Razón Social", "razon_social"),
     cif: getValue(row, "CIF", "cif", "NIF", "nif"),
     cuenta_bancaria: getValue(row, "Cuenta Bancaria", "cuenta_bancaria", "IBAN", "iban"),
-    direccion: getValue(row, "Direccion", "Dirección", "direccion"),
   };
+
+  // Handle address: use separate fields if available
+  if (nombreVia || numero || codigoPostal || poblacion || provincia) {
+    result.tipo_via = tipoVia || "Calle";
+    result.nombre_via = nombreVia;
+    result.numero = numero;
+    result.escalera = escalera;
+    result.piso = piso;
+    result.puerta = puerta;
+    result.codigo_postal = codigoPostal;
+    result.poblacion = poblacion;
+    result.provincia = provincia;
+
+    // Also compose full direccion for backward compatibility
+    const parts = [
+      result.tipo_via,
+      nombreVia,
+      numero,
+      escalera ? `Esc. ${escalera}` : null,
+      piso ? `${piso}º` : null,
+      puerta,
+    ].filter(Boolean);
+    const addressLine = parts.join(" ");
+    const locationLine = [codigoPostal, poblacion, provincia].filter(Boolean).join(", ");
+    result.direccion = [addressLine, locationLine].filter(Boolean).join(", ");
+  } else if (direccionCompleta) {
+    // Use complete address as-is
+    result.direccion = direccionCompleta;
+  }
+
+  return result;
 }
 
 export async function POST(request: NextRequest) {
@@ -383,14 +429,18 @@ export async function POST(request: NextRequest) {
             return clienteData;
           });
 
+          console.log(`Inserting batch of ${rowsToInsert.length} rows into ${tableName}`);
+          console.log("Sample row:", JSON.stringify(rowsToInsert[0], null, 2));
+
           const { error, data: insertedData } = await supabase
             .from(tableName)
             .insert(rowsToInsert)
             .select("id");
 
           if (error) {
-            console.error("Batch insert error:", error.message);
-            lastError = error.message;
+            console.error("Batch insert error:", error.message, error.details, error.hint);
+            console.error("First row that failed:", JSON.stringify(rowsToInsert[0], null, 2));
+            lastError = error.message + (error.hint ? ` (${error.hint})` : "");
             errors += rows.length;
             return;
           }

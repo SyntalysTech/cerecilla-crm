@@ -5,7 +5,10 @@ import {
   getFallbackResponse,
   shouldAutoRespond,
   isAutoResponseEnabled,
+  analyzeInvoiceImage,
+  generateInvoiceResponseMessage,
   type ConversationMessage,
+  type InvoiceAnalysis,
 } from "@/lib/whatsapp/ai-responder";
 import { sendTextMessage, formatPhoneNumber, type WhatsAppConfig } from "@/lib/whatsapp/client";
 
@@ -182,7 +185,21 @@ async function handleIncomingMessage(
 
   if (autoResponseEnabled && shouldRespond) {
     console.log("Triggering AI auto-response for:", phoneNumber);
-    await sendAIResponse(supabase, phoneNumber, content, contact?.profile?.name, cliente?.id);
+
+    // Special handling for images - analyze as potential invoice
+    if (messageType === "image" && mediaUrl) {
+      console.log("Image received, attempting invoice analysis...");
+      await handleImageMessage(
+        supabase,
+        phoneNumber,
+        mediaUrl,
+        contact?.profile?.name,
+        cliente?.id,
+        messageId
+      );
+    } else {
+      await sendAIResponse(supabase, phoneNumber, content, contact?.profile?.name, cliente?.id);
+    }
   }
 }
 
@@ -229,6 +246,197 @@ async function handleStatusUpdate(
     console.error("Error updating message status:", error);
   } else {
     console.log("Message status updated:", { messageId, status: statusValue });
+  }
+}
+
+/**
+ * Download media from WhatsApp using the Graph API
+ */
+async function downloadWhatsAppMedia(
+  mediaId: string,
+  accessToken: string
+): Promise<{ success: boolean; url?: string; mimeType?: string; error?: string }> {
+  try {
+    // First, get the media URL from WhatsApp
+    const mediaInfoResponse = await fetch(
+      `https://graph.facebook.com/v18.0/${mediaId}`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
+
+    if (!mediaInfoResponse.ok) {
+      const error = await mediaInfoResponse.text();
+      console.error("Error getting media info:", error);
+      return { success: false, error: "Could not get media info" };
+    }
+
+    const mediaInfo = await mediaInfoResponse.json();
+    const mediaUrl = mediaInfo.url;
+    const mimeType = mediaInfo.mime_type;
+
+    console.log("Media info:", { mediaUrl, mimeType });
+
+    // The URL returned is a direct download link that requires auth
+    // We return this URL - it can be used to download the actual file
+    return { success: true, url: mediaUrl, mimeType };
+  } catch (error) {
+    console.error("Error downloading media:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Download failed",
+    };
+  }
+}
+
+/**
+ * Handle image messages - download, analyze as invoice, save to CRM
+ */
+async function handleImageMessage(
+  supabase: SupabaseClient,
+  phoneNumber: string,
+  whatsappMediaId: string,
+  senderName?: string,
+  clienteId?: string,
+  messageWamid?: string
+) {
+  try {
+    console.log("Processing image message:", { phoneNumber, whatsappMediaId, senderName });
+
+    // Get WhatsApp config for access token
+    const { data: waConfig } = await supabase
+      .from("configuracion_whatsapp")
+      .select("phone_number_id, access_token, is_active")
+      .limit(1)
+      .single();
+
+    if (!waConfig || !waConfig.is_active) {
+      console.error("WhatsApp config not found or inactive");
+      return;
+    }
+
+    // Download media URL from WhatsApp
+    const mediaResult = await downloadWhatsAppMedia(whatsappMediaId, waConfig.access_token);
+
+    if (!mediaResult.success || !mediaResult.url) {
+      console.error("Failed to get media URL:", mediaResult.error);
+      // Still send a generic response
+      await sendAIResponse(supabase, phoneNumber, "[Imagen]", senderName, clienteId);
+      return;
+    }
+
+    // Create a record in whatsapp_received_files
+    const { data: fileRecord, error: fileError } = await supabase
+      .from("whatsapp_received_files")
+      .insert({
+        cliente_id: clienteId || null,
+        phone_number: phoneNumber,
+        sender_name: senderName,
+        whatsapp_media_id: whatsappMediaId,
+        media_type: "image",
+        mime_type: mediaResult.mimeType,
+        status: "pending",
+      })
+      .select("id")
+      .single();
+
+    if (fileError) {
+      console.error("Error creating file record:", fileError);
+    }
+
+    // Download the actual image data for analysis
+    // WhatsApp media URLs require the access token
+    const imageResponse = await fetch(mediaResult.url, {
+      headers: {
+        Authorization: `Bearer ${waConfig.access_token}`,
+      },
+    });
+
+    if (!imageResponse.ok) {
+      console.error("Failed to download image");
+      await sendAIResponse(supabase, phoneNumber, "[Imagen]", senderName, clienteId);
+      return;
+    }
+
+    // Convert to base64 for OpenAI Vision API
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const base64Image = Buffer.from(imageBuffer).toString("base64");
+    const imageDataUrl = `data:${mediaResult.mimeType || "image/jpeg"};base64,${base64Image}`;
+
+    // Analyze the image with GPT-4 Vision
+    console.log("Analyzing image with GPT-4 Vision...");
+    const analysisResult = await analyzeInvoiceImage(imageDataUrl);
+
+    let responseText: string;
+    let analysisData: InvoiceAnalysis["analysis"] | undefined;
+
+    if (analysisResult.success && analysisResult.analysis) {
+      analysisData = analysisResult.analysis;
+      responseText = generateInvoiceResponseMessage(analysisData, senderName);
+      console.log("Invoice analysis successful:", analysisData.tipo, analysisData.compania);
+    } else {
+      console.log("Invoice analysis failed or not a recognizable invoice");
+      responseText = `He recibido tu imagen${senderName ? `, ${senderName}` : ""}! 📷 Nuestro equipo la revisará y te contactará pronto.`;
+    }
+
+    // Update the file record with analysis results
+    if (fileRecord?.id && analysisData) {
+      await supabase
+        .from("whatsapp_received_files")
+        .update({
+          status: "analyzed",
+          ai_analysis: analysisData,
+          analysis_type: "invoice",
+          detected_tipo: analysisData.tipo,
+          detected_compania: analysisData.compania || null,
+          detected_importe: analysisData.importe_total || null,
+          detected_cups: analysisData.cups || null,
+          analyzed_at: new Date().toISOString(),
+        })
+        .eq("id", fileRecord.id);
+    }
+
+    // Send the response
+    const config: WhatsAppConfig = {
+      phoneNumberId: waConfig.phone_number_id,
+      accessToken: waConfig.access_token,
+    };
+
+    const sendResult = await sendTextMessage(config, {
+      to: phoneNumber,
+      text: responseText,
+    });
+
+    if (!sendResult.success) {
+      console.error("Failed to send image analysis response:", sendResult.error);
+      return;
+    }
+
+    console.log("Image analysis response sent successfully");
+
+    // Save the outgoing message
+    await supabase.from("whatsapp_messages").insert({
+      cliente_id: clienteId || null,
+      phone_number: formatPhoneNumber(phoneNumber),
+      message_type: "text",
+      content: responseText,
+      direction: "outgoing",
+      wamid: sendResult.messageId || null,
+      status: "sent",
+      sent_at: new Date().toISOString(),
+      sent_by: null,
+    });
+
+  } catch (error) {
+    console.error("Error handling image message:", error);
+    // Fallback to generic response
+    try {
+      await sendAIResponse(supabase, phoneNumber, "[Imagen]", senderName, clienteId);
+    } catch (fallbackError) {
+      console.error("Fallback response also failed:", fallbackError);
+    }
   }
 }
 

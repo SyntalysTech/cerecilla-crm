@@ -14,32 +14,36 @@ const CERECILLA_CONTEXT = `
 # SOBRE CERECILLA
 
 ## Quiénes Somos
-Cerecilla es una empresa especializada en el sector energético que ofrece servicios de asesoramiento y optimización para hogares y empresas. Ayudamos a nuestros clientes a reducir sus facturas de luz y gas mediante el análisis de consumo y la búsqueda de las mejores ofertas del mercado.
+Cerecilla es una empresa especializada en ahorro para hogares y empresas. Ayudamos a nuestros clientes a reducir sus facturas de luz, gas, telefonía, seguros y alarmas mediante el análisis de consumo y la búsqueda de las mejores ofertas del mercado.
 
-## Servicios Principales
+## Servicios Principales (TODOS con análisis gratuito y sin compromiso)
 
-### 1. Ahorro en Luz y Gas
+### 1. Ahorro en Luz y Gas ⚡🔥
 - Análisis gratuito de facturas
 - Comparación entre comercializadoras
 - Tramitación de cambios de compañía
 - Optimización de potencias contratadas
 - Cambio de tarifa si es necesario
+- Ahorro típico: 10-30%
 
-### 2. Telefonía
+### 2. Telefonía y Fibra 📱
 - Análisis de tarifas móviles y fibra
 - Comparación de operadores
 - Tramitación de cambios y portabilidades
 
-### 3. Seguros
+### 3. Seguros 🛡️
 - Seguros de hogar
 - Seguros de vida
 - Seguros de coche
 - Asesoramiento personalizado
 
-### 4. Alarmas
-- Sistemas de seguridad para hogares
+### 4. Alarmas y Seguridad 🚨
+- Sistemas de alarma para hogares
 - Sistemas de seguridad para negocios
-- Asesoramiento sobre la mejor opción
+- Cámaras de videovigilancia
+- Sensores de movimiento y apertura
+- Conexión 24h con central receptora
+- Asesoramiento sobre la mejor opción según tus necesidades
 
 ## Información de Contacto
 - **Teléfono:** 643 879 149
@@ -66,6 +70,7 @@ Trabajamos con las principales compañías del mercado:
 - **Luz:** Iberdrola, Endesa, Naturgy, Repsol, TotalEnergies, etc.
 - **Gas:** Naturgy, Endesa, Repsol, TotalEnergies, etc.
 - **Telefonía:** Movistar, Vodafone, Orange, MásMóvil, Pepephone, etc.
+- **Alarmas:** Securitas Direct, Prosegur, ADT, Movistar Prosegur, etc.
 
 ## FAQ - Preguntas Frecuentes
 
@@ -86,6 +91,9 @@ El cambio de compañía suele tardar entre 15 y 30 días, dependiendo de la come
 
 ### ¿Me quedaré sin suministro durante el cambio?
 No, nunca te quedarás sin luz ni gas. El cambio se realiza de forma transparente.
+
+### ¿También hacéis alarmas?
+¡Sí! También ayudamos a encontrar el mejor sistema de alarma para tu hogar o negocio. Analizamos tus necesidades y te proponemos la mejor opción.
 `;
 
 const SYSTEM_PROMPT = `Eres CereciBot, el asistente virtual de WhatsApp de Cerecilla. Tu trabajo es responder de forma amable, profesional y útil a los mensajes de los clientes.
@@ -224,4 +232,177 @@ export function isAutoResponseEnabled(): boolean {
   // Can be controlled via environment variable
   const enabled = process.env.WHATSAPP_AUTO_RESPONSE_ENABLED;
   return enabled !== "false"; // Enabled by default
+}
+
+/**
+ * Analyze an invoice/bill image using GPT-4 Vision
+ */
+export interface InvoiceAnalysis {
+  success: boolean;
+  analysis?: {
+    tipo: "luz" | "gas" | "telefonia" | "seguro" | "alarma" | "otro" | "desconocido";
+    compania?: string;
+    importe_total?: string;
+    periodo?: string;
+    consumo?: string;
+    potencia_contratada?: string;
+    tarifa?: string;
+    nombre_titular?: string;
+    direccion?: string;
+    cups?: string;
+    resumen: string;
+    puntos_ahorro: string[];
+  };
+  error?: string;
+}
+
+const INVOICE_ANALYSIS_PROMPT = `Analiza esta imagen de una factura o documento. Extrae la siguiente información si está disponible:
+
+1. **Tipo de factura**: luz, gas, telefonía, seguro, alarma, u otro
+2. **Compañía**: nombre de la empresa que emite la factura
+3. **Importe total**: cantidad a pagar
+4. **Período de facturación**: fechas del período
+5. **Consumo**: kWh para luz, m³ para gas, datos/minutos para telefonía
+6. **Potencia contratada**: solo para luz (kW)
+7. **Tarifa**: tipo de tarifa contratada
+8. **Nombre del titular**: si aparece
+9. **Dirección de suministro**: si aparece
+10. **CUPS**: código único de punto de suministro (solo luz/gas)
+
+Además, proporciona:
+- Un **resumen breve** (2-3 frases) de lo que ves en la factura, mencionando los datos más importantes
+- **Puntos de posible ahorro** (2-3 sugerencias de cómo podrían ahorrar basándote en lo que ves)
+
+Responde SIEMPRE en formato JSON con esta estructura exacta:
+{
+  "tipo": "luz|gas|telefonia|seguro|alarma|otro|desconocido",
+  "compania": "nombre o null",
+  "importe_total": "cantidad o null",
+  "periodo": "periodo o null",
+  "consumo": "consumo o null",
+  "potencia_contratada": "potencia o null",
+  "tarifa": "tarifa o null",
+  "nombre_titular": "nombre o null",
+  "direccion": "direccion o null",
+  "cups": "cups o null",
+  "resumen": "Resumen breve de la factura",
+  "puntos_ahorro": ["sugerencia 1", "sugerencia 2"]
+}
+
+Si no puedes identificar la imagen como factura o no puedes leer el contenido, responde:
+{
+  "tipo": "desconocido",
+  "resumen": "No he podido identificar esta imagen como una factura",
+  "puntos_ahorro": []
+}`;
+
+export async function analyzeInvoiceImage(imageUrl: string): Promise<InvoiceAnalysis> {
+  if (!process.env.OPENAI_API_KEY) {
+    console.error("OpenAI API key not configured");
+    return { success: false, error: "OpenAI API key not configured" };
+  }
+
+  try {
+    console.log("Analyzing invoice image:", imageUrl);
+
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: INVOICE_ANALYSIS_PROMPT },
+            { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+          ],
+        },
+      ],
+      max_tokens: 1000,
+    });
+
+    const responseText = completion.choices[0]?.message?.content;
+    console.log("Invoice analysis response:", responseText);
+
+    if (!responseText) {
+      return { success: false, error: "No response from OpenAI" };
+    }
+
+    // Parse JSON response
+    try {
+      // Extract JSON from response (in case there's extra text)
+      const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) {
+        return { success: false, error: "Could not parse analysis response" };
+      }
+
+      const analysis = JSON.parse(jsonMatch[0]);
+      return { success: true, analysis };
+    } catch (parseError) {
+      console.error("Error parsing invoice analysis:", parseError);
+      return { success: false, error: "Could not parse analysis response" };
+    }
+  } catch (error) {
+    console.error("Error analyzing invoice:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error analyzing invoice",
+    };
+  }
+}
+
+/**
+ * Generate a friendly response based on invoice analysis
+ */
+export function generateInvoiceResponseMessage(analysis: InvoiceAnalysis["analysis"], senderName?: string): string {
+  if (!analysis || analysis.tipo === "desconocido") {
+    return `He recibido tu imagen${senderName ? `, ${senderName}` : ""}! 📷 Nuestro equipo la revisará y te contactará pronto.`;
+  }
+
+  const greeting = senderName ? `¡Gracias por tu factura, ${senderName}! 📄` : "¡He recibido tu factura! 📄";
+
+  let details = "";
+
+  // Build details based on what we found
+  if (analysis.tipo === "luz" || analysis.tipo === "gas") {
+    const tipoEmoji = analysis.tipo === "luz" ? "⚡" : "🔥";
+    details = `\n\n${tipoEmoji} Veo que es una factura de **${analysis.tipo.toUpperCase()}**`;
+
+    if (analysis.compania) {
+      details += ` de **${analysis.compania}**`;
+    }
+    details += ".";
+
+    if (analysis.importe_total) {
+      details += `\n💰 Importe: **${analysis.importe_total}**`;
+    }
+    if (analysis.consumo) {
+      details += `\n📊 Consumo: ${analysis.consumo}`;
+    }
+    if (analysis.potencia_contratada) {
+      details += `\n🔌 Potencia: ${analysis.potencia_contratada}`;
+    }
+    if (analysis.periodo) {
+      details += `\n📅 Período: ${analysis.periodo}`;
+    }
+  } else if (analysis.tipo === "telefonia") {
+    details = `\n\n📱 Veo que es una factura de **TELEFONÍA**`;
+    if (analysis.compania) {
+      details += ` de **${analysis.compania}**`;
+    }
+    details += ".";
+    if (analysis.importe_total) {
+      details += `\n💰 Importe: **${analysis.importe_total}**`;
+    }
+  } else {
+    details = `\n\n📋 ${analysis.resumen}`;
+  }
+
+  // Add savings suggestions
+  let savingsTips = "";
+  if (analysis.puntos_ahorro && analysis.puntos_ahorro.length > 0) {
+    savingsTips = "\n\n💡 **Observaciones rápidas:**\n" + analysis.puntos_ahorro.map(tip => `• ${tip}`).join("\n");
+  }
+
+  const closing = "\n\n✅ Nuestro equipo analizará tu factura en detalle y te contactará pronto con las mejores opciones de ahorro. ¡Gracias por confiar en Cerecilla! 🍒";
+
+  return greeting + details + savingsTips + closing;
 }

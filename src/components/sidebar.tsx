@@ -61,6 +61,7 @@ const fullNavigation = [
     category: "Comunicación",
     items: [
       { name: "WhatsApp", href: "/whatsapp", icon: MessageCircle },
+      { name: "WA Facturas", href: "/whatsapp/facturas", icon: Receipt },
       { name: "Emails", href: "/emails", icon: Mail },
       { name: "Campañas", href: "/campaigns", icon: BarChart3 },
       { name: "Email Templates", href: "/email-templates", icon: FileText },
