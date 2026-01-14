@@ -4,6 +4,7 @@
  */
 
 import OpenAI from "openai";
+import pdf from "pdf-parse";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -256,7 +257,7 @@ export interface InvoiceAnalysis {
   error?: string;
 }
 
-const INVOICE_ANALYSIS_PROMPT = `Analiza esta imagen de una factura o documento. Extrae la siguiente información si está disponible:
+const INVOICE_ANALYSIS_PROMPT = `Analiza esta factura o documento (puede ser imagen o texto extraído de PDF). Extrae la siguiente información si está disponible:
 
 1. **Tipo de factura**: luz, gas, telefonía, seguro, alarma, u otro
 2. **Compañía**: nombre de la empresa que emite la factura
@@ -289,10 +290,10 @@ Responde SIEMPRE en formato JSON con esta estructura exacta:
   "puntos_ahorro": ["sugerencia 1", "sugerencia 2"]
 }
 
-Si no puedes identificar la imagen como factura o no puedes leer el contenido, responde:
+Si no puedes identificar el documento como factura o no puedes leer el contenido, responde:
 {
   "tipo": "desconocido",
-  "resumen": "No he podido identificar esta imagen como una factura",
+  "resumen": "No he podido identificar este documento como una factura",
   "puntos_ahorro": []
 }`;
 
@@ -303,21 +304,57 @@ export async function analyzeInvoiceImage(imageUrl: string): Promise<InvoiceAnal
   }
 
   try {
-    console.log("Analyzing invoice image:", imageUrl);
+    console.log("Analyzing invoice media:", imageUrl);
 
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: INVOICE_ANALYSIS_PROMPT },
-            { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-          ],
-        },
-      ],
-      max_tokens: 1000,
-    });
+    // Detect if it's a PDF based on data URL prefix
+    const isPDF = imageUrl.startsWith("data:application/pdf");
+
+    let completion: OpenAI.ChatCompletion;
+
+    if (isPDF) {
+      // Extract text from PDF
+      console.log("Detected PDF, extracting text...");
+      const base64Data = imageUrl.split(",")[1];
+      const pdfBuffer = Buffer.from(base64Data, "base64");
+
+      let pdfText = "";
+      try {
+        const pdfData = await pdf(pdfBuffer);
+        pdfText = pdfData.text;
+        console.log("PDF text extracted, length:", pdfText.length);
+      } catch (pdfError) {
+        console.error("Error extracting PDF text:", pdfError);
+        return { success: false, error: "Could not extract text from PDF" };
+      }
+
+      // Analyze the extracted text with GPT-4o
+      completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: `${INVOICE_ANALYSIS_PROMPT}\n\nTexto extraído del PDF:\n\n${pdfText}`,
+          },
+        ],
+        max_tokens: 1000,
+      });
+    } else {
+      // Analyze image with GPT-4o Vision
+      console.log("Detected image, analyzing with Vision...");
+      completion = await openai.chat.completions.create({
+        model: "gpt-4o",
+        messages: [
+          {
+            role: "user",
+            content: [
+              { type: "text", text: INVOICE_ANALYSIS_PROMPT },
+              { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+            ],
+          },
+        ],
+        max_tokens: 1000,
+      });
+    }
 
     const responseText = completion.choices[0]?.message?.content;
     console.log("Invoice analysis response:", responseText);
