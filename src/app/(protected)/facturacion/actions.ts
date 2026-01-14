@@ -143,14 +143,16 @@ export async function getOperariosComisionables() {
     // Check required documents based on type
     const docsFaltantes: string[] = [];
     if (op.tipo === "Autonomo") {
-      if (!op.tiene_cuenta_bancaria) docsFaltantes.push("Cuenta bancaria");
-      if (!op.tiene_doc_autonomo) docsFaltantes.push("Doc. Autónomo");
-      if (!op.tiene_doc_contrato) docsFaltantes.push("Doc. Contrato");
+      // Para autónomos: contrato + doc_autonomo + cuenta_bancaria
+      if (!Boolean(op.tiene_cuenta_bancaria)) docsFaltantes.push("Cuenta bancaria");
+      if (!Boolean(op.tiene_doc_autonomo)) docsFaltantes.push("Doc. Autónomo");
+      if (!Boolean(op.tiene_doc_contrato)) docsFaltantes.push("Contrato");
     } else if (op.tipo === "Empresa") {
-      if (!op.tiene_cuenta_bancaria) docsFaltantes.push("Cuenta bancaria");
-      if (!op.tiene_doc_cif) docsFaltantes.push("Doc. CIF");
-      if (!op.tiene_doc_escritura) docsFaltantes.push("Doc. Escritura");
-      if (!op.tiene_doc_contrato) docsFaltantes.push("Doc. Contrato");
+      // Para empresas: contrato + cif + escrituras + cuenta_bancaria
+      if (!Boolean(op.tiene_cuenta_bancaria)) docsFaltantes.push("Cuenta bancaria");
+      if (!Boolean(op.tiene_doc_cif)) docsFaltantes.push("CIF");
+      if (!Boolean(op.tiene_doc_escritura)) docsFaltantes.push("Escrituras");
+      if (!Boolean(op.tiene_doc_contrato)) docsFaltantes.push("Contrato");
     }
 
     result.push({

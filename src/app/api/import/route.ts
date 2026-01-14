@@ -322,8 +322,15 @@ function parseOperarioRow(row: Record<string, unknown>) {
   const poblacion = getValue(row, "Poblacion", "Población", "poblacion", "Localidad", "localidad", "Ciudad", "ciudad");
   const provincia = getValue(row, "Provincia", "provincia");
 
-  // Get full direccion field
-  const direccionCompleta = getValue(row, "Direccion", "Dirección", "direccion", "Domicilio", "domicilio", "Direccion Completa", "Dirección Completa");
+  // Get full direccion field - try many variations
+  const direccionCompleta = getValue(
+    row,
+    "direccion", "Direccion", "dirección", "Dirección",
+    "Direccion completa", "Dirección completa", "direccion completa", "dirección completa",
+    "Domicilio", "domicilio",
+    "Direccion suministro", "dirección suministro", "direccion suministro",
+    "Dirección de suministro", "direccion de suministro"
+  );
 
   // Build result
   const result: Record<string, unknown> = {
@@ -498,7 +505,7 @@ export async function POST(request: NextRequest) {
                 observacionesToInsert.push({
                   cliente_id: clienteId,
                   mensaje: obsAdmin,
-                  es_admin: false, // This is admin talking TO operator, not private admin notes
+                  es_admin: true, // Observaciones admin from Excel are admin notes
                   user_email: "importacion@cerecilla.com",
                   user_name: "Importación Excel (Admin)",
                 });
