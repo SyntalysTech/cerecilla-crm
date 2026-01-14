@@ -186,13 +186,14 @@ async function handleIncomingMessage(
   if (autoResponseEnabled && shouldRespond) {
     console.log("Triggering AI auto-response for:", phoneNumber);
 
-    // Special handling for images - analyze as potential invoice
-    if (messageType === "image" && mediaUrl) {
-      console.log("Image received, attempting invoice analysis...");
-      await handleImageMessage(
+    // Special handling for images and documents - analyze as potential invoice
+    if ((messageType === "image" || messageType === "document") && mediaUrl) {
+      console.log(`${messageType} received, attempting invoice analysis...`);
+      await handleMediaMessage(
         supabase,
         phoneNumber,
         mediaUrl,
+        messageType,
         contact?.profile?.name,
         cliente?.id,
         messageId
@@ -292,18 +293,19 @@ async function downloadWhatsAppMedia(
 }
 
 /**
- * Handle image messages - download, analyze as invoice, save to CRM
+ * Handle media messages (images and documents) - download, analyze as invoice, save to CRM
  */
-async function handleImageMessage(
+async function handleMediaMessage(
   supabase: SupabaseClient,
   phoneNumber: string,
   whatsappMediaId: string,
+  messageType: string,
   senderName?: string,
   clienteId?: string,
   messageWamid?: string
 ) {
   try {
-    console.log("Processing image message:", { phoneNumber, whatsappMediaId, senderName });
+    console.log(`Processing ${messageType} message:`, { phoneNumber, whatsappMediaId, senderName });
 
     // Get WhatsApp config for access token
     const { data: waConfig } = await supabase
@@ -327,6 +329,9 @@ async function handleImageMessage(
       return;
     }
 
+    // Determine media type based on message type and mime type
+    const mediaTypeForDb = messageType === "image" ? "image" : "document";
+
     // Create a record in whatsapp_received_files
     const { data: fileRecord, error: fileError } = await supabase
       .from("whatsapp_received_files")
@@ -335,7 +340,7 @@ async function handleImageMessage(
         phone_number: phoneNumber,
         sender_name: senderName,
         whatsapp_media_id: whatsappMediaId,
-        media_type: "image",
+        media_type: mediaTypeForDb,
         mime_type: mediaResult.mimeType,
         status: "pending",
       })
@@ -346,28 +351,32 @@ async function handleImageMessage(
       console.error("Error creating file record:", fileError);
     }
 
-    // Download the actual image data for analysis
+    // Check if it's a PDF document
+    const isPDF = messageType === "document" && mediaResult.mimeType === "application/pdf";
+
+    // Download the actual media data for analysis
     // WhatsApp media URLs require the access token
-    const imageResponse = await fetch(mediaResult.url, {
+    const mediaResponse = await fetch(mediaResult.url, {
       headers: {
         Authorization: `Bearer ${waConfig.access_token}`,
       },
     });
 
-    if (!imageResponse.ok) {
-      console.error("Failed to download image");
-      await sendAIResponse(supabase, phoneNumber, "[Imagen]", senderName, clienteId);
+    if (!mediaResponse.ok) {
+      console.error(`Failed to download ${messageType}`);
+      const fallbackContent = messageType === "image" ? "[Imagen]" : "[Documento]";
+      await sendAIResponse(supabase, phoneNumber, fallbackContent, senderName, clienteId);
       return;
     }
 
-    // Convert to base64 for OpenAI Vision API
-    const imageBuffer = await imageResponse.arrayBuffer();
-    const base64Image = Buffer.from(imageBuffer).toString("base64");
-    const imageDataUrl = `data:${mediaResult.mimeType || "image/jpeg"};base64,${base64Image}`;
+    // Convert to base64 for OpenAI API
+    const mediaBuffer = await mediaResponse.arrayBuffer();
+    const base64Media = Buffer.from(mediaBuffer).toString("base64");
+    const mediaDataUrl = `data:${mediaResult.mimeType || (isPDF ? "application/pdf" : "image/jpeg")};base64,${base64Media}`;
 
-    // Analyze the image with GPT-4 Vision
-    console.log("Analyzing image with GPT-4 Vision...");
-    const analysisResult = await analyzeInvoiceImage(imageDataUrl);
+    // Analyze the media with GPT-4 Vision/GPT-4o
+    console.log(`Analyzing ${messageType} with GPT-4o${isPDF ? " (PDF)" : " (Vision)"}...`);
+    const analysisResult = await analyzeInvoiceImage(mediaDataUrl);
 
     let responseText: string;
     let analysisData: InvoiceAnalysis["analysis"] | undefined;
@@ -378,7 +387,9 @@ async function handleImageMessage(
       console.log("Invoice analysis successful:", analysisData.tipo, analysisData.compania);
     } else {
       console.log("Invoice analysis failed or not a recognizable invoice");
-      responseText = `He recibido tu imagen${senderName ? `, ${senderName}` : ""}! 📷 Nuestro equipo la revisará y te contactará pronto.`;
+      const mediaEmoji = messageType === "image" ? "📷" : "📄";
+      const mediaName = messageType === "image" ? "imagen" : "documento";
+      responseText = `He recibido tu ${mediaName}${senderName ? `, ${senderName}` : ""}! ${mediaEmoji} Nuestro equipo lo revisará y te contactará pronto.`;
     }
 
     // Update the file record with analysis results
@@ -430,10 +441,11 @@ async function handleImageMessage(
     });
 
   } catch (error) {
-    console.error("Error handling image message:", error);
+    console.error(`Error handling ${messageType} message:`, error);
     // Fallback to generic response
     try {
-      await sendAIResponse(supabase, phoneNumber, "[Imagen]", senderName, clienteId);
+      const fallbackContent = messageType === "image" ? "[Imagen]" : "[Documento]";
+      await sendAIResponse(supabase, phoneNumber, fallbackContent, senderName, clienteId);
     } catch (fallbackError) {
       console.error("Fallback response also failed:", fallbackError);
     }
