@@ -129,6 +129,11 @@ function parseClienteRow(row: Record<string, unknown>) {
   // Skip empty rows
   if (!operador && !nombre) return null;
 
+  // Track missing critical fields for better error reporting
+  const missingFields: string[] = [];
+  if (!operador) missingFields.push("operador");
+  if (!nombre) missingFields.push("nombre y apellidos");
+
   // Try to get date from various possible column names
   const fechaRaw = row["fecha"] ?? row["Fecha"] ?? row["fecha alta"] ?? row["Fecha Alta"] ??
                    row["fecha_alta"] ?? row["created_at"] ?? row["fecha registro"] ?? row["Fecha Registro"];
@@ -143,8 +148,15 @@ function parseClienteRow(row: Record<string, unknown>) {
   // Get separate address fields if provided (including __EMPTY columns from Excel)
   const tipoVia = getValue(row, "tipo_via", "tipo via", "Tipo Via", "Tipo Vía", "tipo calle", "Tipo Calle");
 
-  // nombre_via can be in "direccion" column when followed by __EMPTY columns for number/piso/etc
-  const direccionRaw = getValue(row, "direccion", "Direccion", "dirección", "Dirección");
+  // Try to get direccion from many possible column names
+  const direccionRaw = getValue(
+    row,
+    "direccion", "Direccion", "dirección", "Dirección",
+    "Dirección completa", "direccion completa",
+    "Domicilio", "domicilio",
+    "Direccion suministro", "dirección suministro",
+    "Direccion de suministro", "dirección de suministro"
+  );
   const hasEmptyColumns = row["__EMPTY"] !== undefined;
 
   // If we have __EMPTY columns, the "direccion" column is actually the street name
@@ -212,7 +224,7 @@ function parseClienteRow(row: Record<string, unknown>) {
     precio_kw_luz: getValue(row, "precio kw luz", "Precio kW Luz"),
   };
 
-  // Handle address: use separate fields
+  // Handle address: use separate fields OR complete address
   if (nombreVia || numero || codigoPostal || poblacion || provincia) {
     // Use separate address fields - detect tipo_via from nombreVia if not provided
     let detectedTipoVia = tipoVia;
@@ -259,6 +271,14 @@ function parseClienteRow(row: Record<string, unknown>) {
   } else if (direccionRaw && !hasEmptyColumns) {
     // Use direccion completa as-is (no separate columns)
     result.direccion = direccionRaw;
+  } else {
+    // No address found - log warning
+    if (missingFields.length === 0) missingFields.push("direccion");
+  }
+
+  // Add validation info to result for error reporting
+  if (missingFields.length > 0) {
+    (result as Record<string, unknown>)._validation_warnings = missingFields;
   }
 
   // Only add created_at if we have a valid date
