@@ -4,7 +4,7 @@
  */
 
 import OpenAI from "openai";
-import * as pdfParse from "pdf-parse";
+import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -319,8 +319,23 @@ export async function analyzeInvoiceImage(imageUrl: string): Promise<InvoiceAnal
 
       let pdfText = "";
       try {
-        const pdfData = await pdfParse.default(pdfBuffer);
-        pdfText = pdfData.text;
+        // Load PDF document
+        const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
+        const pdfDocument = await loadingTask.promise;
+
+        // Extract text from all pages
+        const numPages = pdfDocument.numPages;
+        console.log(`PDF has ${numPages} pages`);
+
+        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+          const page = await pdfDocument.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items
+            .map((item: any) => item.str)
+            .join(" ");
+          pdfText += pageText + "\n";
+        }
+
         console.log("PDF text extracted, length:", pdfText.length);
       } catch (pdfError) {
         console.error("Error extracting PDF text:", pdfError);
