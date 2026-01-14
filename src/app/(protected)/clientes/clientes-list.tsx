@@ -429,9 +429,11 @@ export function ClientesList({ clientes, error }: ClientesListProps) {
           const docType = getDocumentType(cliente.documento_nuevo_titular);
           if (docType !== subFilterValue) return false;
         }
-        // For estado filter by exact value
+        // For estado filter by value (case-insensitive)
         if (activeFilter === "estado") {
-          if (cliente.estado !== subFilterValue) return false;
+          const clienteEstado = (cliente.estado || "").toUpperCase();
+          const filterEstado = subFilterValue.toUpperCase();
+          if (clienteEstado !== filterEstado) return false;
         }
         // For servicio filter by exact value
         if (activeFilter === "servicio") {

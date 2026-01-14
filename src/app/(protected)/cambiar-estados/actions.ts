@@ -12,20 +12,38 @@ export interface EstadoCount {
 export async function getEstadosConCantidad(): Promise<EstadoCount[]> {
   const supabase = await createClient();
 
-  const { data, error } = await supabase
+  // Get total count first to know if we need pagination
+  const { count: totalCount } = await supabase
     .from("clientes")
-    .select("estado");
+    .select("*", { count: "exact", head: true });
 
-  if (error) {
-    console.error("Error fetching estados:", error);
-    return [];
+  // Fetch all clientes in batches (in case there are more than 1000)
+  let allEstados: (string | null)[] = [];
+  const batchSize = 1000;
+  const totalBatches = Math.ceil((totalCount || 0) / batchSize);
+
+  for (let i = 0; i < totalBatches; i++) {
+    const { data, error } = await supabase
+      .from("clientes")
+      .select("estado")
+      .range(i * batchSize, (i + 1) * batchSize - 1);
+
+    if (error) {
+      console.error("Error fetching estados batch:", error);
+      continue;
+    }
+
+    if (data) {
+      allEstados = allEstados.concat(data.map(row => row.estado));
+    }
   }
 
-  // Count by estado
+  // Count by estado (normalize to uppercase for consistency)
   const counts: Record<string, number> = {};
-  for (const row of data || []) {
-    const estado = row.estado || "Sin estado";
-    counts[estado] = (counts[estado] || 0) + 1;
+  for (const estado of allEstados) {
+    // Normalize estado: null -> "Sin estado", otherwise uppercase
+    const normalized = estado ? estado.toUpperCase() : "SIN ESTADO";
+    counts[normalized] = (counts[normalized] || 0) + 1;
   }
 
   // Convert to array and sort
@@ -73,15 +91,19 @@ export async function cambiarEstadosMasivo(
 ) {
   const supabase = await createClient();
 
-  // Handle "Sin estado" as null
-  const isNullEstado = estadoOrigen === "Sin estado" || estadoOrigen === "SIN ESTADO";
+  // Normalize estados to uppercase for consistency
+  const normalizedOrigen = estadoOrigen.toUpperCase();
+  const normalizedDestino = estadoDestino.toUpperCase();
+
+  // Handle "SIN ESTADO" as null
+  const isNullEstado = normalizedOrigen === "SIN ESTADO";
 
   let countResult;
   let updateResult;
 
   // Prepare update data - include fecha_comisionable if changing to COMISIONABLE
-  const updateData: { estado: string; fecha_comisionable?: string } = { estado: estadoDestino };
-  if (estadoDestino === "COMISIONABLE") {
+  const updateData: { estado: string; fecha_comisionable?: string } = { estado: normalizedDestino };
+  if (normalizedDestino === "COMISIONABLE") {
     updateData.fecha_comisionable = new Date().toISOString();
   }
 
@@ -110,7 +132,7 @@ export async function cambiarEstadosMasivo(
     countResult = await supabase
       .from("clientes")
       .select("id", { count: "exact", head: true })
-      .ilike("estado", estadoOrigen);
+      .ilike("estado", normalizedOrigen);
 
     if (countResult.error) {
       return { error: countResult.error.message };
@@ -124,7 +146,7 @@ export async function cambiarEstadosMasivo(
     updateResult = await supabase
       .from("clientes")
       .update(updateData)
-      .ilike("estado", estadoOrigen);
+      .ilike("estado", normalizedOrigen);
   }
 
   if (updateResult.error) {
