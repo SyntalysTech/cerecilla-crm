@@ -332,30 +332,7 @@ async function handleMediaMessage(
     // Determine media type based on message type and mime type
     const mediaTypeForDb = messageType === "image" ? "image" : "document";
 
-    // Create a record in whatsapp_received_files
-    const { data: fileRecord, error: fileError } = await supabase
-      .from("whatsapp_received_files")
-      .insert({
-        cliente_id: clienteId || null,
-        phone_number: phoneNumber,
-        sender_name: senderName,
-        whatsapp_media_id: whatsappMediaId,
-        media_type: mediaTypeForDb,
-        mime_type: mediaResult.mimeType,
-        status: "pending",
-      })
-      .select("id")
-      .single();
-
-    if (fileError) {
-      console.error("Error creating file record:", fileError);
-    }
-
-    // Check if it's a PDF document
-    const isPDF = messageType === "document" && mediaResult.mimeType === "application/pdf";
-
-    // Download the actual media data for analysis
-    // WhatsApp media URLs require the access token
+    // Download the actual media data first (so we can save it)
     const mediaResponse = await fetch(mediaResult.url, {
       headers: {
         Authorization: `Bearer ${waConfig.access_token}`,
@@ -369,9 +346,33 @@ async function handleMediaMessage(
       return;
     }
 
-    // Convert to base64 for OpenAI API
     const mediaBuffer = await mediaResponse.arrayBuffer();
     const base64Media = Buffer.from(mediaBuffer).toString("base64");
+
+    // Create a record in whatsapp_received_files WITH the file data
+    const { data: fileRecord, error: fileError } = await supabase
+      .from("whatsapp_received_files")
+      .insert({
+        cliente_id: clienteId || null,
+        phone_number: phoneNumber,
+        sender_name: senderName,
+        whatsapp_media_id: whatsappMediaId,
+        media_type: mediaTypeForDb,
+        mime_type: mediaResult.mimeType,
+        file_data_base64: base64Media, // Save the file data!
+        status: "pending",
+      })
+      .select("id")
+      .single();
+
+    if (fileError) {
+      console.error("Error creating file record:", fileError);
+    }
+
+    // Check if it's a PDF document
+    const isPDF = messageType === "document" && mediaResult.mimeType === "application/pdf";
+
+    // Create data URL for OpenAI API
     const mediaDataUrl = `data:${mediaResult.mimeType || (isPDF ? "application/pdf" : "image/jpeg")};base64,${base64Media}`;
 
     // Analyze the media with GPT-4 Vision/GPT-4o

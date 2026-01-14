@@ -42,3 +42,25 @@ export async function addFileNote(fileId: string, note: string) {
   revalidatePath("/whatsapp/facturas");
   return { success: true };
 }
+
+export async function getFileData(fileId: string) {
+  const supabase = await createClient();
+
+  const { data, error } = await supabase
+    .from("whatsapp_received_files")
+    .select("file_data_base64, mime_type, media_type")
+    .eq("id", fileId)
+    .single();
+
+  if (error || !data) {
+    console.error("Error getting file data:", error);
+    return { error: error?.message || "File not found" };
+  }
+
+  return {
+    success: true,
+    fileData: data.file_data_base64,
+    mimeType: data.mime_type,
+    mediaType: data.media_type,
+  };
+}

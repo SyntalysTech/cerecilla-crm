@@ -23,7 +23,7 @@ import {
   MapPin,
 } from "lucide-react";
 import Link from "next/link";
-import { markFileReviewed, addFileNote } from "./actions";
+import { markFileReviewed, addFileNote, getFileData } from "./actions";
 
 interface ReceivedFile {
   id: string;
@@ -325,6 +325,7 @@ function FileDetailModal({
 }) {
   const [note, setNote] = useState(file.notes || "");
   const [saving, setSaving] = useState(false);
+  const [loadingFile, setLoadingFile] = useState(false);
 
   const analysis = file.ai_analysis;
 
@@ -332,6 +333,40 @@ function FileDetailModal({
     setSaving(true);
     await onAddNote(file.id, note);
     setSaving(false);
+  };
+
+  const handleViewFile = async () => {
+    setLoadingFile(true);
+    try {
+      const result = await getFileData(file.id);
+      if (result.success && result.fileData) {
+        // Create a data URL and open in new tab or download
+        const dataUrl = `data:${result.mimeType};base64,${result.fileData}`;
+
+        if (result.mediaType === "image") {
+          // Open image in new tab
+          const win = window.open();
+          if (win) {
+            win.document.write(`<img src="${dataUrl}" style="max-width:100%; height:auto;" />`);
+          }
+        } else {
+          // Download document
+          const link = document.createElement("a");
+          link.href = dataUrl;
+          link.download = `factura_${file.detected_tipo || "documento"}_${new Date(file.created_at).toISOString().split("T")[0]}.${result.mimeType?.includes("pdf") ? "pdf" : "jpg"}`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        }
+      } else {
+        alert("No se pudo cargar el archivo");
+      }
+    } catch (error) {
+      console.error("Error loading file:", error);
+      alert("Error al cargar el archivo");
+    } finally {
+      setLoadingFile(false);
+    }
   };
 
   return (
@@ -400,6 +435,18 @@ function FileDetailModal({
                 <p className="text-gray-400">No vinculado</p>
               )}
             </div>
+          </div>
+
+          {/* View File Button */}
+          <div className="flex justify-center">
+            <button
+              onClick={handleViewFile}
+              disabled={loadingFile}
+              className="flex items-center gap-2 px-6 py-3 bg-[#BB292A] text-white rounded-lg hover:bg-[#9a2122] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              <Eye className="w-5 h-5" />
+              {loadingFile ? "Cargando..." : file.media_type === "image" ? "Ver Imagen" : "Descargar PDF"}
+            </button>
           </div>
 
           {/* AI Analysis */}
