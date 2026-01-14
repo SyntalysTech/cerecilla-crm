@@ -4,7 +4,7 @@
  */
 
 import OpenAI from "openai";
-import pdf from "pdf-parse";
+import * as pdfParse from "pdf-parse";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -319,7 +319,7 @@ export async function analyzeInvoiceImage(imageUrl: string): Promise<InvoiceAnal
 
       let pdfText = "";
       try {
-        const pdfData = await pdf(pdfBuffer);
+        const pdfData = await pdfParse.default(pdfBuffer);
         pdfText = pdfData.text;
         console.log("PDF text extracted, length:", pdfText.length);
       } catch (pdfError) {
