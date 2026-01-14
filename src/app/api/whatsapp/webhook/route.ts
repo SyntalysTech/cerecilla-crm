@@ -367,6 +367,17 @@ async function handleMediaMessage(
 
     if (fileError) {
       console.error("Error creating file record:", fileError);
+      // Still try to send a response even if DB insert fails
+      const fallbackContent = messageType === "image" ? "[Imagen]" : "[Documento]";
+      await sendAIResponse(supabase, phoneNumber, fallbackContent, senderName, clienteId);
+      return;
+    }
+
+    if (!fileRecord) {
+      console.error("No file record created");
+      const fallbackContent = messageType === "image" ? "[Imagen]" : "[Documento]";
+      await sendAIResponse(supabase, phoneNumber, fallbackContent, senderName, clienteId);
+      return;
     }
 
     // Check if it's a PDF document
