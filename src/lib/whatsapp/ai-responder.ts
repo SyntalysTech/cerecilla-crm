@@ -4,7 +4,6 @@
  */
 
 import OpenAI from "openai";
-import * as pdfjsLib from "pdfjs-dist/legacy/build/pdf.mjs";
 
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
@@ -306,70 +305,32 @@ export async function analyzeInvoiceImage(imageUrl: string): Promise<InvoiceAnal
   try {
     console.log("Analyzing invoice media:", imageUrl);
 
-    // Detect if it's a PDF based on data URL prefix
+    // Check if it's a PDF - PDFs cannot be analyzed with Vision API
     const isPDF = imageUrl.startsWith("data:application/pdf");
 
-    let completion: OpenAI.ChatCompletion;
-
     if (isPDF) {
-      // Extract text from PDF
-      console.log("Detected PDF, extracting text...");
-      const base64Data = imageUrl.split(",")[1];
-      const pdfBuffer = Buffer.from(base64Data, "base64");
-
-      let pdfText = "";
-      try {
-        // Load PDF document
-        const loadingTask = pdfjsLib.getDocument({ data: pdfBuffer });
-        const pdfDocument = await loadingTask.promise;
-
-        // Extract text from all pages
-        const numPages = pdfDocument.numPages;
-        console.log(`PDF has ${numPages} pages`);
-
-        for (let pageNum = 1; pageNum <= numPages; pageNum++) {
-          const page = await pdfDocument.getPage(pageNum);
-          const textContent = await page.getTextContent();
-          const pageText = textContent.items
-            .map((item: any) => item.str)
-            .join(" ");
-          pdfText += pageText + "\n";
-        }
-
-        console.log("PDF text extracted, length:", pdfText.length);
-      } catch (pdfError) {
-        console.error("Error extracting PDF text:", pdfError);
-        return { success: false, error: "Could not extract text from PDF" };
-      }
-
-      // Analyze the extracted text with GPT-4o
-      completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "user",
-            content: `${INVOICE_ANALYSIS_PROMPT}\n\nTexto extraído del PDF:\n\n${pdfText}`,
-          },
-        ],
-        max_tokens: 1000,
-      });
-    } else {
-      // Analyze image with GPT-4o Vision
-      console.log("Detected image, analyzing with Vision...");
-      completion = await openai.chat.completions.create({
-        model: "gpt-4o",
-        messages: [
-          {
-            role: "user",
-            content: [
-              { type: "text", text: INVOICE_ANALYSIS_PROMPT },
-              { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
-            ],
-          },
-        ],
-        max_tokens: 1000,
-      });
+      console.log("PDF detected - cannot analyze with Vision API, will save for manual review");
+      return {
+        success: false,
+        error: "PDF files cannot be analyzed automatically. Saved for manual review.",
+      };
     }
+
+    // Analyze image with GPT-4o Vision
+    console.log("Detected image, analyzing with Vision...");
+    const completion = await openai.chat.completions.create({
+      model: "gpt-4o",
+      messages: [
+        {
+          role: "user",
+          content: [
+            { type: "text", text: INVOICE_ANALYSIS_PROMPT },
+            { type: "image_url", image_url: { url: imageUrl, detail: "high" } },
+          ],
+        },
+      ],
+      max_tokens: 1000,
+    });
 
     const responseText = completion.choices[0]?.message?.content;
     console.log("Invoice analysis response:", responseText);
