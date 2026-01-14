@@ -394,20 +394,32 @@ async function handleMediaMessage(
     }
 
     // Update the file record with analysis results
-    if (fileRecord?.id && analysisData) {
-      await supabase
-        .from("whatsapp_received_files")
-        .update({
-          status: "analyzed",
-          ai_analysis: analysisData,
-          analysis_type: "invoice",
-          detected_tipo: analysisData.tipo,
-          detected_compania: analysisData.compania || null,
-          detected_importe: analysisData.importe_total || null,
-          detected_cups: analysisData.cups || null,
-          analyzed_at: new Date().toISOString(),
-        })
-        .eq("id", fileRecord.id);
+    if (fileRecord?.id) {
+      if (analysisData) {
+        // Successfully analyzed
+        await supabase
+          .from("whatsapp_received_files")
+          .update({
+            status: "analyzed",
+            ai_analysis: analysisData,
+            analysis_type: "invoice",
+            detected_tipo: analysisData.tipo,
+            detected_compania: analysisData.compania || null,
+            detected_importe: analysisData.importe_total || null,
+            detected_cups: analysisData.cups || null,
+            analyzed_at: new Date().toISOString(),
+          })
+          .eq("id", fileRecord.id);
+      } else {
+        // Analysis failed (e.g., PDF) - mark as pending review
+        await supabase
+          .from("whatsapp_received_files")
+          .update({
+            status: "pending",
+            analyzed_at: new Date().toISOString(),
+          })
+          .eq("id", fileRecord.id);
+      }
     }
 
     // Send the response
