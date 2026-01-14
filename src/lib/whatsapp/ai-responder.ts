@@ -396,13 +396,7 @@ export function generateInvoiceResponseMessage(analysis: InvoiceAnalysis["analys
     details = `\n\n📋 ${analysis.resumen}`;
   }
 
-  // Add savings suggestions
-  let savingsTips = "";
-  if (analysis.puntos_ahorro && analysis.puntos_ahorro.length > 0) {
-    savingsTips = "\n\n💡 **Observaciones rápidas:**\n" + analysis.puntos_ahorro.map(tip => `• ${tip}`).join("\n");
-  }
-
   const closing = "\n\n✅ Nuestro equipo analizará tu factura en detalle y te contactará pronto con las mejores opciones de ahorro. ¡Gracias por confiar en Cerecilla! 🍒";
 
-  return greeting + details + savingsTips + closing;
+  return greeting + details + closing;
 }
