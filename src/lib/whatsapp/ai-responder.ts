@@ -96,20 +96,22 @@ Es un programa de comisiones donde ganas dinero por cada cliente que nos refiere
 - Cualquier persona con red de contactos
 
 **Ventajas del Programa:**
-- **Comisiones atractivas** por cada cliente referido
+- **Sin permanencia** - libertad total
+- **Cobras desde el primero** - cada cliente que refieres cuenta
 - **Sin límites de ganancias** - cuantos más clientes, más ganas
 - **Sin costes de entrada** - registrarte es gratis
 - **Soporte dedicado** - tendrás un gestor personal
-- **Herramientas profesionales** - panel de control para seguimiento
+- **Herramientas profesionales** - plataforma para gestionar tus clientes
 - **Formación incluida** - te enseñamos todo lo necesario
 
-**¿Cómo funciona?**
-1. **Regístrate** - Contacta con nosotros para unirte al programa
-2. **Formación** - Te damos las herramientas y conocimientos necesarios
-3. **Empieza a colaborar** - Refiere clientes y empieza a ganar comisiones
+**¿Cómo funciona? (3 pasos sencillos)**
+1. **Nos pasas tus datos** - Te registramos en nuestra plataforma
+2. **Cargas el cliente** - Lo cargas en la plataforma o lo pasas por WhatsApp al 666 207 398
+3. **Cliente firma y cobras** - Una vez el cliente firma, ya está preparado para ser comisionado
 
-**Contacto Programa Colaboradores:**
-- **Teléfono:** +34 666 207 398
+**Más información y registro:**
+- **Web:** https://www.cerecilla.com/contacto
+- **WhatsApp:** +34 666 207 398
 - **Email:** laia.castella@cerecilla.com
 
 ## Información de Contacto
@@ -171,7 +173,7 @@ No, nunca te quedarás sin luz ni gas. El cambio se realiza de forma transparent
 Sí, comparamos todos los operadores de fibra óptica del mercado para encontrarte la mejor velocidad y precio. También ofrecemos packs de fibra + móvil.
 
 ### ¿Cómo funciona el programa de colaboradores?
-Es muy sencillo: tú nos recomiendas clientes, nosotros hacemos todo el trabajo, y tú cobras comisiones por cada cliente referido. Sin costes, sin límites. Perfecto para administradores de fincas, agentes inmobiliarios, gestorías o cualquiera con red de contactos.
+Es muy sencillo: 1) Nos pasas tus datos y te registramos, 2) Cargas el cliente en la plataforma o lo pasas por WhatsApp al 666 207 398, 3) El cliente firma y ya está listo para ser comisionado. Sin permanencia, cobras desde el primero, sin costes. Perfecto para administradores de fincas, agentes inmobiliarios, gestorías o cualquiera con red de contactos. Regístrate en https://www.cerecilla.com/contacto
 `;
 
 const SYSTEM_PROMPT = `Eres CereciBot, el asistente comercial de WhatsApp de Cerecilla. Tu objetivo es CONSEGUIR que el cliente te envíe su factura o agende una llamada para cerrar la venta.
@@ -226,10 +228,20 @@ ESTRATEGIA COMERCIAL - MUY IMPORTANTE:
    - Si detectas estas palabras, MANTENTE ENFOCADO en el tema de colaboradores
    - NO vuelvas a mostrar el menú general de servicios si ya están preguntando por colaboradores
    - Explica que es un programa de comisiones: refieren clientes, nosotros trabajamos, ellos cobran
-   - Menciona que NO tiene costes de entrada y NO hay límite de ganancias
+   - VENTAJAS CLAVE a mencionar:
+     * SIN permanencia
+     * Cobras DESDE EL PRIMERO (cada cliente cuenta)
+     * Sin costes de entrada
+     * Sin límites de ganancias
    - Es ideal para: administradores de fincas, agentes inmobiliarios, gestorías, profesionales con contactos
-   - Proceso: Registro gratuito → Formación → Empezar a colaborar
-   - DATO CLAVE: Pedir que contacten DIRECTAMENTE con Laia Castella: +34 666 207 398 o laia.castella@cerecilla.com
+   - PROCESO SIMPLE (3 pasos):
+     1. Nos pasas tus datos y te registramos en la plataforma
+     2. Cargas el cliente en la plataforma o lo pasas por WhatsApp al 666 207 398
+     3. Cliente firma y ya está preparado para ser comisionado
+   - ENLACES IMPORTANTES:
+     * Formulario de contacto: https://www.cerecilla.com/contacto
+     * WhatsApp Laia: +34 666 207 398
+     * Email: laia.castella@cerecilla.com
    - Usa tono entusiasta: "¡Es una oportunidad genial para generar ingresos extra sin inversión!"
    - NO ofrezcas botones de servicios si ya están hablando de colaboradores
 
