@@ -607,47 +607,54 @@ export async function generateAIResponse(
       const isConfirmation = ["si", "sí", "si porfa", "sí porfa", "vale", "ok", "perfecto", "claro", "adelante", "si porfavor", "sí porfavor"].includes(incomingLower) ||
                              incomingLower.startsWith("si ") || incomingLower.startsWith("sí ");
 
-      // Build context summary based on LAST message context
-      contextSummary = "\n\n[CONTEXTO - INSTRUCCIÓN DIRECTA]\n";
+      // ============================================================
+      // MÁQUINA DE ESTADOS: Respuestas hardcodeadas para casos críticos
+      // Esto NO depende del LLM - es 100% determinístico
+      // ============================================================
 
-      // CRITICAL: If bot asked about Laia and user confirms, give Laia's contact
+      // CASO 1: Bot preguntó por Laia y usuario confirma -> DAR CONTACTO DIRECTAMENTE
       if (lastMsgAboutLaia && isConfirmation) {
-        contextSummary += "⚠️ ACCIÓN REQUERIDA: El usuario confirmó que quiere contacto con Laia.\n";
-        contextSummary += "RESPONDE EXACTAMENTE CON ESTO:\n";
-        contextSummary += "\"¡Perfecto! Te paso el contacto directo de Laia, que gestiona el programa de colaboradores:\n";
-        contextSummary += "📱 WhatsApp: +34 666 207 398\n";
-        contextSummary += "📧 Email: laia.castella@cerecilla.com\n";
-        contextSummary += "🌐 Web: https://www.cerecilla.com/contacto\n";
-        contextSummary += "Ella te explicará todo. ¿Hay algo más en lo que pueda ayudarte?\"\n";
-        contextSummary += "NO HABLES DE LUZ, GAS NI FACTURAS.\n";
+        console.log("STATE MACHINE: Laia contact confirmed - returning hardcoded response");
+        return {
+          success: true,
+          response: `¡Perfecto! Te paso el contacto directo de Laia, que gestiona el programa de colaboradores:
+
+📱 WhatsApp: +34 666 207 398
+📧 Email: laia.castella@cerecilla.com
+🌐 Web: https://www.cerecilla.com/contacto
+
+Ella te explicará todo el proceso en detalle. ¿Hay algo más en lo que pueda ayudarte?`
+        };
       }
-      // If bot was talking about colaboradores (but not yet asked about Laia)
-      else if (lastMsgAboutColaboradores && !lastMsgAboutLaia) {
-        contextSummary += "TEMA ACTUAL: Programa de colaboradores\n";
-        contextSummary += "NO hables de luz, gas, ni facturas. Solo de colaboradores.\n";
+
+      // CASO 2: Bot ofreció llamada sobre telefonía y usuario confirma
+      if (lastMsgAboutTelefonia && isConfirmation && askedYesNoQuestion) {
+        console.log("STATE MACHINE: Telefonía call confirmed - returning hardcoded response");
+        return {
+          success: true,
+          response: `¡Perfecto! Voy a agendar que te llamen para ver las mejores opciones de telefonía y fibra. 📱
+
+Antes de que te llamen, ¿sabes si tienes permanencia con tu operador actual? Es importante tenerlo claro para poder ofrecerte la mejor solución.`,
+          scheduledCall: {
+            serviceInterest: "Telefonía y Fibra",
+            notes: "Cliente confirmó que quiere que le llamen sobre telefonía/fibra"
+          }
+        };
       }
-      // If bot was talking about telefonía and user confirms call
-      else if (lastMsgAboutTelefonia && isConfirmation && askedYesNoQuestion) {
-        contextSummary += "⚠️ ACCIÓN REQUERIDA: El usuario confirmó sobre TELEFONÍA/FIBRA.\n";
-        contextSummary += "Confirma la acción sobre TELEFONÍA (no luz). Pregunta por permanencia si aplica.\n";
-      }
-      // If bot was talking about luz
-      else if (lastMsgAboutLuz) {
-        contextSummary += "TEMA ACTUAL: Luz/Energía\n";
-      }
-      // If bot was talking about alarmas
-      else if (lastMsgAboutAlarma) {
-        contextSummary += "TEMA ACTUAL: Alarmas\n";
-        contextSummary += "Recuerda preguntar si tienen alarma actual y sobre permanencia.\n";
-      }
-      // If bot was talking about seguros
-      else if (lastMsgAboutSeguro) {
-        contextSummary += "TEMA ACTUAL: Seguros\n";
-        contextSummary += "NO ofrezcas llamada. Solo pide datos por WhatsApp o email.\n";
-      }
-      // Default
-      else {
-        contextSummary += "Sin contexto específico. Responde según el mensaje del usuario.\n";
+
+      // Build context summary for non-critical cases (LLM will handle these)
+      contextSummary = "\n\n[CONTEXTO - TEMA ACTUAL]\n";
+
+      if (lastMsgAboutColaboradores) {
+        contextSummary += "TEMA: Programa de colaboradores. NO hables de luz, gas, ni facturas.\n";
+      } else if (lastMsgAboutTelefonia) {
+        contextSummary += "TEMA: Telefonía/Fibra. NO hables de luz.\n";
+      } else if (lastMsgAboutLuz) {
+        contextSummary += "TEMA: Luz/Energía.\n";
+      } else if (lastMsgAboutAlarma) {
+        contextSummary += "TEMA: Alarmas. Pregunta si tienen alarma actual y sobre permanencia.\n";
+      } else if (lastMsgAboutSeguro) {
+        contextSummary += "TEMA: Seguros. NO ofrezcas llamada, solo pide datos por WhatsApp o email.\n";
       }
 
       contextSummary += "[FIN CONTEXTO]\n\n";
@@ -660,12 +667,12 @@ export async function generateAIResponse(
 
     messages.push({ role: "user", content: userMessage });
 
-    // Call OpenAI
+    // Call OpenAI with GPT-4o for better context understanding
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",  // Using GPT-4o instead of mini for better context handling
       messages,
-      temperature: 0.3, // Lower temperature for more consistent, context-aware responses
-      max_tokens: 600, // Increased to allow space for JSON
+      temperature: 0.4,
+      max_tokens: 600,
     });
 
     const response = completion.choices[0]?.message?.content;
