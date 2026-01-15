@@ -222,6 +222,15 @@ ESTRATEGIA COMERCIAL - MUY IMPORTANTE:
    - Si el cliente parece interesado pero no envía factura, ofrece que le llamen
    - "¿Quieres que un asesor te llame mañana para explicarte todo? Así en 10 minutos tenemos tu ahorro listo"
    - Si dice que sí, confirma que el equipo le contactará pronto
+   - ⚠️ CUANDO ALGUIEN ACEPTA UNA LLAMADA: Incluye un bloque JSON especial al final con este formato:
+
+   \`\`\`call-request
+   {
+     "serviceInterest": "Luz" (o el servicio que preguntaron: Gas, Telefonía, Fibra, Seguros, Alarmas, Colaborador),
+     "requestedDatetime": "2024-01-15 10:00" (si mencionaron fecha/hora específica, o null si no),
+     "notes": "Cliente interesado en cambio de tarifa luz, menciona factura de 80€/mes"
+   }
+   \`\`\`
 
 5. **MANEJA OBJECIONES CON CONFIANZA:**
    - "¿Tienes permanencia?" → "Nosotros no aplicamos permanencia, y el cambio es totalmente gratis"
@@ -388,6 +397,11 @@ export interface AIResponseResult {
       rows: Array<{ id: string; title: string; description?: string }>;
     }>;
   };
+  scheduledCall?: {
+    serviceInterest: string;
+    requestedDatetime?: string;
+    notes?: string;
+  };
   error?: string;
 }
 
@@ -440,14 +454,30 @@ export async function generateAIResponse(
       return { success: false, error: "No response from OpenAI" };
     }
 
+    // Check if response contains call request JSON
+    const callRequestMatch = response.match(/```call-request\s*(\{[\s\S]*?\})\s*```/);
+    let scheduledCall;
+
+    if (callRequestMatch) {
+      try {
+        scheduledCall = JSON.parse(callRequestMatch[1]);
+        console.log("Detected scheduled call request:", scheduledCall);
+      } catch (parseError) {
+        console.error("Error parsing call-request JSON:", parseError);
+      }
+    }
+
     // Check if response contains interactive buttons JSON
     const jsonMatch = response.match(/```json\s*(\{[\s\S]*?\})\s*```/);
 
     if (jsonMatch) {
       try {
         const interactiveData = JSON.parse(jsonMatch[1]);
-        // Remove the JSON from the text response
-        const textResponse = response.replace(/```json[\s\S]*?```/, "").trim();
+        // Remove the JSON blocks from the text response
+        let textResponse = response
+          .replace(/```json[\s\S]*?```/, "")
+          .replace(/```call-request[\s\S]*?```/, "")
+          .trim();
 
         return {
           success: true,
@@ -459,15 +489,19 @@ export async function generateAIResponse(
             listButton: interactiveData.listButton,
             listSections: interactiveData.sections,
           },
+          scheduledCall,
         };
       } catch (parseError) {
         console.error("Error parsing interactive JSON:", parseError);
-        // If JSON parsing fails, just return the text response
-        return { success: true, response };
+        // If JSON parsing fails, still include scheduledCall if it was parsed
+        const textResponse = response.replace(/```call-request[\s\S]*?```/, "").trim();
+        return { success: true, response: textResponse, scheduledCall };
       }
     }
 
-    return { success: true, response };
+    // No interactive buttons, but might have scheduledCall
+    const textResponse = response.replace(/```call-request[\s\S]*?```/, "").trim();
+    return { success: true, response: textResponse, scheduledCall };
   } catch (error) {
     console.error("Error generating AI response:", error);
     return {

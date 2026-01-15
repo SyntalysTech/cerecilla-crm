@@ -593,20 +593,45 @@ async function sendAIResponse(
     console.log("AI response sent successfully, messageId:", sendResult.messageId);
 
     // Save the outgoing message to database
-    const { error: insertError } = await supabase.from("whatsapp_messages").insert({
-      cliente_id: clienteId || null,
-      phone_number: formatPhoneNumber(phoneNumber),
-      message_type: "text",
-      content: responseText,
-      direction: "outgoing",
-      wamid: sendResult.messageId || null,
-      status: "sent",
-      sent_at: new Date().toISOString(),
-      sent_by: null, // AI-generated, no user
-    });
+    const { data: savedMessage, error: insertError } = await supabase
+      .from("whatsapp_messages")
+      .insert({
+        cliente_id: clienteId || null,
+        phone_number: formatPhoneNumber(phoneNumber),
+        message_type: "text",
+        content: responseText,
+        direction: "outgoing",
+        wamid: sendResult.messageId || null,
+        status: "sent",
+        sent_at: new Date().toISOString(),
+        sent_by: null, // AI-generated, no user
+      })
+      .select()
+      .single();
 
     if (insertError) {
       console.error("Error saving AI response to database:", insertError);
+    }
+
+    // If AI detected a scheduled call request, save it to the database
+    if (aiResult.scheduledCall && savedMessage) {
+      console.log("Saving scheduled call request:", aiResult.scheduledCall);
+
+      const { error: callError } = await supabase.from("whatsapp_scheduled_calls").insert({
+        phone_number: formatPhoneNumber(phoneNumber),
+        sender_name: senderName || null,
+        service_interest: aiResult.scheduledCall.serviceInterest,
+        requested_datetime: aiResult.scheduledCall.requestedDatetime || null,
+        notes: aiResult.scheduledCall.notes || null,
+        status: "pending",
+        message_id: savedMessage.id,
+      });
+
+      if (callError) {
+        console.error("Error saving scheduled call:", callError);
+      } else {
+        console.log("Scheduled call saved successfully");
+      }
     }
   } catch (error) {
     console.error("Error in sendAIResponse:", error);
