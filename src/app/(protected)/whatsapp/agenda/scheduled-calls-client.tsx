@@ -1,21 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Phone, Clock, MessageSquare, CheckCircle2, XCircle, Trash2 } from "lucide-react";
 import { updateCallStatus, deleteScheduledCall, type ScheduledCall } from "./actions";
-import { toast } from "sonner";
-import { formatDistanceToNow } from "date-fns";
-import { es } from "date-fns/locale";
 
 interface ScheduledCallsClientProps {
   initialCalls: ScheduledCall[];
@@ -34,17 +21,17 @@ const serviceEmojis: Record<string, string> = {
 const statusConfig = {
   pending: {
     label: "Pendiente",
-    color: "bg-yellow-500",
+    color: "bg-yellow-100 text-yellow-800 border-yellow-300",
     icon: Clock,
   },
   completed: {
     label: "Completada",
-    color: "bg-green-500",
+    color: "bg-green-100 text-green-800 border-green-300",
     icon: CheckCircle2,
   },
   cancelled: {
     label: "Cancelada",
-    color: "bg-red-500",
+    color: "bg-red-100 text-red-800 border-red-300",
     icon: XCircle,
   },
 };
@@ -53,12 +40,18 @@ export function ScheduledCallsClient({ initialCalls }: ScheduledCallsClientProps
   const [calls, setCalls] = useState<ScheduledCall[]>(initialCalls);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [filterService, setFilterService] = useState<string>("all");
+  const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
   const filteredCalls = calls.filter((call) => {
     if (filterStatus !== "all" && call.status !== filterStatus) return false;
     if (filterService !== "all" && !call.service_interest.includes(filterService)) return false;
     return true;
   });
+
+  const showMessage = (type: "success" | "error", text: string) => {
+    setMessage({ type, text });
+    setTimeout(() => setMessage(null), 3000);
+  };
 
   const handleStatusChange = async (callId: string, newStatus: "pending" | "completed" | "cancelled") => {
     try {
@@ -68,13 +61,13 @@ export function ScheduledCallsClient({ initialCalls }: ScheduledCallsClientProps
         setCalls(calls.map(call =>
           call.id === callId ? { ...call, status: newStatus } : call
         ));
-        toast.success("Estado actualizado correctamente");
+        showMessage("success", "Estado actualizado correctamente");
       } else {
-        toast.error(result.error || "Error al actualizar el estado");
+        showMessage("error", result.error || "Error al actualizar el estado");
       }
     } catch (error) {
       console.error("Error updating call status:", error);
-      toast.error("Error al actualizar el estado");
+      showMessage("error", "Error al actualizar el estado");
     }
   };
 
@@ -88,13 +81,13 @@ export function ScheduledCallsClient({ initialCalls }: ScheduledCallsClientProps
 
       if (result.success) {
         setCalls(calls.filter(call => call.id !== callId));
-        toast.success("Solicitud eliminada correctamente");
+        showMessage("success", "Solicitud eliminada correctamente");
       } else {
-        toast.error(result.error || "Error al eliminar la solicitud");
+        showMessage("error", result.error || "Error al eliminar la solicitud");
       }
     } catch (error) {
       console.error("Error deleting call:", error);
-      toast.error("Error al eliminar la solicitud");
+      showMessage("error", "Error al eliminar la solicitud");
     }
   };
 
@@ -105,201 +98,182 @@ export function ScheduledCallsClient({ initialCalls }: ScheduledCallsClientProps
     return "📞";
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMins = Math.floor(diffMs / 60000);
+    const diffHours = Math.floor(diffMs / 3600000);
+    const diffDays = Math.floor(diffMs / 86400000);
+
+    if (diffMins < 60) return `hace ${diffMins} minutos`;
+    if (diffHours < 24) return `hace ${diffHours} horas`;
+    return `hace ${diffDays} días`;
+  };
+
   const pendingCount = calls.filter(c => c.status === "pending").length;
   const completedCount = calls.filter(c => c.status === "completed").length;
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6">
+      {/* Message Toast */}
+      {message && (
+        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg ${
+          message.type === "success" ? "bg-green-500 text-white" : "bg-red-500 text-white"
+        }`}>
+          {message.text}
+        </div>
+      )}
+
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Solicitudes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{calls.length}</div>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Total Solicitudes</div>
+          <div className="text-3xl font-bold text-gray-900">{calls.length}</div>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Pendientes
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-yellow-600">{pendingCount}</div>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Pendientes</div>
+          <div className="text-3xl font-bold text-yellow-600">{pendingCount}</div>
+        </div>
 
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-medium text-muted-foreground">
-              Completadas
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-green-600">{completedCount}</div>
-          </CardContent>
-        </Card>
+        <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+          <div className="text-sm font-medium text-gray-600 mb-2">Completadas</div>
+          <div className="text-3xl font-bold text-green-600">{completedCount}</div>
+        </div>
       </div>
 
       {/* Filters */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Filtros</CardTitle>
-        </CardHeader>
-        <CardContent className="flex gap-4">
-          <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block">Estado</label>
-            <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por estado" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="pending">Pendientes</SelectItem>
-                <SelectItem value="completed">Completadas</SelectItem>
-                <SelectItem value="cancelled">Canceladas</SelectItem>
-              </SelectContent>
-            </Select>
+      <div className="bg-white rounded-lg shadow p-6 border border-gray-200">
+        <h3 className="text-lg font-semibold mb-4">Filtros</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium mb-2">Estado</label>
+            <select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Todos</option>
+              <option value="pending">Pendientes</option>
+              <option value="completed">Completadas</option>
+              <option value="cancelled">Canceladas</option>
+            </select>
           </div>
 
-          <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block">Servicio</label>
-            <Select value={filterService} onValueChange={setFilterService}>
-              <SelectTrigger>
-                <SelectValue placeholder="Filtrar por servicio" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="Luz">⚡ Luz</SelectItem>
-                <SelectItem value="Gas">🔥 Gas</SelectItem>
-                <SelectItem value="Telefonía">📱 Telefonía</SelectItem>
-                <SelectItem value="Fibra">🌐 Fibra</SelectItem>
-                <SelectItem value="Seguros">🛡️ Seguros</SelectItem>
-                <SelectItem value="Alarmas">🚨 Alarmas</SelectItem>
-                <SelectItem value="Colaborador">🤝 Colaborador</SelectItem>
-              </SelectContent>
-            </Select>
+          <div>
+            <label className="block text-sm font-medium mb-2">Servicio</label>
+            <select
+              value={filterService}
+              onChange={(e) => setFilterService(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="all">Todos</option>
+              <option value="Luz">⚡ Luz</option>
+              <option value="Gas">🔥 Gas</option>
+              <option value="Telefonía">📱 Telefonía</option>
+              <option value="Fibra">🌐 Fibra</option>
+              <option value="Seguros">🛡️ Seguros</option>
+              <option value="Alarmas">🚨 Alarmas</option>
+              <option value="Colaborador">🤝 Colaborador</option>
+            </select>
           </div>
-        </CardContent>
-      </Card>
+        </div>
+      </div>
 
       {/* Calls List */}
       <div className="space-y-4">
         {filteredCalls.length === 0 ? (
-          <Card>
-            <CardContent className="py-12 text-center text-muted-foreground">
-              No hay solicitudes de llamada
-            </CardContent>
-          </Card>
+          <div className="bg-white rounded-lg shadow p-12 text-center border border-gray-200">
+            <p className="text-gray-500">No hay solicitudes de llamada</p>
+          </div>
         ) : (
           filteredCalls.map((call) => {
             const StatusIcon = statusConfig[call.status].icon;
 
             return (
-              <Card key={call.id}>
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <div className="space-y-1 flex-1">
-                      <div className="flex items-center gap-2">
+              <div key={call.id} className="bg-white rounded-lg shadow border border-gray-200">
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-2">
                         <span className="text-2xl">{getServiceEmoji(call.service_interest)}</span>
-                        <CardTitle className="text-lg">
-                          {call.service_interest}
-                        </CardTitle>
-                        <Badge
-                          variant="secondary"
-                          className={`${statusConfig[call.status].color} text-white`}
-                        >
-                          <StatusIcon className="w-3 h-3 mr-1" />
+                        <h3 className="text-lg font-semibold">{call.service_interest}</h3>
+                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-sm font-medium border ${statusConfig[call.status].color}`}>
+                          <StatusIcon className="w-3 h-3" />
                           {statusConfig[call.status].label}
-                        </Badge>
+                        </span>
                       </div>
-                      <CardDescription>
-                        Hace {formatDistanceToNow(new Date(call.created_at), { locale: es })}
-                      </CardDescription>
+                      <p className="text-sm text-gray-500">{formatDate(call.created_at)}</p>
                     </div>
 
                     <div className="flex gap-2">
-                      <Select
+                      <select
                         value={call.status}
-                        onValueChange={(value) =>
-                          handleStatusChange(call.id, value as "pending" | "completed" | "cancelled")
-                        }
+                        onChange={(e) => handleStatusChange(call.id, e.target.value as "pending" | "completed" | "cancelled")}
+                        className="px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                       >
-                        <SelectTrigger className="w-[140px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="pending">Pendiente</SelectItem>
-                          <SelectItem value="completed">Completada</SelectItem>
-                          <SelectItem value="cancelled">Cancelada</SelectItem>
-                        </SelectContent>
-                      </Select>
+                        <option value="pending">Pendiente</option>
+                        <option value="completed">Completada</option>
+                        <option value="cancelled">Cancelada</option>
+                      </select>
 
-                      <Button
-                        variant="ghost"
-                        size="icon"
+                      <button
                         onClick={() => handleDelete(call.id)}
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        title="Eliminar"
                       >
                         <Trash2 className="w-4 h-4" />
-                      </Button>
+                      </button>
                     </div>
                   </div>
-                </CardHeader>
 
-                <CardContent className="space-y-3">
-                  <div className="flex items-center gap-2 text-sm">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-medium">{call.phone_number}</span>
-                    {call.sender_name && (
-                      <span className="text-muted-foreground">• {call.sender_name}</span>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Phone className="w-4 h-4 text-gray-500" />
+                      <span className="font-medium">{call.phone_number}</span>
+                      {call.sender_name && (
+                        <span className="text-gray-500">• {call.sender_name}</span>
+                      )}
+                    </div>
+
+                    {call.requested_datetime && (
+                      <div className="flex items-center gap-2 text-sm text-gray-600">
+                        <Clock className="w-4 h-4 text-gray-500" />
+                        <span>
+                          Solicita llamada: {new Date(call.requested_datetime).toLocaleString("es-ES", {
+                            dateStyle: "full",
+                            timeStyle: "short",
+                          })}
+                        </span>
+                      </div>
                     )}
-                  </div>
 
-                  {call.requested_datetime && (
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      <span>
-                        Solicita llamada: {new Date(call.requested_datetime).toLocaleString("es-ES", {
-                          dateStyle: "full",
-                          timeStyle: "short",
-                        })}
-                      </span>
-                    </div>
-                  )}
-
-                  {call.notes && (
-                    <div className="flex items-start gap-2 text-sm">
-                      <MessageSquare className="w-4 h-4 text-muted-foreground mt-0.5" />
-                      <div className="flex-1">
-                        <div className="font-medium mb-1">Notas:</div>
-                        <div className="text-muted-foreground bg-muted p-3 rounded-md">
-                          {call.notes}
+                    {call.notes && (
+                      <div className="flex items-start gap-2 text-sm">
+                        <MessageSquare className="w-4 h-4 text-gray-500 mt-0.5" />
+                        <div className="flex-1">
+                          <div className="font-medium mb-1">Notas:</div>
+                          <div className="text-gray-600 bg-gray-50 p-3 rounded-md border border-gray-200">
+                            {call.notes}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {call.message_id && (
-                    <div className="pt-2 border-t">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        asChild
-                      >
-                        <a href={`/whatsapp?message=${call.message_id}`}>
+                    {call.message_id && (
+                      <div className="pt-2 border-t border-gray-200">
+                        <a
+                          href={`/whatsapp?message=${call.message_id}`}
+                          className="inline-block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 border border-blue-300 rounded-md transition-colors"
+                        >
                           Ver conversación completa
                         </a>
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
             );
           })
         )}
