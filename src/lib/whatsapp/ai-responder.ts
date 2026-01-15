@@ -170,9 +170,9 @@ CUÁNDO USAR BOTONES (hazlo siempre que puedas):
 ✅ Para confirmar acciones: "Sí, adelante" / "No, espera"
 
 CÓMO INDICAR QUE QUIERES BOTONES:
-En tu respuesta, incluye EXACTAMENTE este formato JSON al final:
+En tu respuesta, incluye EXACTAMENTE este formato JSON al final (rodeado de tres backticks y la palabra "json"):
 
-```json
+\`\`\`json
 {
   "type": "buttons",
   "buttons": [
@@ -181,10 +181,10 @@ En tu respuesta, incluye EXACTAMENTE este formato JSON al final:
     {"id": "btn_telefonia", "title": "📱 Telefonía"}
   ]
 }
-```
+\`\`\`
 
 O para listas:
-```json
+\`\`\`json
 {
   "type": "list",
   "listButton": "Ver opciones",
@@ -197,7 +197,7 @@ O para listas:
     }
   ]
 }
-```
+\`\`\`
 
 EJEMPLOS DE RESPUESTAS MEJORADAS:
 - "¡Hola! 👋 Soy CereciBot de Cerecilla. Te puedo ahorrar entre 10-30% en tus facturas de luz, gas o telefonía. ¿Qué factura te está doliendo más últimamente? 😅"
