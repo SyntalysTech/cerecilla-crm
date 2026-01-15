@@ -575,10 +575,67 @@ export async function generateAIResponse(
       });
     }
 
-    // Add the current message
+    // Analyze context from recent history to help the model
+    let contextSummary = "";
+    if (recentHistory.length > 0) {
+      const lastAssistantMsg = [...recentHistory].reverse().find(m => m.role === "assistant");
+      const lastUserMsg = [...recentHistory].reverse().find(m => m.role === "user");
+
+      // Detect current conversation mode
+      const historyText = recentHistory.map(m => m.content).join(" ").toLowerCase();
+      const isColaboradorMode = historyText.includes("colaborador") || historyText.includes("🤝") || historyText.includes("laia") || historyText.includes("comision");
+      const isTelefoniaMode = historyText.includes("telefonía") || historyText.includes("fibra") || historyText.includes("📱") || historyText.includes("móvil");
+      const isLuzMode = historyText.includes("luz") || historyText.includes("⚡") && !isColaboradorMode && !isTelefoniaMode;
+      const isGasMode = historyText.includes("gas") || historyText.includes("🔥") && !isColaboradorMode && !isTelefoniaMode;
+      const isAlarmaMode = historyText.includes("alarma") || historyText.includes("🚨");
+      const isSeguroMode = historyText.includes("seguro") || historyText.includes("🛡️");
+
+      // Check if last assistant message asked about Laia contact
+      const askedAboutLaia = lastAssistantMsg?.content.toLowerCase().includes("laia") ||
+                            lastAssistantMsg?.content.toLowerCase().includes("contacto con");
+
+      // Check if last assistant message asked about calling
+      const askedAboutCall = lastAssistantMsg?.content.toLowerCase().includes("que te llamen") ||
+                            lastAssistantMsg?.content.toLowerCase().includes("que me llamen") ||
+                            lastAssistantMsg?.content.toLowerCase().includes("llamar");
+
+      // Build context summary
+      contextSummary = "\n\n[CONTEXTO ACTUAL - LEE ESTO ANTES DE RESPONDER]\n";
+
+      if (isColaboradorMode) {
+        contextSummary += "- MODO: COLABORADORES (NO hables de luz, gas, etc.)\n";
+        if (askedAboutLaia) {
+          contextSummary += "- ⚠️ ÚLTIMO MENSAJE DEL BOT: Preguntó si quiere contacto con Laia\n";
+          contextSummary += "- ⚠️ SI EL USUARIO DICE 'SI': Dale el contacto de Laia (+34 666 207 398, laia.castella@cerecilla.com)\n";
+        }
+      } else if (isTelefoniaMode) {
+        contextSummary += "- MODO: TELEFONÍA/FIBRA (NO hables de luz)\n";
+        if (askedAboutCall) {
+          contextSummary += "- ⚠️ ÚLTIMO MENSAJE DEL BOT: Ofreció llamada sobre TELEFONÍA\n";
+          contextSummary += "- ⚠️ SI EL USUARIO DICE 'SI': Confirma llamada sobre TELEFONÍA, pregunta permanencia\n";
+        }
+      } else if (isLuzMode) {
+        contextSummary += "- MODO: LUZ\n";
+      } else if (isGasMode) {
+        contextSummary += "- MODO: GAS\n";
+      } else if (isAlarmaMode) {
+        contextSummary += "- MODO: ALARMAS (pregunta si tienen alarma actual y permanencia)\n";
+      } else if (isSeguroMode) {
+        contextSummary += "- MODO: SEGUROS (NO ofrezcas llamada, solo pide datos)\n";
+      } else {
+        contextSummary += "- MODO: INICIAL (puede mostrar menú)\n";
+      }
+
+      if (lastAssistantMsg) {
+        contextSummary += `- Último mensaje del bot: "${lastAssistantMsg.content.substring(0, 100)}..."\n`;
+      }
+      contextSummary += "[FIN CONTEXTO]\n\n";
+    }
+
+    // Add the current message WITH context summary
     const userMessage = senderName
-      ? `[Mensaje de ${senderName}]: ${incomingMessage}`
-      : incomingMessage;
+      ? `${contextSummary}[Mensaje de ${senderName}]: ${incomingMessage}`
+      : `${contextSummary}${incomingMessage}`;
 
     messages.push({ role: "user", content: userMessage });
 
@@ -586,7 +643,7 @@ export async function generateAIResponse(
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages,
-      temperature: 0.8, // Increased for more creative button generation
+      temperature: 0.3, // Lower temperature for more consistent, context-aware responses
       max_tokens: 600, // Increased to allow space for JSON
     });
 

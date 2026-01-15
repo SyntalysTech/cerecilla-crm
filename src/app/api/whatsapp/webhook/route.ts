@@ -513,6 +513,15 @@ async function sendAIResponse(
         content: msg.content,
       })) as ConversationMessage[];
 
+    // DEBUG: Log conversation history being sent to AI
+    console.log("=== CONVERSATION HISTORY FOR AI ===");
+    console.log("Total messages in history:", conversationHistory.length);
+    conversationHistory.forEach((msg, i) => {
+      console.log(`[${i}] ${msg.role}: ${msg.content.substring(0, 100)}...`);
+    });
+    console.log("Current incoming message:", incomingContent);
+    console.log("=== END HISTORY ===");
+
     // Generate AI response
     const aiResult = await generateAIResponse(incomingContent, conversationHistory, senderName);
 
