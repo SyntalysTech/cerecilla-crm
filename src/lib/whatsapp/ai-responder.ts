@@ -109,13 +109,13 @@ Es un programa de comisiones donde ganas dinero por cada cliente que nos refiere
 2. **Cargas el cliente** - Lo cargas en la plataforma o lo pasas por WhatsApp al 666 207 398
 3. **Cliente firma y cobras** - Una vez el cliente firma, ya está preparado para ser comisionado
 
-**Requisito importante para cobrar comisiones:**
+**Requisito para cobrar comisiones:**
 Para recibir tus comisiones necesitamos que nos pases **UNA VEZ AL AÑO**:
-- Recibo de autónomo O CIF + escrituras
-Esto nos permite hacerte factura de las comisiones y proceder al pago.
+- Recibo de autónomo O CIF + escrituras (para hacerte factura)
+- ⚠️ IMPORTANTE: Aunque no seas autónomo ni empresa, PUEDES PARTICIPAR. Habla con Laia para buscar una solución (por ejemplo, facturar a través de un conocido autónomo/empresa).
 
 **Más información y registro:**
-- **Web:** https://www.cerecilla.com/contacto
+- **Web:** https://www.cerecilla.com
 - **WhatsApp:** +34 666 207 398
 - **Email:** laia.castella@cerecilla.com
 
@@ -178,7 +178,7 @@ No, nunca te quedarás sin luz ni gas. El cambio se realiza de forma transparent
 Sí, comparamos todos los operadores de fibra óptica del mercado para encontrarte la mejor velocidad y precio. También ofrecemos packs de fibra + móvil.
 
 ### ¿Cómo funciona el programa de colaboradores?
-Es muy sencillo: 1) Nos pasas tus datos y te registramos, 2) Cargas el cliente en la plataforma o lo pasas por WhatsApp al 666 207 398, 3) El cliente firma y ya está listo para ser comisionado. Sin permanencia, cobras desde el primero, sin costes. Para recibir las comisiones necesitas pasar una vez al año: recibo de autónomo O CIF + escrituras (para hacerte factura y proceder al pago). Perfecto para administradores de fincas, agentes inmobiliarios, gestorías o cualquiera con red de contactos. Regístrate en https://www.cerecilla.com/contacto
+Es muy sencillo: 1) Nos pasas tus datos y te registramos, 2) Cargas el cliente en la plataforma o lo pasas por WhatsApp al 666 207 398, 3) El cliente firma y ya está listo para ser comisionado. Sin permanencia, cobras desde el primero, sin costes. Para recibir las comisiones necesitas pasar una vez al año: recibo de autónomo O CIF + escrituras (para hacerte factura y proceder al pago). Perfecto para administradores de fincas, agentes inmobiliarios, gestorías o cualquiera con red de contactos. Regístrate en https://www.cerecilla.com
 `;
 
 const SYSTEM_PROMPT = `Eres CereciBot, el asistente comercial de WhatsApp de Cerecilla. Tu objetivo es CONSEGUIR que el cliente te envíe su factura o agende una llamada para cerrar la venta.
@@ -315,7 +315,7 @@ ESTRATEGIA COMERCIAL - MUY IMPORTANTE:
 
    📱 WhatsApp: +34 666 207 398
    📧 Email: laia.castella@cerecilla.com
-   🌐 Formulario: https://www.cerecilla.com/contacto
+   🌐 Formulario: https://www.cerecilla.com
 
    Ella te explicará todo el proceso en detalle y te registrará en la plataforma. ¿Hay algo más en lo que pueda ayudarte?"
 
@@ -365,6 +365,28 @@ INSTRUCCIONES:
     * ENTONCES debes dar el contacto de Laia (+34 666 207 398, laia.castella@cerecilla.com)
     * NO DEBES hablar de luz, gas, o llamadas sobre facturas
     * ESTE ES EL ERROR MÁS COMÚN: Confundir "si porfa" de colaboradores con "si porfa" de servicios de energía
+
+13. ⚠️ CUANDO PIDAN LLAMADA - SIEMPRE PEDIR TELÉFONO Y HORARIO:
+    * "Para agendar la llamada necesito:
+      📞 Tu número de teléfono (si es diferente a este)
+      🕐 ¿A qué hora te viene bien?"
+    * NO confirmes la llamada hasta tener esta información
+
+14. ⚠️ SI DICEN "NO TENGO FACTURA":
+    * Ofrece alternativas: "No te preocupes, podemos:
+      📞 Llamarte y te ayudamos a encontrarla juntos
+      📝 O cuéntame tus datos básicos: ¿es para casa o negocio? ¿Cuántas personas?"
+    * NO te rindas, siempre ofrece otra opción
+
+15. ⚠️ PREGUNTAS FUERA DE TEMA (fútbol, clima, etc.):
+    * Responde brevemente y REDIRIGE al tema principal
+    * "Jaja, no sé el resultado 😅 Pero lo que sí sé es que te puedo ahorrar en tus facturas. ¿Te interesa?"
+    * NUNCA te quedes hablando de temas que no sean Cerecilla
+
+16. ⚠️ SI NO SON AUTÓNOMO NI EMPRESA (para colaboradores):
+    * "¡No te preocupes! Aunque no seas autónomo ni empresa, puedes participar en el programa.
+      Habla con Laia y buscamos una solución. Muchos colaboradores facturan a través de un conocido autónomo.
+      ¿Te pongo en contacto con ella?"
 
 🔥 USO DE BOTONES INTERACTIVOS - MUY IMPORTANTE:
 Puedes enviar BOTONES INTERACTIVOS para mejorar la experiencia. Tienes 2 opciones:
@@ -756,7 +778,7 @@ También puedes enviarlo a: info@cerecilla.com
 
 📱 WhatsApp: +34 666 207 398
 📧 Email: laia.castella@cerecilla.com
-🌐 Web: https://www.cerecilla.com/contacto
+🌐 Web: https://www.cerecilla.com
 
 Ella te explicará todo el proceso en detalle. ¿Hay algo más en lo que pueda ayudarte?`
         };
@@ -767,13 +789,13 @@ Ella te explicará todo el proceso en detalle. ¿Hay algo más en lo que pueda a
         console.log("STATE MACHINE: User clicked Llamar for Telefonía");
         return {
           success: true,
-          response: `¡Perfecto! Voy a agendar que te llamen para ver las mejores opciones de telefonía y fibra. 📱
+          response: `¡Perfecto! 📱 Voy a agendar una llamada para telefonía y fibra.
 
-Antes de que te llamen, ¿sabes si tienes permanencia con tu operador actual? Es importante tenerlo claro para poder ofrecerte la mejor solución.`,
-          scheduledCall: {
-            serviceInterest: "Telefonía y Fibra",
-            notes: "Cliente quiere que le llamen sobre telefonía/fibra"
-          }
+Para poder llamarte, necesito:
+📞 Tu número de teléfono (si es diferente a este)
+🕐 ¿A qué hora te viene bien que te llamen?
+
+También me ayudaría saber: ¿Tienes permanencia con tu operador actual?`
         };
       }
 
@@ -782,13 +804,11 @@ Antes de que te llamen, ¿sabes si tienes permanencia con tu operador actual? Es
         console.log("STATE MACHINE: User clicked Llamar for Luz");
         return {
           success: true,
-          response: `¡Perfecto! Voy a agendar que te llamen para ver las mejores opciones de luz. ⚡
+          response: `¡Perfecto! ⚡ Voy a agendar una llamada para ver tu ahorro en luz.
 
-Un asesor te contactará pronto para analizar tu situación y encontrarte el mejor ahorro. ¿Hay algo más en lo que pueda ayudarte?`,
-          scheduledCall: {
-            serviceInterest: "Luz",
-            notes: "Cliente quiere que le llamen sobre luz"
-          }
+Para poder llamarte, necesito:
+📞 Tu número de teléfono (si es diferente a este)
+🕐 ¿A qué hora te viene bien que te llamen?`
         };
       }
 
@@ -797,13 +817,11 @@ Un asesor te contactará pronto para analizar tu situación y encontrarte el mej
         console.log("STATE MACHINE: User clicked Llamar for Gas");
         return {
           success: true,
-          response: `¡Perfecto! Voy a agendar que te llamen para ver las mejores opciones de gas. 🔥
+          response: `¡Perfecto! 🔥 Voy a agendar una llamada para ver tu ahorro en gas.
 
-Un asesor te contactará pronto para analizar tu situación. ¿Hay algo más en lo que pueda ayudarte?`,
-          scheduledCall: {
-            serviceInterest: "Gas",
-            notes: "Cliente quiere que le llamen sobre gas"
-          }
+Para poder llamarte, necesito:
+📞 Tu número de teléfono (si es diferente a este)
+🕐 ¿A qué hora te viene bien que te llamen?`
         };
       }
 
@@ -831,6 +849,91 @@ Antes de que te llamen, ¿sabes si tienes permanencia con tu operador actual? Es
             serviceInterest: "Telefonía y Fibra",
             notes: "Cliente confirmó que quiere que le llamen sobre telefonía/fibra"
           }
+        };
+      }
+
+      // CASO 4: Usuario dice que NO tiene factura
+      const noTieneFactura = incomingLower.includes("no tengo factura") ||
+                             incomingLower.includes("no la tengo") ||
+                             incomingLower.includes("no tengo la factura");
+      if (noTieneFactura) {
+        console.log("STATE MACHINE: User doesn't have factura - offering alternatives");
+        return {
+          success: true,
+          response: `¡No te preocupes! 😊 Tenemos otras opciones:
+
+📞 Te llamamos y te ayudamos a encontrar la factura juntos
+📝 O cuéntame un poco: ¿Es para casa o negocio? ¿Cuántas personas viven/trabajan ahí?
+
+Con esa info básica ya puedo darte una idea del ahorro. ¿Qué prefieres?`,
+          interactive: {
+            type: "buttons" as const,
+            text: "¿Qué prefieres?",
+            buttons: [
+              { id: "btn_llamar_ayuda", title: "📞 Que me llamen" },
+              { id: "btn_dar_datos", title: "📝 Dar mis datos" }
+            ]
+          }
+        };
+      }
+
+      // CASO 5: Usuario da horario para llamada (detectar patrones de tiempo)
+      const tieneHorario = incomingLower.match(/(\d{1,2}[:\.]?\d{0,2})|mañana|tarde|noche|ahora|cuando pued/) ||
+                          incomingLower.includes("por la mañana") ||
+                          incomingLower.includes("por la tarde");
+      const botPreguntóHorario = lastAssistantContent.includes("qué hora") ||
+                                  lastAssistantContent.includes("a qué hora") ||
+                                  lastAssistantContent.includes("🕐");
+      if (tieneHorario && botPreguntóHorario) {
+        console.log("STATE MACHINE: User provided time slot - confirming call");
+        // Detectar el servicio del contexto
+        let servicio = "tu consulta";
+        if (lastMsgAboutTelefonia || lastAssistantContent.includes("telefonía")) servicio = "telefonía y fibra";
+        else if (lastMsgAboutLuz || lastAssistantContent.includes("luz")) servicio = "luz";
+        else if (lastAssistantContent.includes("gas")) servicio = "gas";
+
+        return {
+          success: true,
+          response: `¡Perfecto! ✅ Queda agendado. Un asesor te llamará ${incomingMessage.includes("mañana") ? "mañana" : "pronto"} para ayudarte con ${servicio}.
+
+¿Hay algo más en lo que pueda ayudarte?`,
+          scheduledCall: {
+            serviceInterest: servicio.charAt(0).toUpperCase() + servicio.slice(1),
+            requestedDatetime: incomingMessage,
+            notes: `Cliente indicó horario: ${incomingMessage}`
+          }
+        };
+      }
+
+      // CASO 6: Usuario responde que SI tiene alarma actual (para preguntar permanencia)
+      const tieneAlarma = incomingLower.includes("sí, tengo alarma") ||
+                          incomingLower.includes("si tengo alarma") ||
+                          incomingLower.includes("tengo alarma");
+      if (tieneAlarma && lastMsgAboutAlarma) {
+        console.log("STATE MACHINE: User has alarm - asking about permanencia");
+        return {
+          success: true,
+          response: `Vale, entendido. 🚨 Es importante que revises si tienes permanencia con tu compañía actual.
+
+Las alarmas suelen tener contratos de 24-36 meses. ¿Sabes si tienes permanencia? Puedes mirarlo en tu contrato o llamar a tu compañía.
+
+Una vez lo sepas, te llamamos y te explicamos las opciones. ¿Te parece?`
+        };
+      }
+
+      // CASO 7: Usuario responde que NO tiene alarma actual
+      const noTieneAlarma = incomingLower.includes("no tengo alarma") ||
+                            (incomingLower === "no" && lastMsgAboutAlarma);
+      if (noTieneAlarma || (incomingLower.includes("btn_alarma_no") || incomingLower.includes("no tengo"))) {
+        console.log("STATE MACHINE: User has no alarm - proceeding with installation");
+        return {
+          success: true,
+          response: `¡Perfecto! 🚨 Al no tener alarma actual, podemos instalar sin problemas de permanencia.
+
+Para ofrecerte la mejor opción necesito saber:
+📞 Tu número de teléfono (si es diferente a este)
+🕐 ¿A qué hora te viene bien que te llamen?
+🏠 ¿Es para casa o negocio?`
         };
       }
 
