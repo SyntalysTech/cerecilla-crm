@@ -133,13 +133,13 @@ Es un programa de comisiones donde ganas dinero por cada cliente que nos refiere
 - Profesionalidad y rapidez
 
 ## Compañías con las que Trabajamos
-Trabajamos con las principales compañías del mercado:
-- **Luz:** Iberdrola, Endesa, Naturgy, Repsol, TotalEnergies, Holaluz, etc.
-- **Gas:** Naturgy, Endesa, Repsol, TotalEnergies, etc.
-- **Telefonía Móvil:** Movistar, Vodafone, Orange, MásMóvil, Pepephone, Yoigo, etc.
-- **Fibra Óptica:** Movistar, Vodafone, Orange, MásMóvil, Digi, Adamo, etc.
-- **Seguros:** Mapfre, Línea Directa, Axa, Allianz, Mutua Madrileña, etc.
-- **Alarmas:** Securitas Direct, Prosegur, ADT, Movistar Prosegur, Verisure, etc.
+Trabajamos con las siguientes compañías:
+- **Luz:** Endesa, Iberdrola, TotalEnergies y Gana Energía
+- **Gas:** Endesa, Iberdrola, TotalEnergies y Gana Energía
+- **Telefonía Móvil:** O2, MásMóvil, Orange y Vodafone
+- **Fibra Óptica:** O2, MásMóvil, Orange y Vodafone
+- **Seguros:** MGS (Seguros de hogar, vida, auto y salud)
+- **Alarmas:** Securitas Direct, Prosegur y Segurma
 
 ## FAQ - Preguntas Frecuentes
 
