@@ -10,7 +10,15 @@ import {
   type ConversationMessage,
   type InvoiceAnalysis,
 } from "@/lib/whatsapp/ai-responder";
-import { sendTextMessage, formatPhoneNumber, type WhatsAppConfig } from "@/lib/whatsapp/client";
+import {
+  sendTextMessage,
+  sendInteractiveButtons,
+  sendInteractiveList,
+  formatPhoneNumber,
+  type WhatsAppConfig,
+  type InteractiveButton,
+  type InteractiveListSection,
+} from "@/lib/whatsapp/client";
 
 // Use service role for webhook (no user auth context)
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
@@ -534,11 +542,48 @@ async function sendAIResponse(
       accessToken: waConfig.access_token,
     };
 
-    // Send the response via WhatsApp
-    const sendResult = await sendTextMessage(config, {
-      to: phoneNumber,
-      text: responseText,
-    });
+    // Send the response via WhatsApp (with interactive buttons if AI suggested them)
+    let sendResult;
+
+    if (aiResult.interactive && aiResult.interactive.type === "buttons" && aiResult.interactive.buttons) {
+      // Send with quick reply buttons
+      console.log("Sending message with interactive buttons");
+      const buttons: InteractiveButton[] = aiResult.interactive.buttons.map((btn) => ({
+        type: "reply" as const,
+        reply: {
+          id: btn.id,
+          title: btn.title,
+        },
+      }));
+
+      sendResult = await sendInteractiveButtons(config, {
+        to: phoneNumber,
+        text: responseText,
+        buttons,
+      });
+    } else if (
+      aiResult.interactive &&
+      aiResult.interactive.type === "list" &&
+      aiResult.interactive.listSections &&
+      aiResult.interactive.listButton
+    ) {
+      // Send with list
+      console.log("Sending message with interactive list");
+      const sections: InteractiveListSection[] = aiResult.interactive.listSections;
+
+      sendResult = await sendInteractiveList(config, {
+        to: phoneNumber,
+        text: responseText,
+        buttonText: aiResult.interactive.listButton,
+        sections,
+      });
+    } else {
+      // Send regular text message
+      sendResult = await sendTextMessage(config, {
+        to: phoneNumber,
+        text: responseText,
+      });
+    }
 
     if (!sendResult.success) {
       console.error("Failed to send AI response:", sendResult.error);

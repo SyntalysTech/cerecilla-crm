@@ -149,6 +149,56 @@ INSTRUCCIONES:
 6. Usa cifras concretas de ahorro cuando sea posible (10-30%, 150-300€/año, etc.)
 7. NO inventes datos técnicos que no sepas, pero SÍ sé comercialmente agresivo
 
+🔥 USO DE BOTONES INTERACTIVOS - MUY IMPORTANTE:
+Puedes enviar BOTONES INTERACTIVOS para mejorar la experiencia. Tienes 2 opciones:
+
+A) **BOTONES DE RESPUESTA RÁPIDA** (máximo 3 botones de hasta 20 caracteres):
+   - Úsalos cuando quieras que el cliente elija entre 2-3 opciones
+   - Perfectos para: Sí/No, tipos de factura, opciones de contacto
+   - Ejemplo: Al saludar, ofrece "⚡ Luz", "🔥 Gas", "📱 Telefonía"
+
+B) **LISTA DESPLEGABLE** (máximo 10 opciones):
+   - Úsala cuando tengas más de 3 opciones
+   - Perfecta para: Elegir compañía, seleccionar servicio específico
+   - Ejemplo: Lista de todas las comercializadoras
+
+CUÁNDO USAR BOTONES (hazlo siempre que puedas):
+✅ Al saludar: Botones para elegir tipo de factura (Luz/Gas/Telefonía/Seguros)
+✅ Al ofrecer contacto: Botones para "Enviar factura", "Que me llamen", "Enviar email"
+✅ Al preguntar por consumo: Botones para "Casa", "Negocio", "Ambos"
+✅ Cuando mencionen compañía: Lista de compañías para que elijan
+✅ Para confirmar acciones: "Sí, adelante" / "No, espera"
+
+CÓMO INDICAR QUE QUIERES BOTONES:
+En tu respuesta, incluye EXACTAMENTE este formato JSON al final:
+
+```json
+{
+  "type": "buttons",
+  "buttons": [
+    {"id": "btn_luz", "title": "⚡ Luz"},
+    {"id": "btn_gas", "title": "🔥 Gas"},
+    {"id": "btn_telefonia", "title": "📱 Telefonía"}
+  ]
+}
+```
+
+O para listas:
+```json
+{
+  "type": "list",
+  "listButton": "Ver opciones",
+  "sections": [
+    {
+      "rows": [
+        {"id": "opt_iberdrola", "title": "Iberdrola", "description": "Líder en energía"},
+        {"id": "opt_endesa", "title": "Endesa", "description": "Gran cobertura"}
+      ]
+    }
+  ]
+}
+```
+
 EJEMPLOS DE RESPUESTAS MEJORADAS:
 - "¡Hola! 👋 Soy CereciBot de Cerecilla. Te puedo ahorrar entre 10-30% en tus facturas de luz, gas o telefonía. ¿Qué factura te está doliendo más últimamente? 😅"
 - "Perfecto! Si me envías una foto de tu factura, en menos de 24h te digo cuánto te ahorras EXACTAMENTE. ¿Me la pasas por aquí o prefieres que te llame para ayudarte a encontrarla?"
@@ -165,6 +215,16 @@ export interface ConversationMessage {
 export interface AIResponseResult {
   success: boolean;
   response?: string;
+  interactive?: {
+    type: "buttons" | "list";
+    text: string;
+    buttons?: Array<{ id: string; title: string }>;
+    listButton?: string;
+    listSections?: Array<{
+      title?: string;
+      rows: Array<{ id: string; title: string; description?: string }>;
+    }>;
+  };
   error?: string;
 }
 
@@ -215,6 +275,33 @@ export async function generateAIResponse(
 
     if (!response) {
       return { success: false, error: "No response from OpenAI" };
+    }
+
+    // Check if response contains interactive buttons JSON
+    const jsonMatch = response.match(/```json\s*(\{[\s\S]*?\})\s*```/);
+
+    if (jsonMatch) {
+      try {
+        const interactiveData = JSON.parse(jsonMatch[1]);
+        // Remove the JSON from the text response
+        const textResponse = response.replace(/```json[\s\S]*?```/, "").trim();
+
+        return {
+          success: true,
+          response: textResponse,
+          interactive: {
+            type: interactiveData.type,
+            text: textResponse,
+            buttons: interactiveData.buttons,
+            listButton: interactiveData.listButton,
+            listSections: interactiveData.sections,
+          },
+        };
+      } catch (parseError) {
+        console.error("Error parsing interactive JSON:", parseError);
+        // If JSON parsing fails, just return the text response
+        return { success: true, response };
+      }
     }
 
     return { success: true, response };

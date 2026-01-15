@@ -39,6 +39,53 @@ export interface SendTextOptions {
   previewUrl?: boolean;
 }
 
+export interface InteractiveButton {
+  type: "reply";
+  reply: {
+    id: string;
+    title: string; // Max 20 characters
+  };
+}
+
+export interface InteractiveListSection {
+  title?: string; // Max 24 characters
+  rows: Array<{
+    id: string;
+    title: string; // Max 24 characters
+    description?: string; // Max 72 characters
+  }>;
+}
+
+export interface SendInteractiveButtonsOptions {
+  to: string;
+  text: string;
+  buttons: InteractiveButton[]; // Max 3 buttons
+  header?: string;
+  footer?: string;
+}
+
+export interface SendInteractiveListOptions {
+  to: string;
+  text: string;
+  buttonText: string; // Max 20 characters
+  sections: InteractiveListSection[]; // Max 10 rows total
+  header?: string;
+  footer?: string;
+}
+
+export interface SendInteractiveCTAOptions {
+  to: string;
+  text: string;
+  buttons: Array<{
+    type: "phone_number" | "url";
+    phone_number?: string;
+    url?: string;
+    text: string; // Max 20 characters
+  }>;
+  header?: string;
+  footer?: string;
+}
+
 export interface SendMediaOptions {
   to: string;
   type: "image" | "document" | "video" | "audio";
@@ -401,4 +448,278 @@ export function buildTemplateComponents(
       parameters,
     },
   ];
+}
+
+/**
+ * Send an interactive message with reply buttons (max 3 buttons)
+ * BRUTAL: Quick reply buttons for fast user interaction
+ */
+export async function sendInteractiveButtons(
+  config: WhatsAppConfig,
+  options: SendInteractiveButtonsOptions
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const { phoneNumberId, accessToken } = config;
+  const { to, text, buttons, header, footer } = options;
+
+  const formattedPhone = formatPhoneNumber(to);
+
+  if (!isValidPhoneNumber(to)) {
+    return { success: false, error: "Número de teléfono inválido" };
+  }
+
+  if (buttons.length === 0 || buttons.length > 3) {
+    return { success: false, error: "Debe haber entre 1 y 3 botones" };
+  }
+
+  const interactiveBody: Record<string, unknown> = {
+    type: "button",
+    body: { text },
+    action: {
+      buttons: buttons.map((btn) => ({
+        type: "reply",
+        reply: {
+          id: btn.reply.id,
+          title: btn.reply.title.substring(0, 20), // Max 20 chars
+        },
+      })),
+    },
+  };
+
+  if (header) {
+    (interactiveBody as Record<string, unknown>).header = {
+      type: "text",
+      text: header,
+    };
+  }
+
+  if (footer) {
+    (interactiveBody as Record<string, unknown>).footer = {
+      text: footer,
+    };
+  }
+
+  const body = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: formattedPhone,
+    type: "interactive",
+    interactive: interactiveBody,
+  };
+
+  try {
+    const response = await fetch(`${WHATSAPP_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const error = data as WhatsAppError;
+      console.error("WhatsApp Interactive Buttons Error:", error);
+      return {
+        success: false,
+        error: error.error?.message || "Error al enviar botones",
+      };
+    }
+
+    const result = data as WhatsAppMessageResponse;
+    return {
+      success: true,
+      messageId: result.messages?.[0]?.id,
+    };
+  } catch (error) {
+    console.error("WhatsApp API error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error de conexión",
+    };
+  }
+}
+
+/**
+ * Send an interactive message with a list (max 10 options)
+ * BRUTAL: Dropdown list for multiple options without cluttering the chat
+ */
+export async function sendInteractiveList(
+  config: WhatsAppConfig,
+  options: SendInteractiveListOptions
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const { phoneNumberId, accessToken } = config;
+  const { to, text, buttonText, sections, header, footer } = options;
+
+  const formattedPhone = formatPhoneNumber(to);
+
+  if (!isValidPhoneNumber(to)) {
+    return { success: false, error: "Número de teléfono inválido" };
+  }
+
+  const totalRows = sections.reduce((sum, section) => sum + section.rows.length, 0);
+  if (totalRows === 0 || totalRows > 10) {
+    return { success: false, error: "Debe haber entre 1 y 10 opciones en total" };
+  }
+
+  const interactiveBody: Record<string, unknown> = {
+    type: "list",
+    body: { text },
+    action: {
+      button: buttonText.substring(0, 20), // Max 20 chars
+      sections: sections.map((section) => ({
+        title: section.title?.substring(0, 24), // Max 24 chars
+        rows: section.rows.map((row) => ({
+          id: row.id,
+          title: row.title.substring(0, 24), // Max 24 chars
+          description: row.description?.substring(0, 72), // Max 72 chars
+        })),
+      })),
+    },
+  };
+
+  if (header) {
+    (interactiveBody as Record<string, unknown>).header = {
+      type: "text",
+      text: header,
+    };
+  }
+
+  if (footer) {
+    (interactiveBody as Record<string, unknown>).footer = {
+      text: footer,
+    };
+  }
+
+  const body = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: formattedPhone,
+    type: "interactive",
+    interactive: interactiveBody,
+  };
+
+  try {
+    const response = await fetch(`${WHATSAPP_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const error = data as WhatsAppError;
+      console.error("WhatsApp Interactive List Error:", error);
+      return {
+        success: false,
+        error: error.error?.message || "Error al enviar lista",
+      };
+    }
+
+    const result = data as WhatsAppMessageResponse;
+    return {
+      success: true,
+      messageId: result.messages?.[0]?.id,
+    };
+  } catch (error) {
+    console.error("WhatsApp API error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error de conexión",
+    };
+  }
+}
+
+/**
+ * Send an interactive message with Call-to-Action buttons
+ * BRUTAL: Action buttons for phone calls or URLs
+ */
+export async function sendInteractiveCTA(
+  config: WhatsAppConfig,
+  options: SendInteractiveCTAOptions
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const { phoneNumberId, accessToken } = config;
+  const { to, text, buttons, header, footer } = options;
+
+  const formattedPhone = formatPhoneNumber(to);
+
+  if (!isValidPhoneNumber(to)) {
+    return { success: false, error: "Número de teléfono inválido" };
+  }
+
+  if (buttons.length === 0 || buttons.length > 2) {
+    return { success: false, error: "Debe haber entre 1 y 2 botones CTA" };
+  }
+
+  const interactiveBody: Record<string, unknown> = {
+    type: "cta_url",
+    body: { text },
+    action: {
+      name: "cta_url",
+      parameters: {
+        display_text: buttons[0].text.substring(0, 20),
+        url: buttons[0].url || `tel:${buttons[0].phone_number}`,
+      },
+    },
+  };
+
+  if (header) {
+    (interactiveBody as Record<string, unknown>).header = {
+      type: "text",
+      text: header,
+    };
+  }
+
+  if (footer) {
+    (interactiveBody as Record<string, unknown>).footer = {
+      text: footer,
+    };
+  }
+
+  const body = {
+    messaging_product: "whatsapp",
+    recipient_type: "individual",
+    to: formattedPhone,
+    type: "interactive",
+    interactive: interactiveBody,
+  };
+
+  try {
+    const response = await fetch(`${WHATSAPP_API_BASE}/${phoneNumberId}/messages`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      const error = data as WhatsAppError;
+      console.error("WhatsApp Interactive CTA Error:", error);
+      return {
+        success: false,
+        error: error.error?.message || "Error al enviar CTA",
+      };
+    }
+
+    const result = data as WhatsAppMessageResponse;
+    return {
+      success: true,
+      messageId: result.messages?.[0]?.id,
+    };
+  } catch (error) {
+    console.error("WhatsApp API error:", error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : "Error de conexión",
+    };
+  }
 }
