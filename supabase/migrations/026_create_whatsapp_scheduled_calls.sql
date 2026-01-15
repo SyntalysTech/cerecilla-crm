@@ -53,11 +53,20 @@ CREATE POLICY "Allow authenticated users to update scheduled calls"
   TO authenticated
   USING (true);
 
+-- Create function to update updated_at timestamp
+CREATE OR REPLACE FUNCTION update_whatsapp_scheduled_calls_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = NOW();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
 -- Updated timestamp trigger
 CREATE TRIGGER update_whatsapp_scheduled_calls_updated_at
   BEFORE UPDATE ON public.whatsapp_scheduled_calls
   FOR EACH ROW
-  EXECUTE FUNCTION update_updated_at_column();
+  EXECUTE FUNCTION update_whatsapp_scheduled_calls_updated_at();
 
 COMMENT ON TABLE public.whatsapp_scheduled_calls IS 'Stores call requests from WhatsApp bot for calendar/agenda view in CRM';
 COMMENT ON COLUMN public.whatsapp_scheduled_calls.service_interest IS 'Which service the client asked about (Luz, Gas, Telefonía, Fibra, Seguros, Alarmas, Colaborador)';
