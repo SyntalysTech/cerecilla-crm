@@ -575,60 +575,81 @@ export async function generateAIResponse(
       });
     }
 
-    // Analyze context from recent history to help the model
+    // Analyze ONLY the last assistant message to determine current context
+    // This is critical: we need to know what the bot JUST asked, not the whole history
     let contextSummary = "";
     if (recentHistory.length > 0) {
       const lastAssistantMsg = [...recentHistory].reverse().find(m => m.role === "assistant");
-      const lastUserMsg = [...recentHistory].reverse().find(m => m.role === "user");
+      const lastAssistantContent = lastAssistantMsg?.content.toLowerCase() || "";
 
-      // Detect current conversation mode
-      const historyText = recentHistory.map(m => m.content).join(" ").toLowerCase();
-      const isColaboradorMode = historyText.includes("colaborador") || historyText.includes("🤝") || historyText.includes("laia") || historyText.includes("comision");
-      const isTelefoniaMode = historyText.includes("telefonía") || historyText.includes("fibra") || historyText.includes("📱") || historyText.includes("móvil");
-      const isLuzMode = historyText.includes("luz") || historyText.includes("⚡") && !isColaboradorMode && !isTelefoniaMode;
-      const isGasMode = historyText.includes("gas") || historyText.includes("🔥") && !isColaboradorMode && !isTelefoniaMode;
-      const isAlarmaMode = historyText.includes("alarma") || historyText.includes("🚨");
-      const isSeguroMode = historyText.includes("seguro") || historyText.includes("🛡️");
+      // Check what the LAST bot message was about (this determines the current context)
+      const lastMsgAboutLaia = lastAssistantContent.includes("laia") ||
+                               lastAssistantContent.includes("contacto con") ||
+                               lastAssistantContent.includes("programa de colaboradores");
+      const lastMsgAboutColaboradores = lastAssistantContent.includes("colaborador") ||
+                                        lastAssistantContent.includes("comision") ||
+                                        lastAssistantContent.includes("refier");
+      const lastMsgAboutTelefonia = lastAssistantContent.includes("telefonía") ||
+                                    lastAssistantContent.includes("fibra") ||
+                                    lastAssistantContent.includes("móvil") ||
+                                    lastAssistantContent.includes("operador");
+      const lastMsgAboutLuz = lastAssistantContent.includes("luz") && !lastMsgAboutColaboradores;
+      const lastMsgAboutAlarma = lastAssistantContent.includes("alarma");
+      const lastMsgAboutSeguro = lastAssistantContent.includes("seguro");
 
-      // Check if last assistant message asked about Laia contact
-      const askedAboutLaia = lastAssistantMsg?.content.toLowerCase().includes("laia") ||
-                            lastAssistantMsg?.content.toLowerCase().includes("contacto con");
+      // Check if bot asked a yes/no question
+      const askedYesNoQuestion = lastAssistantContent.includes("¿te gustaría") ||
+                                  lastAssistantContent.includes("¿quieres") ||
+                                  lastAssistantContent.includes("¿te pongo en contacto");
 
-      // Check if last assistant message asked about calling
-      const askedAboutCall = lastAssistantMsg?.content.toLowerCase().includes("que te llamen") ||
-                            lastAssistantMsg?.content.toLowerCase().includes("que me llamen") ||
-                            lastAssistantMsg?.content.toLowerCase().includes("llamar");
+      // Check if incoming message is a confirmation
+      const incomingLower = incomingMessage.toLowerCase().trim();
+      const isConfirmation = ["si", "sí", "si porfa", "sí porfa", "vale", "ok", "perfecto", "claro", "adelante", "si porfavor", "sí porfavor"].includes(incomingLower) ||
+                             incomingLower.startsWith("si ") || incomingLower.startsWith("sí ");
 
-      // Build context summary
-      contextSummary = "\n\n[CONTEXTO ACTUAL - LEE ESTO ANTES DE RESPONDER]\n";
+      // Build context summary based on LAST message context
+      contextSummary = "\n\n[CONTEXTO - INSTRUCCIÓN DIRECTA]\n";
 
-      if (isColaboradorMode) {
-        contextSummary += "- MODO: COLABORADORES (NO hables de luz, gas, etc.)\n";
-        if (askedAboutLaia) {
-          contextSummary += "- ⚠️ ÚLTIMO MENSAJE DEL BOT: Preguntó si quiere contacto con Laia\n";
-          contextSummary += "- ⚠️ SI EL USUARIO DICE 'SI': Dale el contacto de Laia (+34 666 207 398, laia.castella@cerecilla.com)\n";
-        }
-      } else if (isTelefoniaMode) {
-        contextSummary += "- MODO: TELEFONÍA/FIBRA (NO hables de luz)\n";
-        if (askedAboutCall) {
-          contextSummary += "- ⚠️ ÚLTIMO MENSAJE DEL BOT: Ofreció llamada sobre TELEFONÍA\n";
-          contextSummary += "- ⚠️ SI EL USUARIO DICE 'SI': Confirma llamada sobre TELEFONÍA, pregunta permanencia\n";
-        }
-      } else if (isLuzMode) {
-        contextSummary += "- MODO: LUZ\n";
-      } else if (isGasMode) {
-        contextSummary += "- MODO: GAS\n";
-      } else if (isAlarmaMode) {
-        contextSummary += "- MODO: ALARMAS (pregunta si tienen alarma actual y permanencia)\n";
-      } else if (isSeguroMode) {
-        contextSummary += "- MODO: SEGUROS (NO ofrezcas llamada, solo pide datos)\n";
-      } else {
-        contextSummary += "- MODO: INICIAL (puede mostrar menú)\n";
+      // CRITICAL: If bot asked about Laia and user confirms, give Laia's contact
+      if (lastMsgAboutLaia && isConfirmation) {
+        contextSummary += "⚠️ ACCIÓN REQUERIDA: El usuario confirmó que quiere contacto con Laia.\n";
+        contextSummary += "RESPONDE EXACTAMENTE CON ESTO:\n";
+        contextSummary += "\"¡Perfecto! Te paso el contacto directo de Laia, que gestiona el programa de colaboradores:\n";
+        contextSummary += "📱 WhatsApp: +34 666 207 398\n";
+        contextSummary += "📧 Email: laia.castella@cerecilla.com\n";
+        contextSummary += "🌐 Web: https://www.cerecilla.com/contacto\n";
+        contextSummary += "Ella te explicará todo. ¿Hay algo más en lo que pueda ayudarte?\"\n";
+        contextSummary += "NO HABLES DE LUZ, GAS NI FACTURAS.\n";
+      }
+      // If bot was talking about colaboradores (but not yet asked about Laia)
+      else if (lastMsgAboutColaboradores && !lastMsgAboutLaia) {
+        contextSummary += "TEMA ACTUAL: Programa de colaboradores\n";
+        contextSummary += "NO hables de luz, gas, ni facturas. Solo de colaboradores.\n";
+      }
+      // If bot was talking about telefonía and user confirms call
+      else if (lastMsgAboutTelefonia && isConfirmation && askedYesNoQuestion) {
+        contextSummary += "⚠️ ACCIÓN REQUERIDA: El usuario confirmó sobre TELEFONÍA/FIBRA.\n";
+        contextSummary += "Confirma la acción sobre TELEFONÍA (no luz). Pregunta por permanencia si aplica.\n";
+      }
+      // If bot was talking about luz
+      else if (lastMsgAboutLuz) {
+        contextSummary += "TEMA ACTUAL: Luz/Energía\n";
+      }
+      // If bot was talking about alarmas
+      else if (lastMsgAboutAlarma) {
+        contextSummary += "TEMA ACTUAL: Alarmas\n";
+        contextSummary += "Recuerda preguntar si tienen alarma actual y sobre permanencia.\n";
+      }
+      // If bot was talking about seguros
+      else if (lastMsgAboutSeguro) {
+        contextSummary += "TEMA ACTUAL: Seguros\n";
+        contextSummary += "NO ofrezcas llamada. Solo pide datos por WhatsApp o email.\n";
+      }
+      // Default
+      else {
+        contextSummary += "Sin contexto específico. Responde según el mensaje del usuario.\n";
       }
 
-      if (lastAssistantMsg) {
-        contextSummary += `- Último mensaje del bot: "${lastAssistantMsg.content.substring(0, 100)}..."\n`;
-      }
       contextSummary += "[FIN CONTEXTO]\n\n";
     }
 
