@@ -109,6 +109,11 @@ Es un programa de comisiones donde ganas dinero por cada cliente que nos refiere
 2. **Cargas el cliente** - Lo cargas en la plataforma o lo pasas por WhatsApp al 666 207 398
 3. **Cliente firma y cobras** - Una vez el cliente firma, ya está preparado para ser comisionado
 
+**Requisito importante para cobrar comisiones:**
+Para recibir tus comisiones necesitamos que nos pases **UNA VEZ AL AÑO**:
+- Recibo de autónomo O CIF + escrituras
+Esto nos permite hacerte factura de las comisiones y proceder al pago.
+
 **Más información y registro:**
 - **Web:** https://www.cerecilla.com/contacto
 - **WhatsApp:** +34 666 207 398
@@ -173,7 +178,7 @@ No, nunca te quedarás sin luz ni gas. El cambio se realiza de forma transparent
 Sí, comparamos todos los operadores de fibra óptica del mercado para encontrarte la mejor velocidad y precio. También ofrecemos packs de fibra + móvil.
 
 ### ¿Cómo funciona el programa de colaboradores?
-Es muy sencillo: 1) Nos pasas tus datos y te registramos, 2) Cargas el cliente en la plataforma o lo pasas por WhatsApp al 666 207 398, 3) El cliente firma y ya está listo para ser comisionado. Sin permanencia, cobras desde el primero, sin costes. Perfecto para administradores de fincas, agentes inmobiliarios, gestorías o cualquiera con red de contactos. Regístrate en https://www.cerecilla.com/contacto
+Es muy sencillo: 1) Nos pasas tus datos y te registramos, 2) Cargas el cliente en la plataforma o lo pasas por WhatsApp al 666 207 398, 3) El cliente firma y ya está listo para ser comisionado. Sin permanencia, cobras desde el primero, sin costes. Para recibir las comisiones necesitas pasar una vez al año: recibo de autónomo O CIF + escrituras (para hacerte factura y proceder al pago). Perfecto para administradores de fincas, agentes inmobiliarios, gestorías o cualquiera con red de contactos. Regístrate en https://www.cerecilla.com/contacto
 `;
 
 const SYSTEM_PROMPT = `Eres CereciBot, el asistente comercial de WhatsApp de Cerecilla. Tu objetivo es CONSEGUIR que el cliente te envíe su factura o agende una llamada para cerrar la venta.
@@ -238,6 +243,9 @@ ESTRATEGIA COMERCIAL - MUY IMPORTANTE:
      1. Nos pasas tus datos y te registramos en la plataforma
      2. Cargas el cliente en la plataforma o lo pasas por WhatsApp al 666 207 398
      3. Cliente firma y ya está preparado para ser comisionado
+   - REQUISITO IMPORTANTE para cobrar:
+     * Una vez al año debes pasar: recibo de autónomo O CIF + escrituras
+     * Esto permite hacer factura de comisiones y proceder al pago
    - ENLACES IMPORTANTES:
      * Formulario de contacto: https://www.cerecilla.com/contacto
      * WhatsApp Laia: +34 666 207 398
