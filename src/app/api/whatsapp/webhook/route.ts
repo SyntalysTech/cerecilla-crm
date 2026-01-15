@@ -497,11 +497,13 @@ async function sendAIResponse(
   try {
     console.log("Generating AI response for:", { phoneNumber, incomingContent, senderName });
 
-    // Get conversation history (last 20 messages for context)
+    // Get conversation history - only from last 2 hours to avoid mixing old conversations
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
     const { data: historyData } = await supabase
       .from("whatsapp_messages")
       .select("content, direction, created_at")
       .eq("phone_number", phoneNumber)
+      .gte("created_at", twoHoursAgo)  // Only messages from last 2 hours
       .order("created_at", { ascending: true })
       .limit(20);
 

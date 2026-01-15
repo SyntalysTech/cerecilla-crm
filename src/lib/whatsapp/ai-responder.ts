@@ -607,10 +607,145 @@ export async function generateAIResponse(
       const isConfirmation = ["si", "sí", "si porfa", "sí porfa", "vale", "ok", "perfecto", "claro", "adelante", "si porfavor", "sí porfavor"].includes(incomingLower) ||
                              incomingLower.startsWith("si ") || incomingLower.startsWith("sí ");
 
+      // Check if user just selected a menu option
+      const userSelectedColaborador = incomingLower.includes("colaborador") || incomingLower.includes("🤝");
+      const userSelectedTelefonia = incomingLower.includes("telefonía") || incomingLower.includes("fibra") || incomingLower.includes("📱");
+      const userSelectedLuz = incomingLower.includes("luz") || incomingLower.includes("⚡");
+      const userSelectedGas = incomingLower.includes("gas") || incomingLower.includes("🔥");
+      const userSelectedAlarma = incomingLower.includes("alarma") || incomingLower.includes("🚨");
+      const userSelectedSeguro = incomingLower.includes("seguro") || incomingLower.includes("🛡");
+
       // ============================================================
       // MÁQUINA DE ESTADOS: Respuestas hardcodeadas para casos críticos
       // Esto NO depende del LLM - es 100% determinístico
       // ============================================================
+
+      // CASO 0: Usuario acaba de seleccionar "Ser Colaborador" del menú
+      if (userSelectedColaborador) {
+        console.log("STATE MACHINE: User selected Colaborador - returning info about program");
+        return {
+          success: true,
+          response: `¡Genial! 🤝 El programa de colaboradores es una oportunidad excelente para ganar comisiones. Te explico:
+
+✅ *Sin permanencia* - Libertad total
+✅ *Cobras desde el primero* - Cada cliente cuenta
+✅ *Sin costes de entrada* - Registrarte es gratis
+✅ *Sin límites* - Cuantos más clientes, más ganas
+
+*El proceso es muy simple:*
+1. Te registramos en nuestra plataforma
+2. Nos pasas los datos de tus clientes
+3. Cuando firman, ¡cobras tu comisión!
+
+¿Te gustaría que te ponga en contacto con Laia para que te explique todo en detalle?`
+        };
+      }
+
+      // CASO 0b: Usuario selecciona Telefonía/Fibra
+      if (userSelectedTelefonia) {
+        console.log("STATE MACHINE: User selected Telefonía - returning telefonía intro");
+        return {
+          success: true,
+          response: `¡Perfecto! 📱🌐 Te ayudo con telefonía y fibra.
+
+Comparamos todas las operadoras del mercado para encontrarte la mejor tarifa. Normalmente conseguimos ahorros del 20-40% en telefonía.
+
+Para darte la mejor opción, ¿qué prefieres?`,
+          interactive: {
+            type: "buttons" as const,
+            text: "¿Cómo prefieres continuar?",
+            buttons: [
+              { id: "btn_factura_tel", title: "📷 Enviar factura" },
+              { id: "btn_llamar_tel", title: "📞 Que me llamen" }
+            ]
+          }
+        };
+      }
+
+      // CASO 0c: Usuario selecciona Luz
+      if (userSelectedLuz) {
+        console.log("STATE MACHINE: User selected Luz - returning luz intro");
+        return {
+          success: true,
+          response: `¡Perfecto! ⚡ Te ayudo a ahorrar en tu factura de luz.
+
+Trabajamos con las principales comercializadoras y normalmente conseguimos ahorros del 10-30% en la factura.
+
+Para darte la mejor opción, ¿qué prefieres?`,
+          interactive: {
+            type: "buttons" as const,
+            text: "¿Cómo prefieres continuar?",
+            buttons: [
+              { id: "btn_factura_luz", title: "📷 Enviar factura" },
+              { id: "btn_llamar_luz", title: "📞 Que me llamen" }
+            ]
+          }
+        };
+      }
+
+      // CASO 0d: Usuario selecciona Gas
+      if (userSelectedGas) {
+        console.log("STATE MACHINE: User selected Gas - returning gas intro");
+        return {
+          success: true,
+          response: `¡Perfecto! 🔥 Te ayudo a ahorrar en tu factura de gas.
+
+Comparamos las mejores tarifas del mercado y normalmente conseguimos ahorros del 10-25%.
+
+Para darte la mejor opción, ¿qué prefieres?`,
+          interactive: {
+            type: "buttons" as const,
+            text: "¿Cómo prefieres continuar?",
+            buttons: [
+              { id: "btn_factura_gas", title: "📷 Enviar factura" },
+              { id: "btn_llamar_gas", title: "📞 Que me llamen" }
+            ]
+          }
+        };
+      }
+
+      // CASO 0e: Usuario selecciona Alarma
+      if (userSelectedAlarma) {
+        console.log("STATE MACHINE: User selected Alarma - returning alarma intro");
+        return {
+          success: true,
+          response: `¡Perfecto! 🚨 Te ayudo con sistemas de alarma.
+
+Trabajamos con Securitas Direct, Prosegur y otras compañías para encontrarte la mejor opción.
+
+Primero necesito saber: ¿Tienes actualmente alguna alarma instalada?`,
+          interactive: {
+            type: "buttons" as const,
+            text: "¿Tienes alarma actualmente?",
+            buttons: [
+              { id: "btn_alarma_si", title: "Sí, tengo alarma" },
+              { id: "btn_alarma_no", title: "No tengo alarma" }
+            ]
+          }
+        };
+      }
+
+      // CASO 0f: Usuario selecciona Seguro
+      if (userSelectedSeguro) {
+        console.log("STATE MACHINE: User selected Seguro - returning seguro intro (NO CALL OPTION)");
+        return {
+          success: true,
+          response: `¡Perfecto! 🛡️ Te ayudo con seguros.
+
+Para poder buscarte las mejores opciones, necesito que me envíes:
+
+📋 Tipo de seguro que te interesa (hogar, vida, auto, salud)
+📄 Si tienes póliza actual, mándame una foto o los datos básicos
+
+También puedes enviarlo a: info@cerecilla.com
+
+¿Qué tipo de seguro te interesa?`
+        };
+      }
+
+      // Check if user clicked "Que me llamen" button
+      const userClickedLlamar = incomingLower.includes("que me llamen") || incomingLower.includes("📞");
+      const userClickedFactura = incomingLower.includes("enviar factura") || incomingLower.includes("📷");
 
       // CASO 1: Bot preguntó por Laia y usuario confirma -> DAR CONTACTO DIRECTAMENTE
       if (lastMsgAboutLaia && isConfirmation) {
@@ -627,7 +762,64 @@ Ella te explicará todo el proceso en detalle. ¿Hay algo más en lo que pueda a
         };
       }
 
-      // CASO 2: Bot ofreció llamada sobre telefonía y usuario confirma
+      // CASO 2: Usuario pulsó "Que me llamen" para TELEFONÍA
+      if (userClickedLlamar && lastMsgAboutTelefonia) {
+        console.log("STATE MACHINE: User clicked Llamar for Telefonía");
+        return {
+          success: true,
+          response: `¡Perfecto! Voy a agendar que te llamen para ver las mejores opciones de telefonía y fibra. 📱
+
+Antes de que te llamen, ¿sabes si tienes permanencia con tu operador actual? Es importante tenerlo claro para poder ofrecerte la mejor solución.`,
+          scheduledCall: {
+            serviceInterest: "Telefonía y Fibra",
+            notes: "Cliente quiere que le llamen sobre telefonía/fibra"
+          }
+        };
+      }
+
+      // CASO 2b: Usuario pulsó "Que me llamen" para LUZ
+      if (userClickedLlamar && lastMsgAboutLuz) {
+        console.log("STATE MACHINE: User clicked Llamar for Luz");
+        return {
+          success: true,
+          response: `¡Perfecto! Voy a agendar que te llamen para ver las mejores opciones de luz. ⚡
+
+Un asesor te contactará pronto para analizar tu situación y encontrarte el mejor ahorro. ¿Hay algo más en lo que pueda ayudarte?`,
+          scheduledCall: {
+            serviceInterest: "Luz",
+            notes: "Cliente quiere que le llamen sobre luz"
+          }
+        };
+      }
+
+      // CASO 2c: Usuario pulsó "Que me llamen" para GAS
+      if ((userClickedLlamar && lastMsgAboutSeguro === false) && (lastAssistantContent.includes("gas") || lastAssistantContent.includes("🔥"))) {
+        console.log("STATE MACHINE: User clicked Llamar for Gas");
+        return {
+          success: true,
+          response: `¡Perfecto! Voy a agendar que te llamen para ver las mejores opciones de gas. 🔥
+
+Un asesor te contactará pronto para analizar tu situación. ¿Hay algo más en lo que pueda ayudarte?`,
+          scheduledCall: {
+            serviceInterest: "Gas",
+            notes: "Cliente quiere que le llamen sobre gas"
+          }
+        };
+      }
+
+      // CASO 2d: Usuario pulsó "Enviar factura"
+      if (userClickedFactura) {
+        console.log("STATE MACHINE: User clicked Enviar Factura");
+        const servicio = lastMsgAboutTelefonia ? "telefonía/fibra" : lastMsgAboutLuz ? "luz" : "tu servicio";
+        return {
+          success: true,
+          response: `¡Genial! 📷 Envíame una foto de tu factura de ${servicio} y la analizaré para encontrarte el mejor ahorro.
+
+Puedes hacer una foto con el móvil y enviarla directamente aquí. ¡Es muy fácil!`
+        };
+      }
+
+      // CASO 3: Confirmación genérica después de pregunta sobre telefonía
       if (lastMsgAboutTelefonia && isConfirmation && askedYesNoQuestion) {
         console.log("STATE MACHINE: Telefonía call confirmed - returning hardcoded response");
         return {
